@@ -1,0 +1,151 @@
+[tool.poetry]
+name = "fuseline"
+version = "0.0.0"
+description = "Workflow runner for Python workloads."
+license = "MIT"
+authors = ["Sam Hart <contact@justsam.io>"]
+repository = "https://github.com/jsam/fuseline"
+homepage = "https://jsam.github.io/fuseline"
+readme = "README.md"
+packages = [{include = "fuseline"}]
+#keywords = ["add", "keywords", "here"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Framework :: AsyncIO",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Typing :: Typed"
+]
+
+[tool.poetry-dynamic-versioning]
+enable = false
+
+[tool.setuptools]
+packages = ["fuseline"]
+
+[build-system]
+requires = ["poetry-core", "poetry-dynamic-versioning"]
+build-backend = "poetry_dynamic_versioning.backend"
+
+[tool.poetry.scripts]
+fuse =  "fuseline.cli.__main__:cli"
+
+############################
+### Package requirements ###
+############################
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.13"
+
+networkx = "^3.3"
+numpy = "^2.0.0"
+filelock = "^3.15.4"
+
+click = "^8.1.7"
+toml = "^0.10.2"
+typeguard = "^4.3.0"
+tabulate = "^0.9.0"
+colorama = "^0.4.6"
+pydantic = "^2.8.2"
+[tool.poetry.group.dev]
+optional = true
+
+[tool.poetry.group.dev.dependencies]
+coverage = ">=6.5.0"
+mkdocs = ">=1.4.3"
+mkdocstrings = { version = ">=0.24.0", extras = ["python"] }
+mkdocs-awesome-pages-plugin = "*"
+mkdocs-macros-adr-summary = "*"
+mkdocs-gen-files = ">=0.5.0"
+mkdocs-material = ">=9.1.16"
+mike = ">=2.0.0"
+mypy = ">=0.990"
+pymdown-extensions = ">=10.0.1"
+pytest = "^8.0.0"
+pytest-asyncio = ">=0.20.3"
+pytest-cov = ">=4.0.0"
+pytest-factoryboy = ">=2.5.0"
+pytest-xdist = ">=3.0.2"
+ruff = ">=0.0.263"
+tox = ">=4.12.1"
+
+############################
+### Tools configuration  ###
+############################
+
+[tool.coverage.run]
+branch = true
+source = ["fuseline"]
+# It's not necessary to configure concurrency here
+# because pytest-cov takes care of that
+
+[tool.coverage.report]
+fail_under = 100
+exclude_also = [
+    "pragma: no cover",
+    "pass",
+    "\\.\\.\\.",
+    ]
+
+[tool.mypy]
+files = "fuseline"
+python_version = "3.10"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+minversion = "6.0"
+addopts = "-n auto --cov-report=term-missing"
+testpaths = [
+    "tests",
+]
+
+[tool.ruff]
+extend-exclude = ["docs", ".tox"]
+target-version = "py38"
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle
+    "W",  # pycodestyle
+    "F",  # pyflakes
+    "I",  # isort
+    "N",  # pep8-naming
+    "S",  # flake8-bandit
+    "RUF",  # ruff-specific-rules
+]
+# Ignoring rules problematic with formatter
+# https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules
+ignore = [
+    "W191",
+    "E111",
+    "E114",
+    "E117",
+    "D206",
+    "D300",
+    "Q000",
+    "Q001",
+    "Q002",
+    "Q003",
+    "COM812",
+    "COM819",
+    "ISC001",
+    "ISC002",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]  # Ignore unused imports on init files
+"tests/**/*.py" = ["S101"]  # Allow assert usage on tests
+
+[tool.fuseline.config]
+engine = "SerialEngine"
+
+[tool.fuseline.workflows]
+fake_eval = [
+    "fuseline.workflows.fake_eval.evaluate_model",
+]
