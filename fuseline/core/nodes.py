@@ -2,14 +2,14 @@ import inspect
 from typing import Any, Callable, Dict, List, Optional, Union
 
 from networkx.classes.multidigraph import MultiDiGraph
-from typeguard import check_type, TypeCheckError
+from typeguard import TypeCheckError, check_type
 
 
-class GearException(Exception):
+class NodeRaisedError(Exception):
     """Gear exception."""
 
     def __init__(self, gear: "GearNode", params: Dict[str, Any], raised: BaseException) -> None:
-        """"Gear exception constructor."""
+        """ "Gear exception constructor."""
         self.gear = gear
         self.params = params
         self.raised_exception = raised
@@ -17,11 +17,11 @@ class GearException(Exception):
         super().__init__(self.raised_exception)
 
 
-class InvalidGraph(Exception):
+class InvalidGraphError(Exception):
     """Invalid graph structure found."""
 
     def __init__(self, msg: str, **kwargs: Any) -> None:
-        """"Gear exception constructor."""
+        """ "Gear exception constructor."""
         self.msg = msg
         self.params: Dict[str, Any] = kwargs
 
@@ -90,7 +90,7 @@ class GearNode(Signature):
         try:
             result = self._func(**params)
         except BaseException as e:
-            raise GearException(self, params, e)
+            raise NodeRaisedError(self, params, e)
 
         return result
 

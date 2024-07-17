@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from fuseline.core.abc import EngineAPI, NetworkAPI
-from fuseline.core.nodes import DataNode, GearNode, InvalidGraph, OutputNode
+from fuseline.core.nodes import DataNode, GearNode, InvalidGraphError, OutputNode
 
 
 class SerialEngine(EngineAPI):
@@ -22,10 +22,12 @@ class SerialEngine(EngineAPI):
 
         data_node: OutputNode
         for data_node in self._network.compute_next():
-
             predeccesors: List[GearNode] = list(self._network.graph.predecessors(data_node))  # type: ignore
             if len(predeccesors) != 1:
-                raise InvalidGraph(f"found a data node produced by multiple gears: {predeccesors}", gears=predeccesors)
+                raise InvalidGraphError(
+                    f"found a data node produced by multiple gears: {predeccesors}",
+                    gears=predeccesors,
+                )
 
             gear = predeccesors[0]
             result = gear(gear.input_values)
@@ -86,7 +88,10 @@ class PoolEngine(EngineAPI):
         for data_node in self._network.compute_next():
             predeccesors: List[GearNode] = list(self._network.graph.predecessors(data_node))  # type: ignore
             if len(predeccesors) != 1:
-                raise InvalidGraph(f"found a data node produced by multiple gears: {predeccesors}", gears=predeccesors)
+                raise InvalidGraphError(
+                    f"found a data node produced by multiple gears: {predeccesors}",
+                    gears=predeccesors,
+                )
 
             gear_node = predeccesors[0]
             future = self._executor.submit(gear_node, kwargs=gear_node.input_values)
@@ -186,7 +191,10 @@ class DaskEngine(EngineAPI):
         for data_node in self._network.compute_next():
             predeccesors: List[GearNode] = list(self._network.graph.predecessors(data_node))  # type: ignore
             if len(predeccesors) != 1:
-                raise InvalidGraph(f"found a data node produced by multiple gears: {predeccesors}", gears=predeccesors)
+                raise InvalidGraphError(
+                    f"found a data node produced by multiple gears: {predeccesors}",
+                    gears=predeccesors,
+                )
 
             gear = predeccesors[0]
             data_node.set_value(gear(gear.input_values))

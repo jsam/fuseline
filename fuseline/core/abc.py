@@ -1,5 +1,5 @@
 import abc
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional, Type, Union
 
 import networkx
 
@@ -87,6 +87,24 @@ class NetworkAPI(metaclass=abc.ABCMeta):
 
     def set_input(self, input_data: Dict[str, Any]) -> None:
         """Set input data for the graph computation."""
+        raise NotImplementedError
+
+    def print_outputs(self, tabular: bool = True, colored: bool = True, as_json: bool = False) -> Union[str, None]:
+        """
+        Print or return a formatted representation of the graph outputs.
+
+        Args:
+        tabular (bool): If True, format output as a table (ignored if as_json is True).
+        colored (bool): If True, use colors in the output (ignored if as_json is True).
+        as_json (bool): If True, return the result as a JSON string.
+
+        Returns:
+        Union[str, None]: JSON string if as_json is True, None otherwise (prints to console).
+        """
+        raise NotImplementedError
+
+    def run(self, **kwargs: Any) -> "NetworkAPI":
+        """Compute all data nodes of the network."""
         raise NotImplementedError
 
 

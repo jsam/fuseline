@@ -42,17 +42,17 @@ fuse =  "fuseline.cli.__main__:cli"
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.13"
-
 networkx = "^3.3"
-numpy = "^2.0.0"
+numpy = "1.26.3"
 filelock = "^3.15.4"
-
 click = "^8.1.7"
 toml = "^0.10.2"
 typeguard = "^4.3.0"
 tabulate = "^0.9.0"
 colorama = "^0.4.6"
 pydantic = "^2.8.2"
+
+pydot = "^3.0.1"
 [tool.poetry.group.dev]
 optional = true
 
@@ -74,11 +74,16 @@ pytest-factoryboy = ">=2.5.0"
 pytest-xdist = ">=3.0.2"
 ruff = ">=0.0.263"
 tox = ">=4.12.1"
+pytest-mock = "^3.14.0"
+
 
 ############################
 ### Tools configuration  ###
 ############################
-
+types-networkx = "^3.2.1.20240703"
+types-colorama = "^0.4.15.20240311"
+types-tabulate = "^0.9.0.20240106"
+types-toml = "^0.10.8.20240310"
 [tool.coverage.run]
 branch = true
 source = ["fuseline"]
@@ -108,6 +113,7 @@ testpaths = [
 [tool.ruff]
 extend-exclude = ["docs", ".tox"]
 target-version = "py38"
+line-length = 120
 
 [tool.ruff.lint]
 select = [

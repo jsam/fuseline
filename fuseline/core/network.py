@@ -11,7 +11,6 @@ from typing import (
     Set,
     Tuple,
     Type,
-    TypeVar,
     Union,
 )
 
@@ -33,13 +32,12 @@ from fuseline.core.nodes import (
     NetworkNode,
     OutputNode,
 )
-
-T = TypeVar("T")
-Maybe = Union[Any, T]
+from fuseline.typing import T
 
 
-class WorkflowNotFoundException(Exception):
+class WorkflowNotFoundError(Exception):
     """Workflow not found exception."""
+
     pass
 
 
@@ -97,7 +95,7 @@ class NetworkPropertyMixin(NetworkAPI):
     @property
     def plot(self) -> NetworkPlotAPI:
         """Plot the network."""
-        from datagears.core.plot import NetworkPlot
+        from fuseline.core.plot import NetworkPlot
 
         return NetworkPlot(self._graph)
 
@@ -125,7 +123,9 @@ class NetworkPropertyMixin(NetworkAPI):
     @property
     def input_shape(self) -> Dict[str, Type[Any]]:
         """Returns input shape of the computational graph."""
-        inputs: Dict[str, Type[Any]] = {node.name: node.annotation for node in self._graph.nodes if isinstance(node, GearInput)}  # type: ignore
+        inputs: Dict[str, Type[Any]] = {
+            node.name: node.annotation for node in self._graph.nodes if isinstance(node, GearInput)
+        }  # type: ignore
 
         return inputs
 
@@ -139,7 +139,9 @@ class NetworkPropertyMixin(NetworkAPI):
     @property
     def outputs(self) -> List[OutputNode]:
         """Return all outputs of a graph."""
-        outputs: List[OutputNode] = [node for node in self._graph.nodes if isinstance(node, GearInputOutput) or isinstance(node, GearOutput)]  # type: ignore
+        outputs: List[OutputNode] = [
+            node for node in self._graph.nodes if isinstance(node, GearInputOutput) or isinstance(node, GearOutput)
+        ]  # type: ignore
 
         return outputs
 
@@ -183,23 +185,30 @@ class NetworkPropertyMixin(NetworkAPI):
 
             is_empty = "Yes" if node.is_empty else "No"
 
-            table_data.append([
-                status,
-                str(node.annotation),
-                is_empty,
-                node.name,
-                str(node.value),
-            ])
+            table_data.append(
+                [
+                    status,
+                    str(node.annotation),
+                    is_empty,
+                    node.name,
+                    str(node.value),
+                ]
+            )
 
         if tabular:
-            headers = ["Node", "Type", "Is Empty", "Name", "Output", ]
+            headers = [
+                "Node",
+                "Type",
+                "Is Empty",
+                "Name",
+                "Output",
+            ]
             table = tabulate(table_data, headers=headers, tablefmt="grid")
             output = f"{table}"
         else:
             output = "\n\n"
             for row in table_data:
-                output += (f"Node: {row[0]}, Type: {row[1]}, "
-                           f"Is Empty: {row[2]}, Name: {row[3]}, Output: {row[4]}\n")
+                output += f"Node: {row[0]}, Type: {row[1]}, " f"Is Empty: {row[2]}, Name: {row[3]}, Output: {row[4]}\n"
 
         return output
 
@@ -272,7 +281,8 @@ class Network(NetworkPropertyMixin):
             dst
             for r in self.roots
             for _, dst in bfs_edges(self._graph, r)  # type: ignore
-            if (isinstance(dst, GearOutput) or isinstance(dst, GearInputOutput)) and dst.is_empty  # TODO: check for 'OutputNode'
+            if (isinstance(dst, GearOutput) or isinstance(dst, GearInputOutput))
+            and dst.is_empty  # TODO: check for 'OutputNode'
         }
 
         # NOTE: For each `DataNode`, build set of descendants.
@@ -321,7 +331,11 @@ class Network(NetworkPropertyMixin):
 
             table_data.append([key, expected_value, provided_value, status])
 
-        table = tabulate(table_data, headers=["Key", "Expected", "Provided", "Status"], tablefmt="grid")
+        table = tabulate(
+            table_data,
+            headers=["Key", "Expected", "Provided", "Status"],
+            tablefmt="grid",
+        )
 
         if as_json:
             json_data = {
@@ -330,7 +344,7 @@ class Network(NetworkPropertyMixin):
                         "name": row[0],
                         "expected": str(row[1]),
                         "provided": str(row[2]),
-                        "status": "correct" if "✓" in row[3] else "incorrect"
+                        "status": "correct" if "✓" in row[3] else "incorrect",
                     }
                     for row in table_data
                 ]
@@ -339,7 +353,9 @@ class Network(NetworkPropertyMixin):
 
         if set(input_data.keys()) != set(expected_shape.keys()):
             error_message = f"Input data format is incorrect!\n\n{table}\n\n"
-            error_message += "Please ensure that the input data matches the expected format defined in `network.input_shape`."
+            error_message += (
+                "Please ensure that the input data matches the expected format defined in `network.input_shape`."
+            )
             raise ValueError(error_message)
 
         # TODO: If flag verbose is passed this should be printed.
@@ -361,7 +377,11 @@ class Network(NetworkPropertyMixin):
     @property
     def results(self) -> List[GearOutput]:
         """Return results of the feature data flow."""
-        _results: List[GearOutput] = [output_node for output_node in self.outputs if isinstance(output_node, GearOutput) and self.name in str(output_node)]
+        _results: List[GearOutput] = [
+            output_node
+            for output_node in self.outputs
+            if isinstance(output_node, GearOutput) and self.name in str(output_node)
+        ]
 
         return _results
 
