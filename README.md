@@ -2,7 +2,7 @@
 
 # fuseline
 
-![Static Badge](https://img.shields.io/badge/Python-3.10_%7C_3.11_%7C_3.12-blue?logo=python&logoColor=white)
+![Static Badge](https://img.shields.io/badge/Python-%3E%3D3.10-blue?logo=python&logoColor=white)
 [![Stable Version](https://img.shields.io/pypi/v/fuseline?color=blue)](https://pypi.org/project/fuseline/)
 [![stability-beta](https://img.shields.io/badge/stability-beta-33bbff.svg)](https://github.com/mkenney/software-guides/blob/master/STABILITY-BADGES.md#beta)
 [![Maintainability](https://api.codeclimate.com/v1/badges/ffcc038906c2c7e2274f/maintainability)](https://codeclimate.com/github/jsam/fuseline/maintainability)
