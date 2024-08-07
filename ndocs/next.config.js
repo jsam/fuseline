@@ -3,4 +3,15 @@ const withNextra = require('nextra')({
   themeConfig: './theme.config.tsx',
 })
 
-module.exports = withNextra()
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: 'export',
+  images: {
+    unoptimized: true
+  },
+  // Ensure this matches your GitHub repo name
+  basePath: '/fuseline',
+}
+
+// Merge configurations
+module.exports = withNextra(nextConfig)

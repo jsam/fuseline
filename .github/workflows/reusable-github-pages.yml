@@ -1,33 +1,12 @@
 name: Deploy Nextra site to Pages
 
 on:
-  workflow_call:
-    inputs:
-      site-version:
-        required: true
-        type: string
-      version-alias:
-        required: false
-        type: string
-        default: ""
-      branch:
-        required: false
-        type: string
-        default: "gh-pages"
-      set-default:
-        required: false
-        type: boolean
-        default: false
-
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
+  push:
+    branches: [main]  # adjust this if your default branch is different
 
 jobs:
   build_deploy_pages:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
     permissions:
       contents: write
     steps:
@@ -35,9 +14,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
 
       - name: Install dependencies
         working-directory: ./ndocs
@@ -49,33 +28,9 @@ jobs:
         run: |
           npm run build
 
-      - name: Configure Git user
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-
       - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+        uses: peaceiris/actions-gh-pages@v3.9.3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./ndocs/out
-          destination_dir: ${{ inputs.site-version }}
-          keep_files: true
-
-      - name: Update version aliases
-        if: inputs.version-alias != ''
-        run: |
-          git checkout ${{ inputs.branch }}
-          ln -sfn ${{ inputs.site-version }} ${{ inputs.version-alias }}
-          git add .
-          git commit -m "Update version alias ${{ inputs.version-alias }} to ${{ inputs.site-version }}"
-          git push origin ${{ inputs.branch }}
-
-      - name: Set default site version
-        if: inputs.set-default
-        run: |
-          git checkout ${{ inputs.branch }}
-          echo '<meta http-equiv="refresh" content="0;url=${{ inputs.site-version }}">' > index.html
-          git add index.html
-          git commit -m "Set default version to ${{ inputs.site-version }}"
-          git push origin ${{ inputs.branch }}
+          force_orphan: true  # This ensures a clean gh-pages branch
