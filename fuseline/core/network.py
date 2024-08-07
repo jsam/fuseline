@@ -33,13 +33,14 @@ from fuseline.core.nodes import (
     OutputNode,
 )
 from fuseline.typing import T
+from fuseline.utils.logging import get_logger
 
+# Get the logger
+logger = get_logger()
 
 class WorkflowNotFoundError(Exception):
     """Workflow not found exception."""
-
     pass
-
 
 class Depends(Generic[T]):
     """Express input dependency."""
@@ -55,7 +56,6 @@ class Depends(Generic[T]):
     def gear(self) -> GearNode:
         """Return function dependencies as a gear."""
         return self._gear
-
 
 class NetworkPropertyMixin(NetworkAPI):
     """Network property mixin."""
@@ -212,7 +212,6 @@ class NetworkPropertyMixin(NetworkAPI):
 
         return output
 
-
 class Network(NetworkPropertyMixin):
     """Representation of a DAG which contains all processing data."""
 
@@ -224,6 +223,7 @@ class Network(NetworkPropertyMixin):
         engine: Optional[EngineAPI] = None,
     ) -> None:
         """Network constructor."""
+        logger.info(f"Initializing Network: {name} (version: {version})")
         self._outputting_nodes = outputs or []
         self._graph: MultiDiGraph = MultiDiGraph(name=name)
 
@@ -276,7 +276,7 @@ class Network(NetworkPropertyMixin):
 
     def compute_next(self) -> List[OutputNode]:
         """Returns next nodes ready for evaluation."""
-        # NOTE: Find all nodes of type `OutputNode`.
+        logger.debug("Computing next nodes for evaluation")
         outputs: Set[OutputNode] = {
             dst
             for r in self.roots
@@ -285,10 +285,8 @@ class Network(NetworkPropertyMixin):
             and dst.is_empty  # TODO: check for 'OutputNode'
         }
 
-        # NOTE: For each `DataNode`, build set of descendants.
         reachable: Set[NetworkNode] = {node for output in outputs for node in descendants(self._graph, output)}  # type: ignore
 
-        # NOTE: For each `DataNode`, exclude its connected descendant of the same type.
         result: List[OutputNode] = [node for node in outputs if node not in reachable]
 
         return result
@@ -358,16 +356,12 @@ class Network(NetworkPropertyMixin):
             )
             raise ValueError(error_message)
 
-        # TODO: If flag verbose is passed this should be printed.
-        # print(f"Input data format is correct:\n\n{table}")
-
         return None
 
     def set_input(self, input_data: Dict[str, Any]) -> None:
         """Set input data for the graph computation."""
+        logger.info(f"Setting input data: {input_data}")
         self._check_input_data(input_data, self.input_shape)
-        # if input_data.keys() != self.input_shape.keys():
-        #     raise ValueError("input data is wrong format - check `network.input_shape`")
 
         inputs: Dict[str, DataNode] = {node.name: node for node in self._graph.nodes if isinstance(node, GearInput)}  # type: ignore
 
@@ -387,6 +381,7 @@ class Network(NetworkPropertyMixin):
 
     def run(self, **kwargs: Any) -> NetworkAPI:
         """Compute all data nodes of the network."""
+        logger.info(f"Running network with kwargs: {kwargs}")
         if self._engine is None:
             raise ValueError("engine not running")
 
@@ -394,4 +389,5 @@ class Network(NetworkPropertyMixin):
             self._engine.setup()
 
         network_run = self._engine.execute(self.copy(), **kwargs)
+        logger.info("Network execution completed")
         return network_run

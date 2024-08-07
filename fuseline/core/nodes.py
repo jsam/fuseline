@@ -4,6 +4,10 @@ from typing import Any, Callable, Dict, List, Optional, Union
 from networkx.classes.multidigraph import MultiDiGraph
 from typeguard import TypeCheckError, check_type
 
+from fuseline.utils.logging import get_logger
+
+# Get the logger
+logger = get_logger()
 
 class NodeRaisedError(Exception):
     """Gear exception."""
@@ -15,7 +19,7 @@ class NodeRaisedError(Exception):
         self.raised_exception = raised
 
         super().__init__(self.raised_exception)
-
+        logger.error(f"NodeRaisedError: {self.raised_exception}")
 
 class InvalidGraphError(Exception):
     """Invalid graph structure found."""
@@ -26,7 +30,7 @@ class InvalidGraphError(Exception):
         self.params: Dict[str, Any] = kwargs
 
         super().__init__(msg)
-
+        logger.error(f"InvalidGraphError: {self.msg}")
 
 class GraphAssociationMixin:
     """Graph association mixin."""
@@ -43,7 +47,7 @@ class GraphAssociationMixin:
     def set_graph(self, graph: Optional[MultiDiGraph]) -> None:
         """Associate/Disassociate graph with/from a node."""
         self._graph = graph
-
+        logger.debug(f"Graph set for {self.__class__.__name__}")
 
 class Signature(GraphAssociationMixin):
     """Analyze function signature."""
@@ -57,6 +61,7 @@ class Signature(GraphAssociationMixin):
         self._return_type = self._signature.return_annotation
 
         super().__init__(graph=graph)
+        logger.debug(f"Signature created for function: {self._name}")
 
     @property
     def name(self) -> str:
@@ -73,7 +78,6 @@ class Signature(GraphAssociationMixin):
         """Get all function input parameters."""
         return self._params
 
-
 class GearNode(Signature):
     """Node representing data transformation."""
 
@@ -82,17 +86,20 @@ class GearNode(Signature):
     def __init__(self, func: Callable[..., Any], graph: Optional[MultiDiGraph] = None) -> None:
         """Gear constructor."""
         super().__init__(func, graph=graph)
+        logger.debug(f"GearNode created: {self.name}")
 
     def __call__(self, *args: Any, **kwds: Any) -> Any:
         """Execute the given callable with in going nodes as parameters."""
         params = self.input_values
+        logger.debug(f"Executing GearNode: {self.name} with params: {params}")
 
         try:
             result = self._func(**params)
+            logger.debug(f"GearNode {self.name} execution completed")
+            return result
         except BaseException as e:
+            logger.error(f"Error in GearNode {self.name}: {str(e)}")
             raise NodeRaisedError(self, params, e)
-
-        return result
 
     def __repr__(self) -> str:
         """String representation of a gear."""
@@ -106,12 +113,12 @@ class GearNode(Signature):
     def input_values(self) -> Dict[str, Any]:
         """Input values for the gear computation."""
         if self._graph is None:
+            logger.error(f"No graph associated with GearNode: {self.name}")
             raise ValueError("no graph associated")
 
         params: Dict[str, Any] = {p.name: p.value for p in self._graph.predecessors(self)}  # type: ignore
 
         return params
-
 
 class DataNode(GraphAssociationMixin):
     """Node representing data."""
@@ -129,6 +136,7 @@ class DataNode(GraphAssociationMixin):
         self._annotation: type = annotation
 
         super().__init__(graph=graph)
+        logger.debug(f"DataNode created: {self._name}")
 
     def __repr__(self) -> str:
         """String representation."""
@@ -182,31 +190,30 @@ class DataNode(GraphAssociationMixin):
 
     def set_value(self, value: Any) -> None:
         """Sets node value."""
+        logger.debug(f"Setting value for DataNode: {self.name}")
         try:
             check_type(value, self._annotation)
         except TypeCheckError as e:
+            logger.error(f"Invalid type for DataNode {self.name}: {str(e)}")
             raise TypeError(f"`{self.name}` received invalid type - {e}")
 
         self._value = value
-
+        logger.debug(f"Value set for DataNode: {self.name}")
 
 class GearInput(DataNode):
     """Input to the gear."""
 
     shape = "invhouse"
 
-
 class GearOutput(DataNode):
     """Output of a gear without additional depedency."""
 
     shape = "house"
 
-
 class GearInputOutput(DataNode):
     """Gear input and output node."""
 
     shape = "note"
-
 
 NetworkNode = Union[GearNode, DataNode]
 OutputNode = Union[GearOutput, GearInputOutput]

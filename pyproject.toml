@@ -53,6 +53,7 @@ colorama = "^0.4.6"
 pydantic = "^2.8.2"
 
 pydot = "^3.0.1"
+loguru = "^0.7.2"
 [tool.poetry.group.dev]
 optional = true
 
