@@ -1,6 +1,6 @@
-# fuseline
-
 <div align="center">
+
+# fuseline
 
 [![Maintainability](https://api.codeclimate.com/v1/badges/ffcc038906c2c7e2274f/maintainability)](https://codeclimate.com/github/jsam/fuseline/maintainability)
 [![Test Coverage](https://api.codeclimate.com/v1/badges/ffcc038906c2c7e2274f/test_coverage)](https://codeclimate.com/github/jsam/fuseline/test_coverage)
@@ -23,7 +23,7 @@ Key features of Fuseline include:
 - Easy-to-define workflow structures
 - Efficient execution of Python-based tasks
 - Extensive test coverage and maintainability
-- Integration with popular Python development tools (mypy, ruff, black, bandit)
+- Integration with modern Python packaging tools (ie. pyproject.toml)
 - Active development and community support
 
 Whether you're working on data processing pipelines, automation scripts, or complex business logic, Fuseline provides the structure and flexibility to manage your Python workflows effectively.
