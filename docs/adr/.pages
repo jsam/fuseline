@@ -1,3 +1,0 @@
-nav:
-  - Summary: summary.md
-  - ... | regex=^\d{4}-
