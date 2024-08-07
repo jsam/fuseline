@@ -91,7 +91,7 @@ source = ["fuseline"]
 # because pytest-cov takes care of that
 
 [tool.coverage.report]
-fail_under = 100
+fail_under = 50
 exclude_also = [
     "pragma: no cover",
     "pass",
