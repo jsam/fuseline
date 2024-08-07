@@ -20,17 +20,11 @@
 #  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER         =
 #  DEALINGS IN THE SOFTWARE.                                                   =
 # ==============================================================================
-
 import pytest
 from click.testing import CliRunner
 
 from fuseline.cli.__main__ import ls, run
 from fuseline.core.config import FuselineConfig
-import pytest
-from click.testing import CliRunner
-from fuseline.cli.__main__ import cli, ls, run
-from fuseline.core.config import FuselineConfig
-from fuseline.core.network import WorkflowNotFoundError
 
 
 @pytest.fixture
@@ -92,24 +86,29 @@ def test_ls_command_detailed_output(mock_get_fuseline_config):
     assert "fake_eval" in result.output
     assert "Engine: SerialEngine" in result.output
 
+
 def test_run_command_with_different_parameter_types(mock_get_fuseline_config, mocker):
     runner = CliRunner()
-    result = runner.invoke(run, ["fake_eval", "--true_positives", "42", "--false_positives", "3", "--false_negatives", "1"])
-    
+    result = runner.invoke(
+        run, ["fake_eval", "--true_positives", "42", "--false_positives", "3", "--false_negatives", "1"]
+    )
+
     assert result.exit_code == 0
     assert "Excellent" in result.output
-    
+
+
 def test_run_command_with_none_config(mocker):
     mocker.patch("fuseline.cli.__main__.get_fuseline_config", return_value=None)
     runner = CliRunner()
     result = runner.invoke(run, ["test_workflow"])
-    
+
     assert result.exit_code == 0
     assert "unable to read `pyproject.toml` configuration" in result.output
+
 
 def test_run_command_with_workflow_not_found_error(mock_get_fuseline_config, mocker):
     runner = CliRunner()
     result = runner.invoke(run, ["test_workflow"])
-    
+
     assert result.exit_code == 0
     assert "ERROR! Workflow `test_workflow` not found." in result.output
