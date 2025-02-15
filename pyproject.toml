@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fuseline"
-version = "0.0.0"
+version = "0.1.0"
 description = "Workflow runner for Python workloads."
 license = "MIT"
 authors = ["Sam Hart <contact@justsam.io>"]
