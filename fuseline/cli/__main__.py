@@ -1,5 +1,5 @@
 from typing import Any, Dict, List, Optional
-
+import sys
 import click
 from colorama import Fore, Style, init
 from tabulate import tabulate
@@ -19,6 +19,9 @@ def cli():
 def ls(ctx):
     """Show all workflows defined in a project."""
     fuseline_config: FuselineConfig = get_fuseline_config()
+    if fuseline_config is None:
+        click.echo("No fuseline found.")
+        sys.exit(0)
 
     # Prepare data for tabulation
     headers = [
@@ -85,12 +88,12 @@ def run(ctx, workflow_name: str):
                     params[key] = value
 
     try:
+        breakpoint()
         result_net = workflow.run(**params)
         click.echo(result_net.print_outputs())
     except Exception as e:
         color = Fore.RED
         status = f"{color}ERROR!{Style.RESET_ALL}"
-
         click.echo(f"{status} {workflow_name}: {e!s}")
 
 

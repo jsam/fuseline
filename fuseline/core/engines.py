@@ -27,7 +27,10 @@ class SerialEngine(EngineAPI):
         computed: Dict[GearNode, Any] = {}
 
         data_node: OutputNode
-        for data_node in self._network.compute_next():
+        nodes = self._network.compute_next()
+        breakpoint()
+
+        for data_node in nodes:
             predeccesors: List[GearNode] = list(self._network.graph.predecessors(data_node))  # type: ignore
             if len(predeccesors) != 1:
                 logger.error(f"Invalid graph structure: multiple predecessors for data node: {predeccesors}")
