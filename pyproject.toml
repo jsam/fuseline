@@ -156,3 +156,7 @@ engine = "SerialEngine"
 fake_eval = [
     "tests.workflows.fake_eval.evaluate_model",
 ]
+fake_run = [
+    "tests.workflows.fake_run.hello_world_one",
+    "tests.workflows.fake_run.hello_world_two",
+]

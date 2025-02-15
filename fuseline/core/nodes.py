@@ -198,7 +198,8 @@ class DataNode(GraphAssociationMixin):
         """Sets node value."""
         logger.debug(f"Setting value for DataNode: {self.name}")
         try:
-            check_type(value, self._annotation)
+            if self._annotation is not inspect._empty:
+                check_type(value, self._annotation)
         except TypeCheckError as e:
             logger.error(f"Invalid type for DataNode {self.name}: {str(e)}")
             raise TypeError(f"`{self.name}` received invalid type - {e}")
