@@ -9,6 +9,7 @@ from fuseline.utils.logging import get_logger
 # Get the logger
 logger = get_logger()
 
+
 class SerialEngine(EngineAPI):
     """Serial engine executor."""
 

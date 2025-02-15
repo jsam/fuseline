@@ -1,4 +1,3 @@
-
 # # Log to stdout in JSON format
 # export FUSELINE_LOG_LEVEL=DEBUG
 # export FUSELINE_LOG_OUTPUT=stdout
@@ -23,6 +22,7 @@ import json
 from loguru import logger
 from datetime import datetime
 
+
 class JsonFormatter:
     def __call__(self, record):
         log_record = {
@@ -34,17 +34,18 @@ class JsonFormatter:
             "line": record["line"],
             "process": record["process"].name,
             "thread": record["thread"].name,
-            "extra": record["extra"]
+            "extra": record["extra"],
         }
-        
+
         if record["exception"] is not None:
             log_record["exception"] = {
                 "type": record["exception"].type.__name__,
                 "value": str(record["exception"].value),
-                "traceback": record["exception"].traceback
+                "traceback": record["exception"].traceback,
             }
-        
+
         return json.dumps(log_record)
+
 
 def setup_logger():
     """Set up the logger based on environment variables."""
@@ -93,9 +94,11 @@ def setup_logger():
         else:
             logger.add(log_file, format=human_format, level=log_level)
 
+
 def get_logger():
     """Get the configured logger."""
     return logger
+
 
 # Set up the logger when this module is imported
 setup_logger()

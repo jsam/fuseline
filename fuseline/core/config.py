@@ -1,9 +1,8 @@
 import importlib
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
-
 import toml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 from fuseline.core.abc import NetworkAPI
 from fuseline.core.network import Network, WorkflowNotFoundError
@@ -18,11 +17,13 @@ def source_execution_node(path: str) -> Callable:
 
 class EngineConfig(BaseModel):
     engine: str
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 class NetworkConfig(BaseModel):
     name: str
     outputs: List[str]  # Store paths as strings
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def build(self) -> Network:
         return Network(
@@ -34,6 +35,7 @@ class NetworkConfig(BaseModel):
 class FuselineConfig(BaseModel):
     config: EngineConfig
     workflows: List[NetworkConfig] = Field(default_factory=list)
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def __getitem__(self, workflow_name: str) -> NetworkAPI:
         for workflow in self.workflows:
@@ -42,21 +44,18 @@ class FuselineConfig(BaseModel):
         raise WorkflowNotFoundError
 
     @classmethod
-    def parse_obj(cls, obj: Dict):
+    def model_validate(cls, obj: Dict):
         modified_obj = obj.copy()
         if "workflows" in modified_obj and isinstance(modified_obj["workflows"], dict):
             modified_obj["workflows"] = [
                 NetworkConfig(name=wf_name, outputs=outputs) for wf_name, outputs in modified_obj["workflows"].items()
             ]
-        return super().parse_obj(modified_obj)
+        return super().model_validate(modified_obj)
 
-    def dict(self, *args, **kwargs):
-        result = super().dict(*args, **kwargs)
+    def model_dump(self, *args, **kwargs):
+        result = super().model_dump(*args, **kwargs)
         result["workflows"] = {network.name: network.outputs for network in self.workflows}
         return result
-
-    class Config:
-        arbitrary_types_allowed = True  # Allow arbitrary types in the model
 
 
 def get_fuseline_config() -> Optional[FuselineConfig]:
@@ -66,26 +65,21 @@ def get_fuseline_config() -> Optional[FuselineConfig]:
     Returns:
         Optional[Dict]: The fuseline configuration if present, None otherwise.
     """
-    # Get the directory of the current script
     current_dir = Path.cwd()
-    # Construct the path to pyproject.toml
     pyproject_path = current_dir / "pyproject.toml"
 
-    # Check if the file exists
     if not pyproject_path.is_file():
         print(f"pyproject.toml not found at {pyproject_path}")
         return None
 
-    # Read and parse the TOML file
     try:
         pyproject_data = toml.load(pyproject_path)
-
-        # Check if [tool.fuseline] configuration is present
         if "tool" in pyproject_data and "fuseline" in pyproject_data["tool"]:
             config = pyproject_data["tool"]["fuseline"]
-            return FuselineConfig.parse_obj(config)
+            return FuselineConfig.model_validate(config)
         else:
             print("[tool.fuseline] configuration not found in pyproject.toml")
+
     except FileNotFoundError:
         print(f"Error: pyproject.toml file not found at {pyproject_path}")
     except PermissionError:

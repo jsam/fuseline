@@ -9,6 +9,7 @@ from fuseline.utils.logging import get_logger
 # Get the logger
 logger = get_logger()
 
+
 class NodeRaisedError(Exception):
     """Gear exception."""
 
@@ -21,6 +22,7 @@ class NodeRaisedError(Exception):
         super().__init__(self.raised_exception)
         logger.error(f"NodeRaisedError: {self.raised_exception}")
 
+
 class InvalidGraphError(Exception):
     """Invalid graph structure found."""
 
@@ -31,6 +33,7 @@ class InvalidGraphError(Exception):
 
         super().__init__(msg)
         logger.error(f"InvalidGraphError: {self.msg}")
+
 
 class GraphAssociationMixin:
     """Graph association mixin."""
@@ -48,6 +51,7 @@ class GraphAssociationMixin:
         """Associate/Disassociate graph with/from a node."""
         self._graph = graph
         logger.debug(f"Graph set for {self.__class__.__name__}")
+
 
 class Signature(GraphAssociationMixin):
     """Analyze function signature."""
@@ -77,6 +81,7 @@ class Signature(GraphAssociationMixin):
     def params(self) -> Dict[str, inspect.Parameter]:
         """Get all function input parameters."""
         return self._params
+
 
 class GearNode(Signature):
     """Node representing data transformation."""
@@ -119,6 +124,7 @@ class GearNode(Signature):
         params: Dict[str, Any] = {p.name: p.value for p in self._graph.predecessors(self)}  # type: ignore
 
         return params
+
 
 class DataNode(GraphAssociationMixin):
     """Node representing data."""
@@ -200,20 +206,24 @@ class DataNode(GraphAssociationMixin):
         self._value = value
         logger.debug(f"Value set for DataNode: {self.name}")
 
+
 class GearInput(DataNode):
     """Input to the gear."""
 
     shape = "invhouse"
+
 
 class GearOutput(DataNode):
     """Output of a gear without additional depedency."""
 
     shape = "house"
 
+
 class GearInputOutput(DataNode):
     """Gear input and output node."""
 
     shape = "note"
+
 
 NetworkNode = Union[GearNode, DataNode]
 OutputNode = Union[GearOutput, GearInputOutput]

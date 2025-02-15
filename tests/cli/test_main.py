@@ -29,7 +29,7 @@ from fuseline.core.config import FuselineConfig
 
 @pytest.fixture
 def mock_get_fuseline_config(mocker):
-    mock_config = FuselineConfig.parse_obj(
+    mock_config = FuselineConfig.model_validate(
         {
             "config": {"engine": "SerialEngine"},
             "workflows": [

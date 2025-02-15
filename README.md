@@ -9,14 +9,3 @@
 [![Python tests](https://github.com/jsam/fuseline/actions/workflows/python-tests.yml/badge.svg?branch=main)](https://github.com/jsam/fuseline/actions/workflows/python-tests.yml)
 [![Test Coverage](https://api.codeclimate.com/v1/badges/ffcc038906c2c7e2274f/test_coverage)](https://codeclimate.com/github/jsam/fuseline/test_coverage)
 </div>
-
-Fuseline is a powerful and flexible workflow runner designed specifically for Python workloads. It provides a robust framework for defining, managing, and executing complex workflows in Python applications. With support for multiple Python versions (>=3.10) and a focus on maintainability and code quality, Fuseline offers developers a reliable tool for streamlining their workflow processes.
-
-Key features of Fuseline include:
-- Easy-to-define workflow structures
-- Efficient execution of Python-based tasks
-- Extensive test coverage and maintainability
-- Integration with modern Python packaging tools (ie. pyproject.toml)
-- Active development and community support
-
-Whether you're working on data processing pipelines, automation scripts, or complex business logic, Fuseline provides the structure and flexibility to manage your Python workflows effectively.

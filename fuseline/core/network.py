@@ -38,9 +38,12 @@ from fuseline.utils.logging import get_logger
 # Get the logger
 logger = get_logger()
 
+
 class WorkflowNotFoundError(Exception):
     """Workflow not found exception."""
+
     pass
+
 
 class Depends(Generic[T]):
     """Express input dependency."""
@@ -56,6 +59,7 @@ class Depends(Generic[T]):
     def gear(self) -> GearNode:
         """Return function dependencies as a gear."""
         return self._gear
+
 
 class NetworkPropertyMixin(NetworkAPI):
     """Network property mixin."""
@@ -208,9 +212,10 @@ class NetworkPropertyMixin(NetworkAPI):
         else:
             output = "\n\n"
             for row in table_data:
-                output += f"Node: {row[0]}, Type: {row[1]}, " f"Is Empty: {row[2]}, Name: {row[3]}, Output: {row[4]}\n"
+                output += f"Node: {row[0]}, Type: {row[1]}, Is Empty: {row[2]}, Name: {row[3]}, Output: {row[4]}\n"
 
         return output
+
 
 class Network(NetworkPropertyMixin):
     """Representation of a DAG which contains all processing data."""
