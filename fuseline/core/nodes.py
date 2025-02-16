@@ -93,6 +93,8 @@ class GearNode(Signature):
         super().__init__(func, graph=graph)
         logger.debug(f"GearNode created: {self.name}")
 
+        self.has_run = False
+
     def __call__(self, *args: Any, **kwds: Any) -> Any:
         """Execute the given callable with in going nodes as parameters."""
         params = self.input_values
@@ -101,9 +103,10 @@ class GearNode(Signature):
         try:
             result = self._func(**params)
             logger.debug(f"GearNode {self.name} execution completed")
+            self.has_run = True
             return result
         except BaseException as e:
-            logger.error(f"Error in GearNode {self.name}: {str(e)}")
+            logger.error(f"Error in GearNode {self.name}: {e!s}")
             raise NodeRaisedError(self, params, e)
 
     def __repr__(self) -> str:
@@ -122,8 +125,18 @@ class GearNode(Signature):
             raise ValueError("no graph associated")
 
         params: Dict[str, Any] = {p.name: p.value for p in self._graph.predecessors(self)}  # type: ignore
-
         return params
+
+    @property
+    def is_ready(self) -> bool:
+        """Check if node can run and has not been runned already."""
+        if self.has_run is True:
+            return False
+
+        return all([
+            not(p.is_empty)
+            for p in self._graph.predecessors(self)
+        ])
 
 
 class DataNode(GraphAssociationMixin):
@@ -201,7 +214,7 @@ class DataNode(GraphAssociationMixin):
             if self._annotation is not inspect._empty:
                 check_type(value, self._annotation)
         except TypeCheckError as e:
-            logger.error(f"Invalid type for DataNode {self.name}: {str(e)}")
+            logger.error(f"Invalid type for DataNode {self.name}: {e!s}")
             raise TypeError(f"`{self.name}` received invalid type - {e}")
 
         self._value = value

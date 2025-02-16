@@ -89,8 +89,10 @@ def test_ls_command_detailed_output(mock_get_fuseline_config):
 
 def test_run_command_with_different_parameter_types(mock_get_fuseline_config, mocker):
     runner = CliRunner()
+    args = ["fake_eval", "--true_positives", "42", "--false_positives", "3", "--false_negatives", "1"]
+
     result = runner.invoke(
-        run, ["fake_eval", "--true_positives", "42", "--false_positives", "3", "--false_negatives", "1"]
+        run, args
     )
 
     assert result.exit_code == 0
