@@ -1,6 +1,6 @@
 import importlib
 from pathlib import Path
-from typing import Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import toml
 from pydantic import BaseModel, ConfigDict, Field
@@ -45,7 +45,14 @@ class FuselineConfig(BaseModel):
         raise WorkflowNotFoundError
 
     @classmethod
-    def model_validate(cls, obj: Dict):
+    def model_validate(
+        cls,
+        obj: Dict[Any, Any],
+        *,
+        strict: bool | None = None,
+        from_attributes: bool | None = None,
+        context: Any | None = None,
+    ) -> "FuselineConfig":
         modified_obj = obj.copy()
         if "workflows" in modified_obj and isinstance(modified_obj["workflows"], dict):
             modified_obj["workflows"] = [

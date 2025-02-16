@@ -91,9 +91,7 @@ def test_run_command_with_different_parameter_types(mock_get_fuseline_config, mo
     runner = CliRunner()
     args = ["fake_eval", "--true_positives", "42", "--false_positives", "3", "--false_negatives", "1"]
 
-    result = runner.invoke(
-        run, args
-    )
+    result = runner.invoke(run, args)
 
     assert result.exit_code == 0
     assert "Excellent" in result.output
