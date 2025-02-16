@@ -8,7 +8,6 @@ from typing import (
     Generic,
     List,
     Optional,
-    Set,
     Tuple,
     Type,
     Union,
@@ -17,8 +16,6 @@ from typing import (
 import numpy
 from colorama import Fore, Style
 from networkx import MultiDiGraph
-from networkx.algorithms.dag import descendants
-from networkx.algorithms.traversal.breadth_first_search import bfs_edges
 from tabulate import tabulate
 
 from fuseline.core.abc import EngineAPI, NetworkAPI, NetworkPlotAPI
@@ -105,7 +102,7 @@ class NetworkPropertyMixin(NetworkAPI):
 
     @property
     def roots(self) -> List[GearNode]:
-        """Calculate ranks of gears in a network."""
+        """Calculate entry points into the network."""
 
         def check_predecessors(node: NetworkNode) -> bool:
             """Checks predecessors of a node."""
@@ -201,7 +198,7 @@ class NetworkPropertyMixin(NetworkAPI):
 
         if tabular:
             headers = [
-                "Node",
+                "Name",
                 "Type",
                 "Is Empty",
                 "Name",
@@ -271,7 +268,7 @@ class Network(NetworkPropertyMixin):
         gear.set_graph(self._graph)
 
         for name, param in gear.params.items():
-            if param.default and isinstance(param.default, Depends):
+            if param.default is not inspect.Parameter.empty and isinstance(param.default, Depends):
                 src_gear = param.default.gear
                 src_gear_output = self._attach_output(src_gear, name=name)
                 self._graph.add_edge(src_gear_output, gear)  # type: ignore
@@ -279,22 +276,25 @@ class Network(NetworkPropertyMixin):
             else:
                 self._attach_input(param, gear)
 
-    def compute_next(self) -> List[OutputNode]:
+    def compute_next(self) -> List[GearNode]:
         """Returns next nodes ready for evaluation."""
         logger.debug("Computing next nodes for evaluation")
-        outputs: Set[OutputNode] = {
-            dst
-            for r in self.roots
-            for _, dst in bfs_edges(self._graph, r)  # type: ignore
-            if (isinstance(dst, GearOutput) or isinstance(dst, GearInputOutput))
-            and dst.is_empty  # TODO: check for 'OutputNode'
-        }
 
-        reachable: Set[NetworkNode] = {node for output in outputs for node in descendants(self._graph, output)}  # type: ignore
+        next_batch = []
 
-        result: List[OutputNode] = [node for node in outputs if node not in reachable]
+        for compute_node in self.roots:
+            curr = compute_node
+            while True:
+                result_node: DataNode = next(self._graph.successors(curr))
+                if result_node.is_empty and curr.is_ready and curr not in next_batch:
+                    next_batch.append(curr)
 
-        return result
+                try:
+                    curr = next(self._graph.successors(result_node))
+                except StopIteration:
+                    break
+
+        return next_batch
 
     def copy(self, name: Optional[str] = None, version: Optional[str] = None) -> "Network":
         """Create a copy of an `Network` instance."""
@@ -368,10 +368,16 @@ class Network(NetworkPropertyMixin):
         logger.info(f"Setting input data: {input_data}")
         self._check_input_data(input_data, self.input_shape)
 
-        inputs: Dict[str, DataNode] = {node.name: node for node in self._graph.nodes if isinstance(node, GearInput)}  # type: ignore
+        inputs: List[GearInput] = [
+            node
+            for node in self._graph.nodes
+            if isinstance(node, GearInput)
+        ]
 
-        for name, value in input_data.items():
-            inputs[name].set_value(value)
+        for var_name, var_value in input_data.items():
+            for node in inputs:
+                if node.name == var_name:
+                    node.set_value(var_value)
 
     @property
     def results(self) -> List[GearOutput]:

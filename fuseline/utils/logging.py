@@ -16,11 +16,11 @@
 # export FUSELINE_LOG_FILE=my_json_log.json
 
 
+import json
 import os
 import sys
-import json
+
 from loguru import logger
-from datetime import datetime
 
 
 class JsonFormatter:
@@ -72,7 +72,7 @@ def setup_logger():
     log_format = os.environ.get("FUSELINE_LOG_FORMAT", "human").lower()
 
     # Human-readable format
-    human_format = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>"
+    human_format = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>"  # noqa: E501
 
     # Configure outputs
     if log_output in ["stdout", "both"]:

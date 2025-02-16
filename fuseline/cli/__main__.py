@@ -1,5 +1,6 @@
-from typing import Any, Dict, List, Optional
 import sys
+from typing import Any, Dict, List, Optional
+
 import click
 from colorama import Fore, Style, init
 from tabulate import tabulate
@@ -88,7 +89,6 @@ def run(ctx, workflow_name: str):
                     params[key] = value
 
     try:
-        breakpoint()
         result_net = workflow.run(**params)
         click.echo(result_net.print_outputs())
     except Exception as e:

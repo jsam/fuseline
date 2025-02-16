@@ -24,27 +24,15 @@ class SerialEngine(EngineAPI):
             logger.error("Network not found in SerialEngine")
             raise ValueError
 
-        computed: Dict[GearNode, Any] = {}
-
-        data_node: OutputNode
+        computed: Dict[GearNode, DataNode] = {}
         nodes = self._network.compute_next()
-        breakpoint()
 
-        for data_node in nodes:
-            predeccesors: List[GearNode] = list(self._network.graph.predecessors(data_node))  # type: ignore
-            if len(predeccesors) != 1:
-                logger.error(f"Invalid graph structure: multiple predecessors for data node: {predeccesors}")
-                raise InvalidGraphError(
-                    f"found a data node produced by multiple gears: {predeccesors}",
-                    gears=predeccesors,
-                )
-
-            gear = predeccesors[0]
-            logger.debug(f"Executing gear: {gear.name}")
-            result = gear(gear.input_values)
-
-            computed[gear] = result
-            data_node.set_value(result)
+        for compute_node in nodes:
+            logger.debug(f"Executing gear: {compute_node.name}")
+            result = compute_node(compute_node.input_values)
+            successor: GearNode = next(self._network.graph.successors(compute_node))
+            computed[compute_node] = result
+            successor.set_value(result)
 
         return bool(computed)
 

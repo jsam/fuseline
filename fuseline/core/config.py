@@ -1,8 +1,9 @@
 import importlib
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
+
 import toml
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from fuseline.core.abc import NetworkAPI
 from fuseline.core.network import Network, WorkflowNotFoundError
