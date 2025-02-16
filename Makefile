@@ -36,6 +36,7 @@ format: poetry-export
 #### Helper commands ####
 #########################
 poetry-export:
+	poetry self add poetry-plugin-export
 	poetry export -f requirements.txt --output /tmp/requirements.txt --with dev
 
 
