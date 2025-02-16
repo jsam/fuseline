@@ -1,5 +1,3 @@
-
-
 def hello_world_one() -> None:
     print("hello world - 1")
 

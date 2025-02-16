@@ -77,7 +77,7 @@ class NetworkAPI(metaclass=abc.ABCMeta):
         """Return results of the feature data flow."""
         raise NotImplementedError
 
-    def compute_next(self) -> List[OutputNode]:
+    def compute_next(self) -> List[GearNode]:
         """Return next in line to compute nodes."""
         raise NotImplementedError
 

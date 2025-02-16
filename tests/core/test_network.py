@@ -1,4 +1,3 @@
-
 import numpy as np
 import pytest
 
@@ -8,13 +7,13 @@ from fuseline.typing import Computed
 
 
 class TestComputeNext:
-
     @pytest.fixture
     def linear_network(self) -> Network:
         """
         Creates a simple linear network:
         input -> gear1 -> gear2 -> output
         """
+
         def gear1(x: int) -> int:
             return x * 2
 
@@ -33,6 +32,7 @@ class TestComputeNext:
         input -> gear1 -> gear2 -> output1
               -> gear3 -> output2
         """
+
         def gear1(x: int) -> int:
             return x * 2
 
@@ -51,6 +51,7 @@ class TestComputeNext:
         input -> gear1 -> gear2 -> gear4 -> output
               -> gear3 ----------/
         """
+
         def gear1(x: int) -> int:
             return x * 2
 
@@ -114,7 +115,6 @@ class TestComputeNext:
 
         no_next = linear_network.compute_next()
         assert len(no_next) == 0
-
 
     @pytest.mark.parametrize("engine_class", [SerialEngine, PoolEngine])
     def test_branching_compute_next(self, branching_network: Network, engine_class):
@@ -197,11 +197,8 @@ class TestComputeNext:
         assert len(final_nodes) == 1
         assert ["gear4"] == [str(node) for node in final_nodes]
         for node in final_nodes:
-            pred_gears = [
-                (node.name, node.value)
-                for node in diamond_network.graph.predecessors(node)
-            ]
-            assert [('a', 11), ('b', 4)] == pred_gears
+            pred_gears = [(node.name, node.value) for node in diamond_network.graph.predecessors(node)]
+            assert [("a", 11), ("b", 4)] == pred_gears
 
             result = node(node.input_values)
             succ_gear = next(diamond_network.graph.successors(node))
@@ -213,6 +210,7 @@ class TestComputeNext:
     @pytest.mark.parametrize("engine_class", [SerialEngine, PoolEngine])
     def test_error_handling(self, engine_class):
         """Test error handling in compute_next."""
+
         def error_gear(x: int) -> int:
             raise ValueError("Test error")
 
@@ -244,10 +242,10 @@ class TestComputeNext:
         assert len(next_nodes) == 0
         assert [] == [str(node) for node in next_nodes]
 
-
     @pytest.mark.parametrize("engine_class", [SerialEngine, PoolEngine])
     def test_numpy_array_handling(self, engine_class):
         """Test compute_next with NumPy array inputs/outputs."""
+
         def array_gear(x: np.ndarray) -> np.ndarray:
             return x * 2
 

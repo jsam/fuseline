@@ -17,9 +17,9 @@ def cli():
 
 @cli.command(context_settings=dict(ignore_unknown_options=False, allow_extra_args=False))
 @click.pass_context
-def ls(ctx):
+def ls(ctx: click.Context) -> None:
     """Show all workflows defined in a project."""
-    fuseline_config: FuselineConfig = get_fuseline_config()
+    fuseline_config: FuselineConfig | None = get_fuseline_config()
     if fuseline_config is None:
         click.echo("No fuseline found.")
         sys.exit(0)
@@ -33,8 +33,8 @@ def ls(ctx):
 
     table_data: List[List[str]] = []
 
-    for workflow in fuseline_config.workflows:
-        workflow = workflow.build()
+    for workflow_config in fuseline_config.workflows:
+        workflow = workflow_config.build()
         workflow_name = Fore.CYAN + workflow.name + Style.RESET_ALL
         input_shape = "\n".join(
             [f"{input_name}[{input_type}]" for input_name, input_type in workflow.input_shape.items()]

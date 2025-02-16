@@ -368,11 +368,7 @@ class Network(NetworkPropertyMixin):
         logger.info(f"Setting input data: {input_data}")
         self._check_input_data(input_data, self.input_shape)
 
-        inputs: List[GearInput] = [
-            node
-            for node in self._graph.nodes
-            if isinstance(node, GearInput)
-        ]
+        inputs: List[GearInput] = [node for node in self._graph.nodes if isinstance(node, GearInput)]
 
         for var_name, var_value in input_data.items():
             for node in inputs:

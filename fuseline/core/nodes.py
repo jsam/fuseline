@@ -1,5 +1,5 @@
 import inspect
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Type, Union
 
 from networkx.classes.multidigraph import MultiDiGraph
 from typeguard import TypeCheckError, check_type
@@ -130,13 +130,14 @@ class GearNode(Signature):
     @property
     def is_ready(self) -> bool:
         """Check if node can run and has not been runned already."""
+        if self._graph is None:
+            logger.error(f"No graph associated with GearNode: {self.name}")
+            raise ValueError("no graph associated")
+
         if self.has_run is True:
             return False
 
-        return all([
-            not(p.is_empty)
-            for p in self._graph.predecessors(self)
-        ])
+        return all([not (p.is_empty) for p in self._graph.predecessors(self)])
 
 
 class DataNode(GraphAssociationMixin):
@@ -146,7 +147,7 @@ class DataNode(GraphAssociationMixin):
         self,
         name: str,
         value: Optional[Any],
-        annotation: type,
+        annotation: type | Type[Any] | Any,
         graph: Optional[MultiDiGraph] = None,
     ):
         """Data node constructor."""
