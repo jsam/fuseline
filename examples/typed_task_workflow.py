@@ -16,7 +16,6 @@ class MulTask(Task):
 
 if __name__ == "__main__":
     mul = MulTask()
-    wf = Workflow(mul.add)
-    mul.add.params = {"x": 2, "y": 3}
-    result = wf.run({})
+    wf = Workflow(outputs=[mul])
+    result = wf.run({"x": 2, "y": 3})
     print(result)

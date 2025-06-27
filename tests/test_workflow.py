@@ -120,7 +120,7 @@ def test_async_workflow():
     wf = AsyncWorkflow(s1)
 
     import asyncio
-    asyncio.run(wf.run_async(None))
+    asyncio.run(wf.run_async({}))
 
     assert log == [
         "ast-before_all",
@@ -141,8 +141,7 @@ def test_typed_workflow():
         return x + 1
 
     wf = workflow_from_functions(outputs=[add_one])
-    wf.start_step.params = {"x": 3}  # type: ignore[attr-defined]
-    result = wf.run({})
+    result = wf.run({"x": 3})
     assert result == 7
 
 
@@ -160,7 +159,6 @@ class MulTask(Task):
 
 def test_typed_step_dependencies():
     mul = MulTask()
-    wf = Workflow(mul.add_step)
-    mul.add_step.params = {"x": 2, "y": 3}
-    result = wf.run({})
+    wf = Workflow(outputs=[mul])
+    result = wf.run({"x": 2, "y": 3})
     assert result == 10

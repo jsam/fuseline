@@ -107,6 +107,7 @@ class Task(Step):
         run_method = type(self).run_step
         sig = inspect.signature(run_method)
         params = list(sig.parameters.values())
+        self.param_names: List[str] = []
         for param in params:
             if isinstance(param.default, Depends):
                 dep_obj = param.default.obj
@@ -115,6 +116,8 @@ class Task(Step):
                 )
                 dep_step >> self
                 self.deps[param.name] = dep_step
+            elif param.name not in {"self", "setup_res", "shared"}:
+                self.param_names.append(param.name)
         self.is_typed = bool(self.deps) or not (
             len(params) == 2 and params[1].name in {"setup_res", "shared"}
         )
@@ -130,7 +133,11 @@ class Task(Step):
                 if self.is_typed:
                     kwargs = {name: setup_res[d] for name, d in self.deps.items()}
                     kwargs.update(
-                        {k: v for k, v in self.params.items() if k not in kwargs}
+                        {
+                            k: v
+                            for k, v in self.params.items()
+                            if k in self.param_names and k not in kwargs
+                        }
                     )
                     result = type(self).run_step(self, **kwargs)
                     if isinstance(setup_res, dict):
@@ -155,11 +162,67 @@ class BatchTask(Task):
 
 
 class Workflow(Step):
-    """A sequence of :class:`Step` objects."""
+    """A sequence of :class:`Step` objects.
 
-    def __init__(self, start: Optional[Step] = None) -> None:
+    Workflows can be instantiated either with an explicit ``start`` step or
+    by providing the ``outputs`` of the graph.  When ``outputs`` are supplied,
+    the workflow will automatically determine the starting step based on the
+    dependencies of those outputs.
+    """
+
+    def __init__(
+        self,
+        start: Optional[Step] = None,
+        outputs: Optional[List[Step]] = None,
+    ) -> None:
         super().__init__()
+        self.outputs = outputs or ([] if start is None else [start])
+        if outputs and not start:
+            roots = self._find_roots(outputs)
+            for a, b in zip(roots, roots[1:]):
+                a >> b
+            start = roots[0]
         self.start_step = start
+
+    def _find_roots(self, outputs: List[Step]) -> List[Step]:
+        steps: List[Step] = []
+        preds: Dict[Step, bool] = {}
+
+        def walk(step: Step) -> None:
+            if step in steps:
+                return
+            steps.append(step)
+            if isinstance(step, Task):
+                for dep in step.deps.values():
+                    dep >> step
+                    preds[step] = True
+                    walk(dep)
+            preds.setdefault(step, False)
+
+        for out in outputs:
+            walk(out)
+
+        return [s for s, has_pred in preds.items() if not has_pred]
+
+    def run(self, inputs: Optional[Dict[str, Any]] = None) -> Any:  # type: ignore[override]
+        """Execute the workflow.
+
+        Parameters
+        ----------
+        inputs:
+            Parameters passed to the starting steps.  They are distributed to
+            tasks based on parameter names.
+        """
+        self.params = inputs or {}
+        shared: Dict[Any, Any] = {}
+        self.before_all(shared)
+        result = self._run(shared)
+        self.after_all(shared)
+        if self.outputs:
+            if len(self.outputs) == 1:
+                return shared.get(self.outputs[0], result)
+            return [shared.get(o) for o in self.outputs]
+        return result
 
     def start(self, start: Step) -> Step:
         """Specify the initial step for this workflow."""
@@ -183,6 +246,8 @@ class Workflow(Step):
             curr.set_params({**p, **curr.params})
             curr.before_all(shared)
             result = curr._run(shared)
+            if isinstance(shared, dict):
+                shared[curr] = result
             curr.after_all(shared)
             last_result = result
             last_action = result if isinstance(result, str) else None
@@ -215,6 +280,7 @@ class AsyncTask(Task):
         run_method = type(self).run_step_async
         sig = inspect.signature(run_method)
         params = list(sig.parameters.values())
+        self.param_names = []
         for param in params:
             if isinstance(param.default, Depends):
                 dep_obj = param.default.obj
@@ -223,6 +289,8 @@ class AsyncTask(Task):
                 )
                 dep_step >> self
                 self.deps[param.name] = dep_step
+            elif param.name not in {"self", "setup_res", "shared"}:
+                self.param_names.append(param.name)
         self.is_typed = bool(self.deps) or not (
             len(params) == 2 and params[1].name in {"setup_res", "shared"}
         )
@@ -243,7 +311,11 @@ class AsyncTask(Task):
                 if self.is_typed:
                     kwargs = {name: setup_res[d] for name, d in self.deps.items()}
                     kwargs.update(
-                        {k: v for k, v in self.params.items() if k not in kwargs}
+                        {
+                            k: v
+                            for k, v in self.params.items()
+                            if k in self.param_names and k not in kwargs
+                        }
                     )
                     method = type(self).run_step_async
                     result = await method(self, **kwargs)
@@ -267,12 +339,17 @@ class AsyncTask(Task):
         pass
 
 
-    async def run_async(self, shared: Any) -> Any:
-        if self.successors:
-            warnings.warn("Step won't run successors. Use AsyncWorkflow.")
+    async def run_async(self, inputs: Optional[Dict[str, Any]] = None) -> Any:
+        """Execute the workflow asynchronously."""
+        self.params = inputs or {}
+        shared: Dict[Any, Any] = {}
         await self.before_all_async(shared)
         result = await self._run_async(shared)
         await self.after_all_async(shared)
+        if self.outputs:
+            if len(self.outputs) == 1:
+                return shared.get(self.outputs[0], result)
+            return [shared.get(o) for o in self.outputs]
         return result
 
     async def _run_async(self, shared: Any) -> Any:
@@ -307,10 +384,14 @@ class AsyncWorkflow(Workflow, AsyncTask):
             if isinstance(curr, AsyncTask):
                 await curr.before_all_async(shared)
                 result = await curr._run_async(shared)
+                if isinstance(shared, dict):
+                    shared[curr] = result
                 await curr.after_all_async(shared)
             else:
                 curr.before_all(shared)
                 result = curr._run(shared)
+                if isinstance(shared, dict):
+                    shared[curr] = result
                 curr.after_all(shared)
             last_result = result
             last_action = result if isinstance(result, str) else None
@@ -405,14 +486,7 @@ def workflow_from_functions(outputs: List[Callable[..., Any]]) -> Workflow:
         has_pred.setdefault(step, False)
         return step
 
-    for func in outputs:
-        build_step(func)
+    step_outputs = [build_step(func) for func in outputs]
 
-    roots = [s for s, pred in has_pred.items() if not pred]
-    if not roots:
-        raise ValueError("No starting step found")
-    for a, b in zip(roots, roots[1:]):
-        a >> b
-    wf = Workflow(roots[0])
-    return wf
+    return Workflow(outputs=step_outputs)
 
