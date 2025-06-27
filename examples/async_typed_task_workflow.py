@@ -20,9 +20,8 @@ class AsyncMulTask(AsyncTask):
 
 async def main():
     mul = AsyncMulTask()
-    wf = AsyncWorkflow(mul.add)
-    mul.add.params = {"x": 2, "y": 3}
-    result = await wf.run_async({})
+    wf = AsyncWorkflow(outputs=[mul])
+    result = await wf.run_async({"x": 2, "y": 3})
     print(result)
 
 
