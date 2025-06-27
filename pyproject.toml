@@ -65,7 +65,6 @@ mkdocs-macros-adr-summary = "*"
 mkdocs-gen-files = ">=0.5.0"
 mkdocs-material = ">=9.1.16"
 mike = ">=2.0.0"
-mypy = ">=0.990"
 pymdown-extensions = ">=10.0.1"
 pytest = "^8.0.0"
 pytest-asyncio = ">=0.20.3"
@@ -80,10 +79,6 @@ pytest-mock = "^3.14.0"
 ############################
 ### Tools configuration  ###
 ############################
-types-networkx = "^3.2.1.20240703"
-types-colorama = "^0.4.15.20240311"
-types-tabulate = "^0.9.0.20240106"
-types-toml = "^0.10.8.20240310"
 
 
 [tool.coverage.run]
@@ -97,11 +92,6 @@ exclude_also = [
     "pass",
     "\\.\\.\\.",
     ]
-
-[tool.mypy]
-files = "fuseline"
-python_version = "3.10"
-plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]
 addopts = ""
