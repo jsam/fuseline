@@ -1,5 +1,7 @@
-import asyncio
-from fuseline.workflow import Step, Task, Workflow, AsyncWorkflow, AsyncTask
+import pytest
+
+from fuseline.workflow import AsyncTask, AsyncWorkflow, Step, Workflow
+
 
 class RecorderStep(Step):
     def __init__(self, log, label="step", action="default"):
@@ -44,12 +46,16 @@ def test_workflow_sequence():
     wf = Workflow(s1)
     wf.run(None)
     assert log == [
+        "s1-before_all",
         "s1-setup",
         "s1-run:s1",
         "s1-teardown",
+        "s1-after_all",
+        "s2-before_all",
         "s2-setup",
         "s2-run:s2",
         "s2-teardown",
+        "s2-after_all",
     ]
 
 
@@ -63,12 +69,16 @@ def test_workflow_conditional_transition():
     wf = Workflow(s1)
     wf.run(None)
     assert log == [
+        "s1-before_all",
         "s1-setup",
         "s1-run:s1",
         "s1-teardown",
+        "s1-after_all",
+        "s3-before_all",
         "s3-setup",
         "s3-run:s3",
         "s3-teardown",
+        "s3-after_all",
     ]
 
 
@@ -78,6 +88,9 @@ class AsyncRecorderStep(AsyncTask):
         self.log = log
         self.label = label
         self.action = action
+
+    async def before_all_async(self, shared):
+        self.log.append(f"{self.label}-before_all")
 
     async def setup_async(self, shared):
         self.log.append(f"{self.label}-setup")
@@ -91,8 +104,8 @@ class AsyncRecorderStep(AsyncTask):
         self.log.append(f"{self.label}-teardown")
         return exec_res
 
-
-import pytest
+    async def after_all_async(self, shared):
+        self.log.append(f"{self.label}-after_all")
 
 @pytest.mark.asyncio
 async def test_async_workflow():
@@ -101,7 +114,9 @@ async def test_async_workflow():
     wf = AsyncWorkflow(s1)
     await wf.run_async(None)
     assert log == [
+        "ast-before_all",
         "ast-setup",
         "ast-run:ast",
         "ast-teardown",
+        "ast-after_all",
     ]
