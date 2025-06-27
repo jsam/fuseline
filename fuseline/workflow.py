@@ -153,7 +153,9 @@ class Workflow(Step):
         last_action: Optional[str] = None
         while curr:
             curr.set_params(p)
+            curr.before_all(shared)
             last_action = curr._run(shared)
+            curr.after_all(shared)
             curr = copy.copy(self.get_next_step(curr, last_action))
         return last_action
 
@@ -241,11 +243,14 @@ class AsyncWorkflow(Workflow, AsyncTask):
         last_action: Optional[str] = None
         while curr:
             curr.set_params(p)
-            last_action = (
-                await curr._run_async(shared)
-                if isinstance(curr, AsyncTask)
-                else curr._run(shared)
-            )
+            if isinstance(curr, AsyncTask):
+                await curr.before_all_async(shared)
+                last_action = await curr._run_async(shared)
+                await curr.after_all_async(shared)
+            else:
+                curr.before_all(shared)
+                last_action = curr._run(shared)
+                curr.after_all(shared)
             curr = copy.copy(self.get_next_step(curr, last_action))
         return last_action
 
