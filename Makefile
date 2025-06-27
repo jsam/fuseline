@@ -10,7 +10,7 @@ update-dependencies:
 	poetry update --with dev
 
 test:
-	poetry run pytest -n auto --cov
+	poetry run pytest
 
 docs:
 	poetry run mkdocs serve

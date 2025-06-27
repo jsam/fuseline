@@ -198,8 +198,8 @@ class NetworkPropertyMixin(NetworkAPI):
 
         if tabular:
             headers = [
-                "Name",
                 "Type",
+                "Annotation",
                 "Is Empty",
                 "Name",
                 "Output",
