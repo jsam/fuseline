@@ -2,8 +2,15 @@ import sys
 from typing import Any, Dict, List, Optional
 
 import click
-from colorama import Fore, Style, init
-from tabulate import tabulate
+
+try:
+    from colorama import Fore, Style, init
+except Exception:  # pragma: no cover - fallback for minimal environments
+    from fuseline.utils.colorama_stub import Fore, Style, init
+try:
+    from tabulate import tabulate
+except Exception:  # pragma: no cover - fallback for minimal environments
+    from fuseline.utils.tabulate_stub import tabulate
 
 from fuseline.core.abc import NetworkAPI
 from fuseline.core.config import FuselineConfig, get_fuseline_config

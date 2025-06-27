@@ -1,6 +1,12 @@
 from typing import Any, Dict
 
-import networkx
+try:
+    import networkx
+except Exception:  # pragma: no cover - fallback for minimal environments
+    from fuseline.utils.simple_graph import MultiDiGraph as NXDiGraph
+
+    class networkx:  # noqa: N801 - mimic missing package
+        DiGraph = NXDiGraph
 
 from fuseline.core.abc import NetworkPlotAPI
 from fuseline.core.nodes import NetworkNode
@@ -11,7 +17,10 @@ class NetworkPlot(NetworkPlotAPI):
 
     def __init__(self, graph: networkx.DiGraph) -> None:
         """Network plot constructor."""
-        import pydot  # type: ignore
+        try:
+            import pydot  # type: ignore
+        except Exception:  # pragma: no cover - fallback for minimal environments
+            import fuseline.utils.pydot_stub as pydot
 
         self._graph: networkx.DiGraph = graph
 

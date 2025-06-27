@@ -2,8 +2,16 @@ import importlib
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
-import toml
-from pydantic import BaseModel, ConfigDict, Field
+try:
+    import toml
+except Exception:  # pragma: no cover - fallback for minimal environments
+    from fuseline.utils.toml_stub import load as toml_load
+else:
+    toml_load = toml.load
+try:
+    from pydantic import BaseModel, ConfigDict, Field  # type: ignore
+except Exception:  # pragma: no cover - fallback for minimal environments
+    from fuseline.utils.pydantic_stub import BaseModel, ConfigDict, Field
 
 from fuseline.core.abc import NetworkAPI
 from fuseline.core.network import Network, WorkflowNotFoundError
@@ -81,7 +89,7 @@ def get_fuseline_config() -> Optional[FuselineConfig]:
         return None
 
     try:
-        pyproject_data = toml.load(pyproject_path)
+        pyproject_data = toml_load(pyproject_path)
         if "tool" in pyproject_data and "fuseline" in pyproject_data["tool"]:
             config = pyproject_data["tool"]["fuseline"]
             return FuselineConfig.model_validate(config)
@@ -92,7 +100,7 @@ def get_fuseline_config() -> Optional[FuselineConfig]:
         print(f"Error: pyproject.toml file not found at {pyproject_path}")
     except PermissionError:
         print(f"Error: Permission denied when trying to read {pyproject_path}")
-    except toml.TomlDecodeError as e:
+    except Exception as e:
         print(f"Error: Invalid TOML in pyproject.toml: {e}")
     except KeyError as e:
         print(f"Error: Expected key not found in pyproject.toml: {e}")

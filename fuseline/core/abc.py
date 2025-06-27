@@ -1,7 +1,13 @@
 import abc
 from typing import Any, Dict, List, Optional, Type, Union
 
-import networkx
+try:
+    import networkx
+except Exception:  # pragma: no cover - fallback for minimal environments
+    from fuseline.utils.simple_graph import MultiDiGraph as NXMultiDiGraph
+
+    class networkx:  # noqa: N801 - mimic missing package
+        MultiDiGraph = NXMultiDiGraph
 
 from fuseline.core.nodes import GearInput, GearNode, GearOutput, OutputNode
 
