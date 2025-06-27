@@ -1,4 +1,5 @@
 
+from fuseline.typed_workflow import TypedWorkflow
 from fuseline.workflow import AsyncTask, AsyncWorkflow, Step, Workflow
 
 
@@ -121,3 +122,17 @@ def test_async_workflow():
         "ast-teardown",
         "ast-after_all",
     ]
+
+def test_typed_workflow():
+    def multiply(x: int) -> int:
+        return x * 2
+
+    from fuseline.core.network import Depends
+    from fuseline.typing import Computed
+
+    def add_one(x: Computed[int] = Depends(multiply)) -> int:
+        return x + 1
+
+    wf = TypedWorkflow("simple", outputs=[add_one])
+    result = wf.run(None, x=3)
+    assert result.outputs[0].value == 7

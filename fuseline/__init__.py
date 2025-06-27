@@ -23,7 +23,7 @@
 
 __version__ = "0.1.2"
 __version_tuple__ = (0, 1, 2)
-from .workflow import (
+from .rshift_workflow import (
     AsyncBatchTask,
     AsyncBatchWorkflow,
     AsyncNetworkTask,
@@ -38,4 +38,6 @@ from .workflow import (
     Task,
     Workflow,
 )
+from .typed_workflow import TypedWorkflow
+
 
