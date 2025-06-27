@@ -28,6 +28,7 @@ class Step:
     def __init__(self) -> None:
         self.params: Dict[str, Any] = {}
         self.successors: Dict[str, "Step"] = {}
+        self.predecessors: List["Step"] = []
 
     def set_params(self, params: Dict[str, Any]) -> None:
         """Store parameters passed from the workflow."""
@@ -38,6 +39,8 @@ class Step:
         if action in self.successors:
             warnings.warn(f"Overwriting successor for action '{action}'")
         self.successors[action] = node
+        if self not in node.predecessors:
+            node.predecessors.append(self)
         return node
 
     def before_all(self, shared: Any) -> Any:  # pragma: no cover - to be overridden
@@ -164,25 +167,18 @@ class BatchTask(Task):
 class Workflow(Step):
     """A sequence of :class:`Step` objects.
 
-    Workflows can be instantiated either with an explicit ``start`` step or
-    by providing the ``outputs`` of the graph.  When ``outputs`` are supplied,
-    the workflow will automatically determine the starting step based on the
-    dependencies of those outputs.
+    Workflows are constructed from their output steps. The starting step is
+    derived by walking the dependencies of those outputs and selecting the
+    first node without a predecessor.
     """
 
-    def __init__(
-        self,
-        start: Optional[Step] = None,
-        outputs: Optional[List[Step]] = None,
-    ) -> None:
+    def __init__(self, outputs: List[Step]) -> None:
         super().__init__()
-        self.outputs = outputs or ([] if start is None else [start])
-        if outputs and not start:
-            roots = self._find_roots(outputs)
-            for a, b in zip(roots, roots[1:]):
-                a >> b
-            start = roots[0]
-        self.start_step = start
+        self.outputs = outputs
+        roots = self._find_roots(outputs)
+        for a, b in zip(roots, roots[1:]):
+            a >> b
+        self.start_step = roots[0] if roots else None
 
     def _find_roots(self, outputs: List[Step]) -> List[Step]:
         steps: List[Step] = []
@@ -192,9 +188,11 @@ class Workflow(Step):
             if step in steps:
                 return
             steps.append(step)
+            for pred in step.predecessors:
+                preds[step] = True
+                walk(pred)
             if isinstance(step, Task):
                 for dep in step.deps.values():
-                    dep >> step
                     preds[step] = True
                     walk(dep)
             preds.setdefault(step, False)

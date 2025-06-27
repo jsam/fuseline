@@ -50,7 +50,7 @@ def test_workflow_sequence():
     s1 = RecorderStep(log, label="s1")
     s2 = RecorderStep(log, label="s2")
     s1 >> s2
-    wf = Workflow(s1)
+    wf = Workflow(outputs=[s2])
     wf.run(None)
     assert log == [
         "s1-before_all",
@@ -73,7 +73,7 @@ def test_workflow_conditional_transition():
     s3 = RecorderStep(log, label="s3")
     s1 >> s2
     (s1 - "skip") >> s3
-    wf = Workflow(s1)
+    wf = Workflow(outputs=[s2, s3])
     wf.run(None)
     assert log == [
         "s1-before_all",
@@ -117,7 +117,7 @@ class AsyncRecorderStep(AsyncTask):
 def test_async_workflow():
     log = []
     s1 = AsyncRecorderStep(log)
-    wf = AsyncWorkflow(s1)
+    wf = AsyncWorkflow(outputs=[s1])
 
     import asyncio
     asyncio.run(wf.run_async({}))
