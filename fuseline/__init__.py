@@ -24,16 +24,18 @@
 __version__ = "0.1.2"
 __version_tuple__ = (0, 1, 2)
 from .flow import (
-    AsyncBatchFlow,
-    AsyncBatchNode,
-    AsyncFlow,
-    AsyncNode,
-    AsyncParallelBatchFlow,
-    AsyncParallelBatchNode,
-    BaseNode,
-    BatchFlow,
-    BatchNode,
-    Flow,
-    Node,
+    AsyncBatchTask,
+    AsyncBatchWorkflow,
+    AsyncNetworkTask,
+    AsyncParallelBatchTask,
+    AsyncParallelBatchWorkflow,
+    AsyncTask,
+    AsyncWorkflow,
+    BatchTask,
+    BatchWorkflow,
+    NetworkTask,
+    Step,
+    Task,
+    Workflow,
 )
 
