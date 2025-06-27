@@ -26,3 +26,7 @@ Shows how tasks can declare dependencies on each other using ``Depends`` and ``C
 
 Asynchronous variant of the typed workflow example using ``AsyncTask`` and ``AsyncWorkflow``.
 
+## combined_workflow.py
+
+Mixes typed task dependencies with manual ``>>`` chaining to build a hybrid workflow.
+
