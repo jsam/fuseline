@@ -1,4 +1,4 @@
-from fuseline.workflow import Step, Workflow
+from fuseline import Step, Workflow
 
 
 class PrintStep(Step):
