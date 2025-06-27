@@ -104,46 +104,47 @@ class Task(Step):
         self.wait = wait
         self.cur_retry: Optional[int] = None
         self.deps: Dict[str, Step] = {}
-        task_method = getattr(self, "task", None)
-        self.is_typed = callable(task_method)
-        if self.is_typed:
-            for param in inspect.signature(task_method).parameters.values():
-                if isinstance(param.default, Depends):
-                    dep_obj = param.default.obj
-                    dep_step = (
-                        dep_obj if isinstance(dep_obj, Step) else FunctionTask(dep_obj)
-                    )
-                    dep_step >> self
-                    self.deps[param.name] = dep_step
+        run_method = type(self).run_step
+        sig = inspect.signature(run_method)
+        params = list(sig.parameters.values())
+        for param in params:
+            if isinstance(param.default, Depends):
+                dep_obj = param.default.obj
+                dep_step = (
+                    dep_obj if isinstance(dep_obj, Step) else FunctionTask(dep_obj)
+                )
+                dep_step >> self
+                self.deps[param.name] = dep_step
+        self.is_typed = bool(self.deps) or not (
+            len(params) == 2 and params[1].name in {"setup_res", "shared"}
+        )
 
     def setup(self, shared: Any) -> Any:  # type: ignore[override]
         if self.is_typed:
             return shared
         return super().setup(shared)
 
-    def run_step(self, setup_res: Any) -> Any:  # type: ignore[override]
-        task_method = getattr(self, "task", None)
-        if callable(task_method):
-            kwargs = {name: setup_res[d] for name, d in self.deps.items()}
-            kwargs.update({k: v for k, v in self.params.items() if k not in kwargs})
-            result = task_method(**kwargs)
-            if isinstance(setup_res, dict):
-                setup_res[self] = result
-            return result
-        raise NotImplementedError
-
-    def exec_fallback(self, setup_res: Any, exc: Exception) -> Any:
-        raise exc
-
     def _exec(self, setup_res: Any) -> Any:
         for self.cur_retry in range(self.max_retries):
             try:
-                return self.run_step(setup_res)
+                if self.is_typed:
+                    kwargs = {name: setup_res[d] for name, d in self.deps.items()}
+                    kwargs.update(
+                        {k: v for k, v in self.params.items() if k not in kwargs}
+                    )
+                    result = type(self).run_step(self, **kwargs)
+                    if isinstance(setup_res, dict):
+                        setup_res[self] = result
+                    return result
+                return type(self).run_step(self, setup_res)
             except Exception as e:
                 if self.cur_retry == self.max_retries - 1:
                     return self.exec_fallback(setup_res, e)
                 if self.wait > 0:
                     time.sleep(self.wait)
+
+    def exec_fallback(self, setup_res: Any, exc: Exception) -> Any:
+        raise exc
 
 
 class BatchTask(Task):
@@ -208,6 +209,23 @@ class BatchWorkflow(Workflow):
 
 
 class AsyncTask(Task):
+    def __init__(self, max_retries: int = 1, wait: float = 0) -> None:
+        super().__init__(max_retries, wait)
+        self.deps = {}
+        run_method = type(self).run_step_async
+        sig = inspect.signature(run_method)
+        params = list(sig.parameters.values())
+        for param in params:
+            if isinstance(param.default, Depends):
+                dep_obj = param.default.obj
+                dep_step = (
+                    dep_obj if isinstance(dep_obj, Step) else FunctionTask(dep_obj)
+                )
+                dep_step >> self
+                self.deps[param.name] = dep_step
+        self.is_typed = bool(self.deps) or not (
+            len(params) == 2 and params[1].name in {"setup_res", "shared"}
+        )
     async def before_all_async(self, shared: Any) -> Any:  # pragma: no cover
         pass
 
@@ -216,24 +234,29 @@ class AsyncTask(Task):
             return shared
         return None
 
-    async def run_step_async(self, setup_res: Any) -> Any:  # pragma: no cover
-        task_method = getattr(self, "task", None)
-        if inspect.iscoroutinefunction(task_method):
-            kwargs = {name: setup_res[d] for name, d in self.deps.items()}
-            kwargs.update({k: v for k, v in self.params.items() if k not in kwargs})
-            result = await task_method(**kwargs)
-            if isinstance(setup_res, dict):
-                setup_res[self] = result
-            return result
-        if callable(task_method):
-            kwargs = {name: setup_res[d] for name, d in self.deps.items()}
-            kwargs.update({k: v for k, v in self.params.items() if k not in kwargs})
-            result = task_method(**kwargs)
-            if isinstance(setup_res, dict):
-                setup_res[self] = result
-            return result
-        raise NotImplementedError
+    async def run_step_async(self, setup_res: Any) -> Any:  # pragma: no cover - to be overridden
+        pass
 
+    async def _exec(self, setup_res: Any) -> Any:
+        for i in range(self.max_retries):
+            try:
+                if self.is_typed:
+                    kwargs = {name: setup_res[d] for name, d in self.deps.items()}
+                    kwargs.update(
+                        {k: v for k, v in self.params.items() if k not in kwargs}
+                    )
+                    method = type(self).run_step_async
+                    result = await method(self, **kwargs)
+                    if isinstance(setup_res, dict):
+                        setup_res[self] = result
+                    return result
+                method = type(self).run_step_async
+                return await method(self, setup_res)
+            except Exception as e:
+                if i == self.max_retries - 1:
+                    return await self.run_step_fallback_async(setup_res, e)
+                if self.wait > 0:
+                    await asyncio.sleep(self.wait)
     async def run_step_fallback_async(self, setup_res: Any, exc: Exception) -> Any:  # pragma: no cover
         raise exc
 
@@ -243,15 +266,6 @@ class AsyncTask(Task):
     async def after_all_async(self, shared: Any) -> Any:  # pragma: no cover
         pass
 
-    async def _exec(self, setup_res: Any) -> Any:
-        for i in range(self.max_retries):
-            try:
-                return await self.run_step_async(setup_res)
-            except Exception as e:
-                if i == self.max_retries - 1:
-                    return await self.run_step_fallback_async(setup_res, e)
-                if self.wait > 0:
-                    await asyncio.sleep(self.wait)
 
     async def run_async(self, shared: Any) -> Any:
         if self.successors:

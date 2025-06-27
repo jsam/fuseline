@@ -3,14 +3,14 @@ from fuseline.typing import Computed
 
 
 class AddTask(Task):
-    def task(self, x: int, y: int) -> int:
+    def run_step(self, x: int, y: int) -> int:
         return x + y
 
 
 class MulTask(Task):
     add = AddTask()
 
-    def task(self, val: Computed[int] = Depends(add)) -> int:
+    def run_step(self, val: Computed[int] = Depends(add)) -> int:
         return val * 2
 
 
