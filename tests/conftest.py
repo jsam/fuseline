@@ -21,6 +21,15 @@ class _NDArray(list):
     def __eq__(self, other):
         return _NDArray([a == b for a, b in zip(self, other)])
 
+    def __mul__(self, other):
+        if isinstance(other, (int, float)):
+            return _NDArray([a * other for a in self])
+        if isinstance(other, list):
+            return _NDArray([a * b for a, b in zip(self, other)])
+        return NotImplemented
+
+    __rmul__ = __mul__
+
     def all(self):
         return all(self)
 stubs['numpy'].NDArray = _NDArray
