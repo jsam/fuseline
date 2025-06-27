@@ -36,6 +36,7 @@ from .rshift_workflow import (
     FunctionTask,
     Step,
     Task,
+    TypedTask,
     Workflow,
     workflow_from_functions,
 )

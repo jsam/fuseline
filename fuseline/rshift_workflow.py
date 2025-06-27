@@ -285,10 +285,10 @@ class AsyncParallelBatchWorkflow(AsyncWorkflow, BatchWorkflow):
 
 
 class Depends:
-    """Declare a dependency on another function."""
+    """Declare a dependency on another callable or step."""
 
-    def __init__(self, func: Callable[..., Any]) -> None:
-        self.func = func
+    def __init__(self, obj: Callable[..., Any] | Step) -> None:
+        self.obj = obj
 
 
 class FunctionTask(Task):
@@ -313,22 +313,61 @@ class FunctionTask(Task):
         return exec_res
 
 
+class TypedTask(Task):
+    """Task with dependencies defined by a ``task`` method."""
+
+    def __init__(self, max_retries: int = 1, wait: float = 0) -> None:
+        super().__init__(max_retries, wait)
+        self.deps: Dict[str, Step] = {}
+        for param in inspect.signature(self.task).parameters.values():
+            if isinstance(param.default, Depends):
+                dep_obj = param.default.obj
+                dep_step = (
+                    dep_obj
+                    if isinstance(dep_obj, Step)
+                    else FunctionTask(dep_obj)
+                )
+                dep_step >> self
+                self.deps[param.name] = dep_step
+
+    def setup(self, shared: Dict[Step, Any]) -> Dict[Step, Any]:  # type: ignore[override]
+        return shared
+
+    def run_step(self, shared: Dict[Step, Any]) -> Any:  # type: ignore[override]
+        kwargs = {name: shared[d] for name, d in self.deps.items()}
+        kwargs.update({k: v for k, v in self.params.items() if k not in kwargs})
+        result = self.task(**kwargs)
+        shared[self] = result
+        return result
+
+    def teardown(self, shared: Any, setup_res: Any, exec_res: Any) -> Any:  # type: ignore[override]
+        return exec_res
+
+    def task(self, **kwargs: Any) -> Any:  # pragma: no cover - to be implemented by subclasses
+        raise NotImplementedError
+
+
 def workflow_from_functions(outputs: List[Callable[..., Any]]) -> Workflow:
     """Create a :class:`Workflow` from typed Python functions."""
 
     steps: Dict[Callable[..., Any], FunctionTask] = {}
-    has_pred: Dict[FunctionTask, bool] = {}
+    has_pred: Dict[Step, bool] = {}
 
-    def build_step(func: Callable[..., Any]) -> FunctionTask:
+    def build_step(obj: Callable[..., Any] | Step) -> Step:
+        if isinstance(obj, Step):
+            return obj
+        func = obj
         if func in steps:
             return steps[func]
         step = FunctionTask(func)
         steps[func] = step
         for param in inspect.signature(func).parameters.values():
             if isinstance(param.default, Depends):
-                dep = build_step(param.default.func)
+                dep_obj = param.default.obj
+                dep = build_step(dep_obj)
                 dep >> step
-                step.deps[param.name] = dep
+                if isinstance(step, FunctionTask):
+                    step.deps[param.name] = dep  # type: ignore[assignment]
                 has_pred[step] = True
         has_pred.setdefault(step, False)
         return step
