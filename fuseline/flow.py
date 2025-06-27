@@ -15,18 +15,22 @@ import time
 import warnings
 from typing import Any, Dict, Optional
 
+from .core.network import Network
 
-class BaseNode:
-    """Base building block for a workflow graph."""
+
+class Step:
+    """Minimal unit of work in a :class:`Workflow`."""
 
     def __init__(self) -> None:
         self.params: Dict[str, Any] = {}
-        self.successors: Dict[str, "BaseNode"] = {}
+        self.successors: Dict[str, "Step"] = {}
 
     def set_params(self, params: Dict[str, Any]) -> None:
+        """Store parameters passed from the workflow."""
         self.params = params
 
-    def next(self, node: "BaseNode", action: str = "default") -> "BaseNode":
+    def next(self, node: "Step", action: str = "default") -> "Step":
+        """Add a successor step to run after this one."""
         if action in self.successors:
             warnings.warn(f"Overwriting successor for action '{action}'")
         self.successors[action] = node
@@ -51,10 +55,11 @@ class BaseNode:
 
     def run(self, shared: Any) -> Any:
         if self.successors:
-            warnings.warn("Node won't run successors. Use Flow.")
+            warnings.warn("Step won't run successors. Use Workflow.")
         return self._run(shared)
 
-    def __rshift__(self, other: "BaseNode") -> "BaseNode":
+    def __rshift__(self, other: "Step") -> "Step":
+        """Shorthand for :py:meth:`next`."""
         return self.next(other)
 
     def __sub__(self, action: str) -> "_ConditionalTransition":
@@ -64,15 +69,17 @@ class BaseNode:
 
 
 class _ConditionalTransition:
-    def __init__(self, src: BaseNode, action: str) -> None:
+    def __init__(self, src: Step, action: str) -> None:
         self.src = src
         self.action = action
 
-    def __rshift__(self, tgt: BaseNode) -> BaseNode:
+    def __rshift__(self, tgt: Step) -> Step:
         return self.src.next(tgt, self.action)
 
 
-class Node(BaseNode):
+class Task(Step):
+    """Step with optional retry logic."""
+
     def __init__(self, max_retries: int = 1, wait: float = 0) -> None:
         super().__init__()
         self.max_retries = max_retries
@@ -93,36 +100,41 @@ class Node(BaseNode):
                     time.sleep(self.wait)
 
 
-class BatchNode(Node):
+class BatchTask(Task):
+    """Execute a sequence of items using a :class:`Task`."""
+
     def _exec(self, items: Any) -> Any:
-        return [super(BatchNode, self)._exec(i) for i in (items or [])]
+        return [super(BatchTask, self)._exec(i) for i in (items or [])]
 
 
-class Flow(BaseNode):
-    def __init__(self, start: Optional[BaseNode] = None) -> None:
+class Workflow(Step):
+    """A sequence of :class:`Step` objects."""
+
+    def __init__(self, start: Optional[Step] = None) -> None:
         super().__init__()
-        self.start_node = start
+        self.start_step = start
 
-    def start(self, start: BaseNode) -> BaseNode:
-        self.start_node = start
+    def start(self, start: Step) -> Step:
+        """Specify the initial step for this workflow."""
+        self.start_step = start
         return start
 
-    def get_next_node(self, curr: BaseNode, action: Optional[str]) -> Optional[BaseNode]:
+    def get_next_step(self, curr: Step, action: Optional[str]) -> Optional[Step]:
         nxt = curr.successors.get(action or "default")
         if not nxt and curr.successors:
             warnings.warn(
-                f"Flow ends: '{action}' not found in {list(curr.successors)}"
+                f"Workflow ends: '{action}' not found in {list(curr.successors)}"
             )
         return nxt
 
     def _orch(self, shared: Any, params: Optional[Dict[str, Any]] = None) -> Any:
-        curr: Optional[BaseNode] = copy.copy(self.start_node)
+        curr: Optional[Step] = copy.copy(self.start_step)
         p = params or {**self.params}
         last_action: Optional[str] = None
         while curr:
             curr.set_params(p)
             last_action = curr._run(shared)
-            curr = copy.copy(self.get_next_node(curr, last_action))
+            curr = copy.copy(self.get_next_step(curr, last_action))
         return last_action
 
     def _run(self, shared: Any) -> Any:
@@ -134,7 +146,9 @@ class Flow(BaseNode):
         return exec_res
 
 
-class BatchFlow(Flow):
+class BatchWorkflow(Workflow):
+    """Run the same workflow for a batch of parameter sets."""
+
     def _run(self, shared: Any) -> Any:
         pr = self.prep(shared) or []
         for bp in pr:
@@ -142,7 +156,7 @@ class BatchFlow(Flow):
         return self.post(shared, pr, None)
 
 
-class AsyncNode(Node):
+class AsyncTask(Task):
     async def prep_async(self, shared: Any) -> Any:  # pragma: no cover
         pass
 
@@ -167,7 +181,7 @@ class AsyncNode(Node):
 
     async def run_async(self, shared: Any) -> Any:
         if self.successors:
-            warnings.warn("Node won't run successors. Use AsyncFlow.")
+            warnings.warn("Step won't run successors. Use AsyncWorkflow.")
         return await self._run_async(shared)
 
     async def _run_async(self, shared: Any) -> Any:
@@ -179,31 +193,31 @@ class AsyncNode(Node):
         raise RuntimeError("Use run_async.")
 
 
-class AsyncBatchNode(AsyncNode, BatchNode):
+class AsyncBatchTask(AsyncTask, BatchTask):
     async def _exec(self, items: Any) -> Any:
-        return [await super(AsyncBatchNode, self)._exec(i) for i in items]
+        return [await super(AsyncBatchTask, self)._exec(i) for i in items]
 
 
-class AsyncParallelBatchNode(AsyncNode, BatchNode):
+class AsyncParallelBatchTask(AsyncTask, BatchTask):
     async def _exec(self, items: Any) -> Any:
         return await asyncio.gather(
-            *(super(AsyncParallelBatchNode, self)._exec(i) for i in items)
+            *(super(AsyncParallelBatchTask, self)._exec(i) for i in items)
         )
 
 
-class AsyncFlow(Flow, AsyncNode):
+class AsyncWorkflow(Workflow, AsyncTask):
     async def _orch_async(self, shared: Any, params: Optional[Dict[str, Any]] = None) -> Any:
-        curr: Optional[BaseNode] = copy.copy(self.start_node)
+        curr: Optional[Step] = copy.copy(self.start_step)
         p = params or {**self.params}
         last_action: Optional[str] = None
         while curr:
             curr.set_params(p)
             last_action = (
                 await curr._run_async(shared)
-                if isinstance(curr, AsyncNode)
+                if isinstance(curr, AsyncTask)
                 else curr._run(shared)
             )
-            curr = copy.copy(self.get_next_node(curr, last_action))
+            curr = copy.copy(self.get_next_step(curr, last_action))
         return last_action
 
     async def _run_async(self, shared: Any) -> Any:
@@ -215,7 +229,7 @@ class AsyncFlow(Flow, AsyncNode):
         return exec_res
 
 
-class AsyncBatchFlow(AsyncFlow, BatchFlow):
+class AsyncBatchWorkflow(AsyncWorkflow, BatchWorkflow):
     async def _run_async(self, shared: Any) -> Any:
         pr = await self.prep_async(shared) or []
         for bp in pr:
@@ -223,11 +237,33 @@ class AsyncBatchFlow(AsyncFlow, BatchFlow):
         return await self.post_async(shared, pr, None)
 
 
-class AsyncParallelBatchFlow(AsyncFlow, BatchFlow):
+class AsyncParallelBatchWorkflow(AsyncWorkflow, BatchWorkflow):
     async def _run_async(self, shared: Any) -> Any:
         pr = await self.prep_async(shared) or []
         await asyncio.gather(
             *(self._orch_async(shared, {**self.params, **bp}) for bp in pr)
         )
         return await self.post_async(shared, pr, None)
+
+
+class NetworkTask(Task):
+    """Wrap a :class:`~fuseline.core.network.Network` as a :class:`Task`."""
+
+    def __init__(self, network: Network, max_retries: int = 1, wait: float = 0) -> None:
+        super().__init__(max_retries, wait)
+        self.network = network
+
+    def exec(self, prep_res: Any) -> Any:
+        return self.network.run(**self.params)
+
+
+class AsyncNetworkTask(AsyncTask):
+    """Async wrapper around :class:`NetworkTask`."""
+
+    def __init__(self, network: Network, max_retries: int = 1, wait: float = 0) -> None:
+        super().__init__(max_retries, wait)
+        self.network = network
+
+    async def exec_async(self, prep_res: Any) -> Any:
+        return await asyncio.to_thread(self.network.run, **self.params)
 
