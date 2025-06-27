@@ -18,15 +18,8 @@ def test_async_step_workflow_example(capsys):
     assert "async world" in out
 
 
-def test_network_task_workflow_example(capsys):
-    runpy.run_path(str(ROOT / "examples" / "network_task_workflow.py"), run_name="__main__")
-    out = capsys.readouterr().out
-    assert "Output:" in out
-    assert "7" in out
-
-
-def test_typed_workflow_example(capsys):
-    runpy.run_path(str(ROOT / "examples" / "typed_workflow_example.py"), run_name="__main__")
+def test_network_workflow_example(capsys):
+    runpy.run_path(str(ROOT / "examples" / "network_workflow.py"), run_name="__main__")
     out = capsys.readouterr().out
     assert "Output:" in out
     assert "7" in out
