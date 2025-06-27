@@ -30,3 +30,10 @@ def test_async_typed_task_workflow_example(capsys):
     assert "10" in out
 
 
+def test_combined_workflow_example(capsys):
+    runpy.run_path(str(ROOT / "examples" / "combined_workflow.py"), run_name="__main__")
+    out = capsys.readouterr().out
+    assert "result:" in out
+    assert "done" in out
+
+
