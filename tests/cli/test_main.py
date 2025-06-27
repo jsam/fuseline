@@ -24,25 +24,23 @@ import pytest
 from click.testing import CliRunner
 
 from fuseline.cli.__main__ import ls, run
-from fuseline.core.config import FuselineConfig
+from fuseline.core.config import EngineConfig, FuselineConfig, NetworkConfig
 
 
 @pytest.fixture
 def mock_get_fuseline_config(mocker):
-    mock_config = FuselineConfig.model_validate(
-        {
-            "config": {"engine": "SerialEngine"},
-            "workflows": [
-                {
-                    "name": "test_eval",
-                    "outputs": ["fuseline.workflows.fake_eval.evaluate_model"],
-                }
-            ],
-        }
+    mock_config = FuselineConfig(
+        config=EngineConfig(engine="SerialEngine"),
+        workflows=[
+            NetworkConfig(
+                name="fake_eval",
+                outputs=["tests.workflows.fake_eval.evaluate_model"],
+            )
+        ],
     )
 
     # Set up mock config here
-    mocker.patch("fuseline.core.config.get_fuseline_config", return_value=mock_config)
+    mocker.patch("fuseline.cli.__main__.get_fuseline_config", return_value=mock_config)
     return mock_config
 
 

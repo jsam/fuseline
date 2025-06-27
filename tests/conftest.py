@@ -17,10 +17,16 @@ stubs = {
 }
 
 # Fill stub attributes
-stubs['numpy'].array = lambda x: x
 class _NDArray(list):
-    pass
+    def __eq__(self, other):
+        return _NDArray([a == b for a, b in zip(self, other)])
+
+    def all(self):
+        return all(self)
 stubs['numpy'].NDArray = _NDArray
+stubs['numpy'].ndarray = _NDArray
+stubs['numpy'].array = lambda x: _NDArray(x)
+stubs['numpy'].array_equal = lambda a, b: list(a) == list(b)
 
 class _Color:
     pass

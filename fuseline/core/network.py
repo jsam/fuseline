@@ -190,8 +190,11 @@ class NetworkPropertyMixin(NetworkAPI):
         for node in outputs:
             node_type = type(node).__name__
             if colored:
-                color = Fore.GREEN if isinstance(node, GearOutput) else Fore.YELLOW
-                status = f"{color}{node_type}{Style.RESET_ALL}"
+                green = getattr(Fore, "GREEN", "")
+                yellow = getattr(Fore, "YELLOW", "")
+                reset = getattr(Style, "RESET_ALL", "")
+                color = green if isinstance(node, GearOutput) else yellow
+                status = f"{color}{node_type}{reset}"
             else:
                 status = node_type
 
@@ -333,12 +336,15 @@ class Network(NetworkPropertyMixin):
         table_data = []
 
         for key in all_keys:
+            green = getattr(Fore, "GREEN", "")
+            red = getattr(Fore, "RED", "")
+            reset = getattr(Style, "RESET_ALL", "")
             if key in expected_shape and key in input_data:
-                status = f"{Fore.GREEN}✓{Style.RESET_ALL}"
+                status = f"{green}✓{reset}"
             elif key in expected_shape:
-                status = f"{Fore.RED}Missing{Style.RESET_ALL}"
+                status = f"{red}Missing{reset}"
             else:
-                status = f"{Fore.RED}Extra{Style.RESET_ALL}"
+                status = f"{red}Extra{reset}"
 
             expected_value = expected_shape.get(key, "N/A")
             provided_value = input_data.get(key, "N/A")
