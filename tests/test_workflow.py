@@ -4,14 +4,13 @@ from fuseline.typing import Computed
 from fuseline.workflow import (
     AsyncTask,
     AsyncWorkflow,
-    Step,
-    TypedTask,
+    Task,
     Workflow,
     workflow_from_functions,
 )
 
 
-class RecorderStep(Step):
+class RecorderStep(Task):
     def __init__(self, log, label="step", action="default"):
         super().__init__()
         self.log = log
@@ -147,12 +146,12 @@ def test_typed_workflow():
     assert result == 7
 
 
-class AddTask(TypedTask):
+class AddTask(Task):
     def task(self, x: int, y: int) -> int:
         return x + y
 
 
-class MulTask(TypedTask):
+class MulTask(Task):
     add_step = AddTask()
 
     def task(self, val: Computed[int] = Depends(add_step)) -> int:

@@ -11,7 +11,7 @@ python step_workflow.py
 
 ## step_workflow.py
 
-Builds a two step workflow using ``Step`` and ``Workflow`` where each step just
+Builds a two step workflow using ``Task`` and ``Workflow`` where each step just
 prints a message.
 
 ## async_step_workflow.py
