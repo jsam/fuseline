@@ -16,6 +16,8 @@ from fuseline.core.abc import NetworkAPI
 from fuseline.core.config import FuselineConfig, get_fuseline_config
 from fuseline.core.network import WorkflowNotFoundError
 
+RESET = getattr(Style, "RESET_ALL", "")
+
 
 @click.group()
 def cli():
@@ -32,17 +34,20 @@ def ls(ctx: click.Context) -> None:
         sys.exit(0)
 
     # Prepare data for tabulation
+    green = getattr(Fore, "GREEN", "")
+    bright = getattr(Style, "BRIGHT", "")
     headers = [
-        Fore.GREEN + Style.BRIGHT + "Workflow Name" + Style.RESET_ALL,
-        Fore.GREEN + Style.BRIGHT + "Input Shape" + Style.RESET_ALL,
-        Fore.GREEN + Style.BRIGHT + "Outputs" + Style.RESET_ALL,
+        green + bright + "Workflow Name" + RESET,
+        green + bright + "Input Shape" + RESET,
+        green + bright + "Outputs" + RESET,
     ]
 
     table_data: List[List[str]] = []
 
     for workflow_config in fuseline_config.workflows:
         workflow = workflow_config.build()
-        workflow_name = Fore.CYAN + workflow.name + Style.RESET_ALL
+        cyan = getattr(Fore, "CYAN", "")
+        workflow_name = cyan + workflow.name + RESET
         input_shape = "\n".join(
             [f"{input_name}[{input_type}]" for input_name, input_type in workflow.input_shape.items()]
         )
@@ -58,7 +63,9 @@ def ls(ctx: click.Context) -> None:
     click.echo(table)
 
     # Print additional config info if needed
-    click.echo(f"\n{Fore.BLUE}Engine: {Fore.WHITE}{fuseline_config.config.engine}{Style.RESET_ALL}")
+    blue = getattr(Fore, "BLUE", "")
+    white = getattr(Fore, "WHITE", "")
+    click.echo(f"\n{blue}Engine: {white}{fuseline_config.config.engine}{RESET}")
 
 
 @cli.command(context_settings=dict(ignore_unknown_options=True, allow_extra_args=True))
@@ -74,8 +81,8 @@ def run(ctx, workflow_name: str):
     try:
         workflow: NetworkAPI = fuseline_config[workflow_name]
     except WorkflowNotFoundError:
-        color = Fore.RED
-        status = f"{color}ERROR!{Style.RESET_ALL}"
+        red = getattr(Fore, "RED", "")
+        status = f"{red}ERROR!{RESET}"
 
         click.echo(f"{status} Workflow `{workflow_name}` not found.")
         return
