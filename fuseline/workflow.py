@@ -2,9 +2,7 @@
 """Lightweight workflow interface.
 
 This module provides simple synchronous and asynchronous workflow primitives
-based on nodes and flows. The design is inspired by the user's suggestion in
-the issue conversation and is intentionally minimal so it can be adopted
-incrementally without disrupting the existing network implementation.
+based on nodes and flows.
 """
 
 from __future__ import annotations
