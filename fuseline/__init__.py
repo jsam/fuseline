@@ -23,7 +23,7 @@
 
 __version__ = "0.1.2"
 __version_tuple__ = (0, 1, 2)
-from .flow import (
+from .workflow import (
     AsyncBatchTask,
     AsyncBatchWorkflow,
     AsyncNetworkTask,
