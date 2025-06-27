@@ -1,0 +1,25 @@
+import runpy
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_simple_workflow_example(capsys):
+    runpy.run_path(str(ROOT / "examples" / "simple_workflow.py"), run_name="__main__")
+    out = capsys.readouterr().out
+    assert "hello" in out
+    assert "world" in out
+
+
+def test_async_workflow_example(capsys):
+    runpy.run_path(str(ROOT / "examples" / "async_workflow.py"), run_name="__main__")
+    out = capsys.readouterr().out
+    assert "hello" in out
+    assert "async world" in out
+
+
+def test_network_workflow_example(capsys):
+    runpy.run_path(str(ROOT / "examples" / "network_workflow.py"), run_name="__main__")
+    out = capsys.readouterr().out
+    assert "Output:" in out
+    assert "7" in out

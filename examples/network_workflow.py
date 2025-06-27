@@ -1,4 +1,5 @@
-from fuseline import Computed, Depends, Network
+from fuseline.core.network import Depends, Network
+from fuseline.typing import Computed
 from fuseline.workflow import NetworkTask, Workflow
 
 
@@ -17,5 +18,6 @@ if __name__ == "__main__":
     task = NetworkTask(network)
     wf = Workflow(task)
     task.params = {"x": 3}
-    wf.run(None)
-    print("Output:", network.output)
+    result = wf.run(None)
+    if result is not None:
+        print("Output:", result.outputs[0].value)

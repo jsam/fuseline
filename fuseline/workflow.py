@@ -148,14 +148,17 @@ class Workflow(Step):
     def _orch(self, shared: Any, params: Optional[Dict[str, Any]] = None) -> Any:
         curr: Optional[Step] = copy.copy(self.start_step)
         p = params or {**self.params}
+        last_result: Any = None
         last_action: Optional[str] = None
         while curr:
-            curr.set_params(p)
+            curr.set_params({**p, **curr.params})
             curr.before_all(shared)
-            last_action = curr._run(shared)
+            result = curr._run(shared)
             curr.after_all(shared)
+            last_result = result
+            last_action = result if isinstance(result, str) else None
             curr = copy.copy(self.get_next_step(curr, last_action))
-        return last_action
+        return last_result
 
     def _run(self, shared: Any) -> Any:
         p = self.setup(shared)
@@ -238,19 +241,22 @@ class AsyncWorkflow(Workflow, AsyncTask):
     async def _orch_async(self, shared: Any, params: Optional[Dict[str, Any]] = None) -> Any:
         curr: Optional[Step] = copy.copy(self.start_step)
         p = params or {**self.params}
+        last_result: Any = None
         last_action: Optional[str] = None
         while curr:
-            curr.set_params(p)
+            curr.set_params({**p, **curr.params})
             if isinstance(curr, AsyncTask):
                 await curr.before_all_async(shared)
-                last_action = await curr._run_async(shared)
+                result = await curr._run_async(shared)
                 await curr.after_all_async(shared)
             else:
                 curr.before_all(shared)
-                last_action = curr._run(shared)
+                result = curr._run(shared)
                 curr.after_all(shared)
+            last_result = result
+            last_action = result if isinstance(result, str) else None
             curr = copy.copy(self.get_next_step(curr, last_action))
-        return last_action
+        return last_result
 
     async def _run_async(self, shared: Any) -> Any:
         p = await self.setup_async(shared)
@@ -288,6 +294,9 @@ class NetworkTask(Task):
     def run_step(self, setup_res: Any) -> Any:
         return self.network.run(**self.params)
 
+    def teardown(self, shared: Any, setup_res: Any, exec_res: Any) -> Any:
+        return exec_res
+
 
 class AsyncNetworkTask(AsyncTask):
     """Async wrapper around :class:`NetworkTask`."""
@@ -298,4 +307,7 @@ class AsyncNetworkTask(AsyncTask):
 
     async def run_step_async(self, setup_res: Any) -> Any:
         return await asyncio.to_thread(self.network.run, **self.params)
+
+    async def teardown_async(self, shared: Any, setup_res: Any, exec_res: Any) -> Any:
+        return exec_res
 
