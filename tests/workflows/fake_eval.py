@@ -1,6 +1,6 @@
 from typing import Tuple
 
-from fuseline.core.network import Depends
+from fuseline import Depends
 from fuseline.typing import Computed
 
 

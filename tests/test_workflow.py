@@ -2,7 +2,6 @@
 from fuseline.workflow import (
     AsyncTask,
     AsyncWorkflow,
-    NetworkTask,
     Step,
     Workflow,
     workflow_from_functions,
@@ -133,15 +132,13 @@ def test_typed_workflow():
     def multiply(x: int) -> int:
         return x * 2
 
-    from fuseline.core.network import Depends
+    from fuseline import Depends
     from fuseline.typing import Computed
 
     def add_one(x: Computed[int] = Depends(multiply)) -> int:
         return x + 1
 
-    wf = workflow_from_functions("simple", outputs=[add_one])
-    task = wf.start_step  # type: ignore[attr-defined]
-    if isinstance(task, NetworkTask):
-        task.params = {"x": 3}
-    result = wf.run(None)
-    assert result.outputs[0].value == 7
+    wf = workflow_from_functions(outputs=[add_one])
+    wf.start_step.params = {"x": 3}  # type: ignore[attr-defined]
+    result = wf.run({})
+    assert result == 7

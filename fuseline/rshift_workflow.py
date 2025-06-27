@@ -10,12 +10,10 @@ incrementally without disrupting the existing network implementation.
 from __future__ import annotations
 
 import asyncio
-import copy
+import inspect
 import time
 import warnings
 from typing import Any, Callable, Dict, List, Optional
-
-from .core.network import Network
 
 
 class Step:
@@ -148,7 +146,7 @@ class Workflow(Step):
         return nxt
 
     def _orch(self, shared: Any, params: Optional[Dict[str, Any]] = None) -> Any:
-        curr: Optional[Step] = copy.copy(self.start_step)
+        curr: Optional[Step] = self.start_step
         p = params or {**self.params}
         last_result: Any = None
         last_action: Optional[str] = None
@@ -159,7 +157,7 @@ class Workflow(Step):
             curr.after_all(shared)
             last_result = result
             last_action = result if isinstance(result, str) else None
-            curr = copy.copy(self.get_next_step(curr, last_action))
+            curr = self.get_next_step(curr, last_action)
         return last_result
 
     def _run(self, shared: Any) -> Any:
@@ -241,7 +239,7 @@ class AsyncParallelBatchTask(AsyncTask, BatchTask):
 
 class AsyncWorkflow(Workflow, AsyncTask):
     async def _orch_async(self, shared: Any, params: Optional[Dict[str, Any]] = None) -> Any:
-        curr: Optional[Step] = copy.copy(self.start_step)
+        curr: Optional[Step] = self.start_step
         p = params or {**self.params}
         last_result: Any = None
         last_action: Optional[str] = None
@@ -257,7 +255,7 @@ class AsyncWorkflow(Workflow, AsyncTask):
                 curr.after_all(shared)
             last_result = result
             last_action = result if isinstance(result, str) else None
-            curr = copy.copy(self.get_next_step(curr, last_action))
+            curr = self.get_next_step(curr, last_action)
         return last_result
 
     async def _run_async(self, shared: Any) -> Any:
@@ -286,40 +284,63 @@ class AsyncParallelBatchWorkflow(AsyncWorkflow, BatchWorkflow):
         return await self.teardown_async(shared, pr, None)
 
 
-class NetworkTask(Task):
-    """Wrap a :class:`~fuseline.core.network.Network` as a :class:`Task`."""
+class Depends:
+    """Declare a dependency on another function."""
 
-    def __init__(self, network: Network, max_retries: int = 1, wait: float = 0) -> None:
+    def __init__(self, func: Callable[..., Any]) -> None:
+        self.func = func
+
+
+class FunctionTask(Task):
+    """Task wrapping a Python callable."""
+
+    def __init__(self, func: Callable[..., Any], max_retries: int = 1, wait: float = 0) -> None:
         super().__init__(max_retries, wait)
-        self.network = network
+        self.func = func
+        self.deps: Dict[str, FunctionTask] = {}
 
-    def run_step(self, setup_res: Any) -> Any:
-        return self.network.run(**self.params)
+    def setup(self, shared: Dict["FunctionTask", Any]) -> Dict["FunctionTask", Any]:  # type: ignore[override]
+        return shared
 
-    def teardown(self, shared: Any, setup_res: Any, exec_res: Any) -> Any:
+    def run_step(self, shared: Dict["FunctionTask", Any]) -> Any:
+        kwargs = {name: shared[d] for name, d in self.deps.items()}
+        kwargs.update({k: v for k, v in self.params.items() if k not in kwargs})
+        result = self.func(**kwargs)
+        shared[self] = result
+        return result
+
+    def teardown(self, shared: Any, setup_res: Any, exec_res: Any) -> Any:  # type: ignore[override]
         return exec_res
 
 
-class AsyncNetworkTask(AsyncTask):
-    """Async wrapper around :class:`NetworkTask`."""
+def workflow_from_functions(outputs: List[Callable[..., Any]]) -> Workflow:
+    """Create a :class:`Workflow` from typed Python functions."""
 
-    def __init__(self, network: Network, max_retries: int = 1, wait: float = 0) -> None:
-        super().__init__(max_retries, wait)
-        self.network = network
+    steps: Dict[Callable[..., Any], FunctionTask] = {}
+    has_pred: Dict[FunctionTask, bool] = {}
 
-    async def run_step_async(self, setup_res: Any) -> Any:
-        return await asyncio.to_thread(self.network.run, **self.params)
+    def build_step(func: Callable[..., Any]) -> FunctionTask:
+        if func in steps:
+            return steps[func]
+        step = FunctionTask(func)
+        steps[func] = step
+        for param in inspect.signature(func).parameters.values():
+            if isinstance(param.default, Depends):
+                dep = build_step(param.default.func)
+                dep >> step
+                step.deps[param.name] = dep
+                has_pred[step] = True
+        has_pred.setdefault(step, False)
+        return step
 
-    async def teardown_async(self, shared: Any, setup_res: Any, exec_res: Any) -> Any:
-        return exec_res
+    for func in outputs:
+        build_step(func)
 
-
-def workflow_from_functions(
-    name: str, outputs: List[Callable[..., Any]], version: str = "0.1.0"
-) -> Workflow:
-    """Create a :class:`Workflow` from typed function outputs."""
-
-    network = Network(name, outputs=outputs, version=version)
-    task = NetworkTask(network)
-    return Workflow(task)
+    roots = [s for s, pred in has_pred.items() if not pred]
+    if not roots:
+        raise ValueError("No starting step found")
+    for a, b in zip(roots, roots[1:]):
+        a >> b
+    wf = Workflow(roots[0])
+    return wf
 

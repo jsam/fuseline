@@ -18,6 +18,3 @@ prints a message.
 
 Demonstrates the asynchronous workflow API using ``AsyncTask`` and ``AsyncWorkflow``.
 
-## network_workflow.py
-
-Shows how to create a workflow from typed functions using ``workflow_from_functions``.

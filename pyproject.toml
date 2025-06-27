@@ -33,25 +33,13 @@ packages = ["fuseline"]
 requires = ["poetry-core", "poetry-dynamic-versioning"]
 build-backend = "poetry_dynamic_versioning.backend"
 
-[tool.poetry.scripts]
-fuse =  "fuseline.cli.__main__:cli"
+
 
 ############################
 ### Package requirements ###
 ############################
 [tool.poetry.dependencies]
 python = ">=3.10,<3.13"
-networkx = "^3.4"
-numpy = ">=2.0"
-filelock = "^3.15.4"
-click = "^8.1.7"
-toml = "^0.10.2"
-typeguard = "^4.3.0"
-tabulate = "^0.9.0"
-colorama = "^0.4.6"
-pydot = "^3.0.1"
-loguru = "^0.7.2"
-pydantic = "^2.10.6"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -134,15 +122,3 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # Ignore unused imports on init files
 "tests/**/*.py" = ["S101"]  # Allow assert usage on tests
-
-[tool.fuseline.config]
-engine = "SerialEngine"
-
-[tool.fuseline.workflows]
-fake_eval = [
-    "tests.workflows.fake_eval.evaluate_model",
-]
-fake_run = [
-    "tests.workflows.fake_run.hello_world_one",
-    "tests.workflows.fake_run.hello_world_two",
-]
