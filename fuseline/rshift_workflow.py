@@ -13,7 +13,7 @@ import asyncio
 import copy
 import time
 import warnings
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from .core.network import Network
 
@@ -312,4 +312,14 @@ class AsyncNetworkTask(AsyncTask):
 
     async def teardown_async(self, shared: Any, setup_res: Any, exec_res: Any) -> Any:
         return exec_res
+
+
+def workflow_from_functions(
+    name: str, outputs: List[Callable[..., Any]], version: str = "0.1.0"
+) -> Workflow:
+    """Create a :class:`Workflow` from typed function outputs."""
+
+    network = Network(name, outputs=outputs, version=version)
+    task = NetworkTask(network)
+    return Workflow(task)
 

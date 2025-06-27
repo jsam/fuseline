@@ -1,6 +1,12 @@
 
-from fuseline.typed_workflow import TypedWorkflow
-from fuseline.workflow import AsyncTask, AsyncWorkflow, Step, Workflow
+from fuseline.workflow import (
+    AsyncTask,
+    AsyncWorkflow,
+    NetworkTask,
+    Step,
+    Workflow,
+    workflow_from_functions,
+)
 
 
 class RecorderStep(Step):
@@ -133,6 +139,9 @@ def test_typed_workflow():
     def add_one(x: Computed[int] = Depends(multiply)) -> int:
         return x + 1
 
-    wf = TypedWorkflow("simple", outputs=[add_one])
-    result = wf.run(None, x=3)
+    wf = workflow_from_functions("simple", outputs=[add_one])
+    task = wf.start_step  # type: ignore[attr-defined]
+    if isinstance(task, NetworkTask):
+        task.params = {"x": 3}
+    result = wf.run(None)
     assert result.outputs[0].value == 7

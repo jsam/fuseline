@@ -18,11 +18,6 @@ prints a message.
 
 Demonstrates the asynchronous workflow API using ``AsyncTask`` and ``AsyncWorkflow``.
 
-## network_task_workflow.py
+## network_workflow.py
 
-Shows how to wrap a ``Network`` in a ``NetworkTask`` and execute it as part of a
-workflow.
-
-## typed_workflow_example.py
-
-Uses ``TypedWorkflow`` to create a workflow directly from typed functions.
+Shows how to create a workflow from typed functions using ``workflow_from_functions``.
