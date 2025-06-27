@@ -19,7 +19,13 @@ from .core.network import Network
 
 
 class Step:
-    """Minimal unit of work in a :class:`Workflow`."""
+    """Minimal unit of work in a :class:`Workflow`.
+
+    The lifecycle provides per-step hooks as well as hooks that are executed
+    once for the lifetime of the step within a workflow run.  Subclasses can
+    override :py:meth:`before_all`, :py:meth:`setup`, :py:meth:`run_step`,
+    :py:meth:`teardown` and :py:meth:`after_all` to customise behaviour.
+    """
 
     def __init__(self) -> None:
         self.params: Dict[str, Any] = {}
@@ -36,27 +42,41 @@ class Step:
         self.successors[action] = node
         return node
 
-    def prep(self, shared: Any) -> Any:  # pragma: no cover - to be overridden
+    def before_all(self, shared: Any) -> Any:  # pragma: no cover - to be overridden
+        """Hook executed once before the first call to :py:meth:`run`."""
         pass
 
-    def exec(self, prep_res: Any) -> Any:  # pragma: no cover - to be overridden
+    def setup(self, shared: Any) -> Any:  # pragma: no cover - to be overridden
+        """Prepare the step for execution."""
         pass
 
-    def post(self, shared: Any, prep_res: Any, exec_res: Any) -> Any:  # pragma: no cover
+    def run_step(self, setup_res: Any) -> Any:  # pragma: no cover - to be overridden
+        """Execute the step."""
         pass
 
-    def _exec(self, prep_res: Any) -> Any:
-        return self.exec(prep_res)
+    def teardown(self, shared: Any, setup_res: Any, exec_res: Any) -> Any:  # pragma: no cover
+        """Clean up after :py:meth:`run_step`. Return value is propagated as the step result."""
+        pass
+
+    def after_all(self, shared: Any) -> Any:  # pragma: no cover - to be overridden
+        """Hook executed once after the final call to :py:meth:`run`."""
+        pass
+
+    def _exec(self, setup_res: Any) -> Any:
+        return self.run_step(setup_res)
 
     def _run(self, shared: Any) -> Any:
-        p = self.prep(shared)
+        p = self.setup(shared)
         e = self._exec(p)
-        return self.post(shared, p, e)
+        return self.teardown(shared, p, e)
 
     def run(self, shared: Any) -> Any:
         if self.successors:
             warnings.warn("Step won't run successors. Use Workflow.")
-        return self._run(shared)
+        self.before_all(shared)
+        result = self._run(shared)
+        self.after_all(shared)
+        return result
 
     def __rshift__(self, other: "Step") -> "Step":
         """Shorthand for :py:meth:`next`."""
@@ -86,16 +106,16 @@ class Task(Step):
         self.wait = wait
         self.cur_retry: Optional[int] = None
 
-    def exec_fallback(self, prep_res: Any, exc: Exception) -> Any:
+    def exec_fallback(self, setup_res: Any, exc: Exception) -> Any:
         raise exc
 
-    def _exec(self, prep_res: Any) -> Any:
+    def _exec(self, setup_res: Any) -> Any:
         for self.cur_retry in range(self.max_retries):
             try:
-                return self.exec(prep_res)
+                return self.run_step(setup_res)
             except Exception as e:
                 if self.cur_retry == self.max_retries - 1:
-                    return self.exec_fallback(prep_res, e)
+                    return self.exec_fallback(setup_res, e)
                 if self.wait > 0:
                     time.sleep(self.wait)
 
@@ -138,11 +158,11 @@ class Workflow(Step):
         return last_action
 
     def _run(self, shared: Any) -> Any:
-        p = self.prep(shared)
+        p = self.setup(shared)
         o = self._orch(shared)
-        return self.post(shared, p, o)
+        return self.teardown(shared, p, o)
 
-    def post(self, shared: Any, prep_res: Any, exec_res: Any) -> Any:
+    def teardown(self, shared: Any, setup_res: Any, exec_res: Any) -> Any:
         return exec_res
 
 
@@ -150,44 +170,53 @@ class BatchWorkflow(Workflow):
     """Run the same workflow for a batch of parameter sets."""
 
     def _run(self, shared: Any) -> Any:
-        pr = self.prep(shared) or []
+        pr = self.setup(shared) or []
         for bp in pr:
             self._orch(shared, {**self.params, **bp})
-        return self.post(shared, pr, None)
+        return self.teardown(shared, pr, None)
 
 
 class AsyncTask(Task):
-    async def prep_async(self, shared: Any) -> Any:  # pragma: no cover
+    async def before_all_async(self, shared: Any) -> Any:  # pragma: no cover
         pass
 
-    async def exec_async(self, prep_res: Any) -> Any:  # pragma: no cover
+    async def setup_async(self, shared: Any) -> Any:  # pragma: no cover
         pass
 
-    async def exec_fallback_async(self, prep_res: Any, exc: Exception) -> Any:  # pragma: no cover
+    async def run_step_async(self, setup_res: Any) -> Any:  # pragma: no cover
+        pass
+
+    async def run_step_fallback_async(self, setup_res: Any, exc: Exception) -> Any:  # pragma: no cover
         raise exc
 
-    async def post_async(self, shared: Any, prep_res: Any, exec_res: Any) -> Any:  # pragma: no cover
+    async def teardown_async(self, shared: Any, setup_res: Any, exec_res: Any) -> Any:  # pragma: no cover
         pass
 
-    async def _exec(self, prep_res: Any) -> Any:
+    async def after_all_async(self, shared: Any) -> Any:  # pragma: no cover
+        pass
+
+    async def _exec(self, setup_res: Any) -> Any:
         for i in range(self.max_retries):
             try:
-                return await self.exec_async(prep_res)
+                return await self.run_step_async(setup_res)
             except Exception as e:
                 if i == self.max_retries - 1:
-                    return await self.exec_fallback_async(prep_res, e)
+                    return await self.run_step_fallback_async(setup_res, e)
                 if self.wait > 0:
                     await asyncio.sleep(self.wait)
 
     async def run_async(self, shared: Any) -> Any:
         if self.successors:
             warnings.warn("Step won't run successors. Use AsyncWorkflow.")
-        return await self._run_async(shared)
+        await self.before_all_async(shared)
+        result = await self._run_async(shared)
+        await self.after_all_async(shared)
+        return result
 
     async def _run_async(self, shared: Any) -> Any:
-        p = await self.prep_async(shared)
+        p = await self.setup_async(shared)
         e = await self._exec(p)
-        return await self.post_async(shared, p, e)
+        return await self.teardown_async(shared, p, e)
 
     def _run(self, shared: Any) -> Any:
         raise RuntimeError("Use run_async.")
@@ -221,29 +250,29 @@ class AsyncWorkflow(Workflow, AsyncTask):
         return last_action
 
     async def _run_async(self, shared: Any) -> Any:
-        p = await self.prep_async(shared)
+        p = await self.setup_async(shared)
         o = await self._orch_async(shared)
-        return await self.post_async(shared, p, o)
+        return await self.teardown_async(shared, p, o)
 
-    async def post_async(self, shared: Any, prep_res: Any, exec_res: Any) -> Any:
+    async def teardown_async(self, shared: Any, setup_res: Any, exec_res: Any) -> Any:
         return exec_res
 
 
 class AsyncBatchWorkflow(AsyncWorkflow, BatchWorkflow):
     async def _run_async(self, shared: Any) -> Any:
-        pr = await self.prep_async(shared) or []
+        pr = await self.setup_async(shared) or []
         for bp in pr:
             await self._orch_async(shared, {**self.params, **bp})
-        return await self.post_async(shared, pr, None)
+        return await self.teardown_async(shared, pr, None)
 
 
 class AsyncParallelBatchWorkflow(AsyncWorkflow, BatchWorkflow):
     async def _run_async(self, shared: Any) -> Any:
-        pr = await self.prep_async(shared) or []
+        pr = await self.setup_async(shared) or []
         await asyncio.gather(
             *(self._orch_async(shared, {**self.params, **bp}) for bp in pr)
         )
-        return await self.post_async(shared, pr, None)
+        return await self.teardown_async(shared, pr, None)
 
 
 class NetworkTask(Task):
@@ -253,7 +282,7 @@ class NetworkTask(Task):
         super().__init__(max_retries, wait)
         self.network = network
 
-    def exec(self, prep_res: Any) -> Any:
+    def run_step(self, setup_res: Any) -> Any:
         return self.network.run(**self.params)
 
 
@@ -264,6 +293,6 @@ class AsyncNetworkTask(AsyncTask):
         super().__init__(max_retries, wait)
         self.network = network
 
-    async def exec_async(self, prep_res: Any) -> Any:
+    async def run_step_async(self, setup_res: Any) -> Any:
         return await asyncio.to_thread(self.network.run, **self.params)
 
