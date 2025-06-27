@@ -1,8 +1,11 @@
 
+from fuseline import Depends
+from fuseline.typing import Computed
 from fuseline.workflow import (
     AsyncTask,
     AsyncWorkflow,
     Step,
+    TypedTask,
     Workflow,
     workflow_from_functions,
 )
@@ -142,3 +145,23 @@ def test_typed_workflow():
     wf.start_step.params = {"x": 3}  # type: ignore[attr-defined]
     result = wf.run({})
     assert result == 7
+
+
+class AddTask(TypedTask):
+    def task(self, x: int, y: int) -> int:
+        return x + y
+
+
+class MulTask(TypedTask):
+    add_step = AddTask()
+
+    def task(self, val: Computed[int] = Depends(add_step)) -> int:
+        return val * 2
+
+
+def test_typed_step_dependencies():
+    mul = MulTask()
+    wf = Workflow(mul.add_step)
+    mul.add_step.params = {"x": 2, "y": 3}
+    result = wf.run({})
+    assert result == 10
