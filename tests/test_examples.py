@@ -18,3 +18,15 @@ def test_async_step_workflow_example(capsys):
     assert "async world" in out
 
 
+def test_typed_task_workflow_example(capsys):
+    runpy.run_path(str(ROOT / "examples" / "typed_task_workflow.py"), run_name="__main__")
+    out = capsys.readouterr().out
+    assert "10" in out
+
+
+def test_async_typed_task_workflow_example(capsys):
+    runpy.run_path(str(ROOT / "examples" / "async_typed_task_workflow.py"), run_name="__main__")
+    out = capsys.readouterr().out
+    assert "10" in out
+
+

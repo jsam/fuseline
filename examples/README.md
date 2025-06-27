@@ -18,3 +18,11 @@ prints a message.
 
 Demonstrates the asynchronous workflow API using ``AsyncTask`` and ``AsyncWorkflow``.
 
+## typed_task_workflow.py
+
+Shows how tasks can declare dependencies on each other using ``Depends`` and ``Computed``.
+
+## async_typed_task_workflow.py
+
+Asynchronous variant of the typed workflow example using ``AsyncTask`` and ``AsyncWorkflow``.
+

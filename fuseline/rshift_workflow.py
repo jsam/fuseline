@@ -212,16 +212,33 @@ class AsyncTask(Task):
         pass
 
     async def setup_async(self, shared: Any) -> Any:  # pragma: no cover
-        pass
+        if self.is_typed:
+            return shared
+        return None
 
     async def run_step_async(self, setup_res: Any) -> Any:  # pragma: no cover
-        pass
+        task_method = getattr(self, "task", None)
+        if inspect.iscoroutinefunction(task_method):
+            kwargs = {name: setup_res[d] for name, d in self.deps.items()}
+            kwargs.update({k: v for k, v in self.params.items() if k not in kwargs})
+            result = await task_method(**kwargs)
+            if isinstance(setup_res, dict):
+                setup_res[self] = result
+            return result
+        if callable(task_method):
+            kwargs = {name: setup_res[d] for name, d in self.deps.items()}
+            kwargs.update({k: v for k, v in self.params.items() if k not in kwargs})
+            result = task_method(**kwargs)
+            if isinstance(setup_res, dict):
+                setup_res[self] = result
+            return result
+        raise NotImplementedError
 
     async def run_step_fallback_async(self, setup_res: Any, exc: Exception) -> Any:  # pragma: no cover
         raise exc
 
     async def teardown_async(self, shared: Any, setup_res: Any, exec_res: Any) -> Any:  # pragma: no cover
-        pass
+        return exec_res
 
     async def after_all_async(self, shared: Any) -> Any:  # pragma: no cover
         pass
