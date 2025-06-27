@@ -5,7 +5,7 @@ from fuseline.typing import Computed
 
 
 class AsyncAddTask(AsyncTask):
-    async def task(self, x: int, y: int) -> int:
+    async def run_step_async(self, x: int, y: int) -> int:
         await asyncio.sleep(0.1)
         return x + y
 
@@ -13,7 +13,7 @@ class AsyncAddTask(AsyncTask):
 class AsyncMulTask(AsyncTask):
     add = AsyncAddTask()
 
-    async def task(self, val: Computed[int] = Depends(add)) -> int:
+    async def run_step_async(self, val: Computed[int] = Depends(add)) -> int:
         await asyncio.sleep(0.1)
         return val * 2
 
