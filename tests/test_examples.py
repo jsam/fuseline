@@ -1,39 +1,30 @@
+from __future__ import annotations
+
 import runpy
 from pathlib import Path
+from typing import Iterable
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_step_workflow_example(capsys):
-    runpy.run_path(str(ROOT / "examples" / "step_workflow.py"), run_name="__main__")
+EXAMPLES: dict[str, Iterable[str]] = {
+    "step_workflow.py": ["hello", "world"],
+    "async_step_workflow.py": ["hello", "async world"],
+    "typed_task_workflow.py": ["10"],
+    "async_typed_task_workflow.py": ["10"],
+    "combined_workflow.py": ["result:", "done"],
+}
+
+
+@pytest.mark.parametrize("name,expected", EXAMPLES.items(), ids=list(EXAMPLES))
+def test_examples(name: str, expected: Iterable[str], capsys: pytest.CaptureFixture[str]) -> None:
+    """Run each example script and assert expected output fragments."""
+
+    runpy.run_path(str(ROOT / "examples" / name), run_name="__main__")
     out = capsys.readouterr().out
-    assert "hello" in out
-    assert "world" in out
-
-
-def test_async_step_workflow_example(capsys):
-    runpy.run_path(str(ROOT / "examples" / "async_step_workflow.py"), run_name="__main__")
-    out = capsys.readouterr().out
-    assert "hello" in out
-    assert "async world" in out
-
-
-def test_typed_task_workflow_example(capsys):
-    runpy.run_path(str(ROOT / "examples" / "typed_task_workflow.py"), run_name="__main__")
-    out = capsys.readouterr().out
-    assert "10" in out
-
-
-def test_async_typed_task_workflow_example(capsys):
-    runpy.run_path(str(ROOT / "examples" / "async_typed_task_workflow.py"), run_name="__main__")
-    out = capsys.readouterr().out
-    assert "10" in out
-
-
-def test_combined_workflow_example(capsys):
-    runpy.run_path(str(ROOT / "examples" / "combined_workflow.py"), run_name="__main__")
-    out = capsys.readouterr().out
-    assert "result:" in out
-    assert "done" in out
+    for fragment in expected:
+        assert fragment in out
 
 
