@@ -1,6 +1,6 @@
 import asyncio
 
-from fuseline.workflow import AsyncTask, AsyncWorkflow
+from fuseline import AsyncTask, AsyncWorkflow
 
 
 class AsyncPrintStep(AsyncTask):

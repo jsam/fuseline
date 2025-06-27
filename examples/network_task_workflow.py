@@ -1,6 +1,6 @@
+from fuseline import NetworkTask, Workflow
 from fuseline.core.network import Depends, Network
 from fuseline.typing import Computed
-from fuseline.workflow import NetworkTask, Workflow
 
 
 def multiply(x: int) -> int:
