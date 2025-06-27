@@ -53,8 +53,6 @@ pydot = "^3.0.1"
 loguru = "^0.7.2"
 pydantic = "^2.10.6"
 
-[tool.poetry.group.dev]
-optional = true
 
 [tool.poetry.group.dev.dependencies]
 coverage = ">=6.5.0"
