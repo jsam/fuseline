@@ -2,6 +2,7 @@ import inspect
 import json
 import zlib
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -13,10 +14,20 @@ from typing import (
     Union,
 )
 
-import numpy
-from colorama import Fore, Style
-from networkx import MultiDiGraph
-from tabulate import tabulate
+if TYPE_CHECKING:
+    import numpy as np
+try:
+    from colorama import Fore, Style
+except Exception:  # pragma: no cover - fallback for minimal environments
+    from fuseline.utils.colorama_stub import Fore, Style
+try:
+    from networkx import MultiDiGraph  # type: ignore
+except Exception:  # pragma: no cover - fallback for minimal environments
+    from fuseline.utils.simple_graph import MultiDiGraph
+try:
+    from tabulate import tabulate
+except Exception:  # pragma: no cover - fallback for minimal environments
+    from fuseline.utils.tabulate_stub import tabulate
 
 from fuseline.core.abc import EngineAPI, NetworkAPI, NetworkPlotAPI
 from fuseline.core.engines import SerialEngine
@@ -220,7 +231,7 @@ class Network(NetworkPropertyMixin):
     def __init__(
         self,
         name: str,
-        outputs: Optional[List[Callable[..., numpy.ndarray]]] = None,
+        outputs: Optional[List[Callable[..., 'np.ndarray']]] = None,
         version: str = "0.1.0",
         engine: Optional[EngineAPI] = None,
     ) -> None:

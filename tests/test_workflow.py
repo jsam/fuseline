@@ -1,4 +1,3 @@
-import pytest
 
 from fuseline.workflow import AsyncTask, AsyncWorkflow, Step, Workflow
 
@@ -107,12 +106,14 @@ class AsyncRecorderStep(AsyncTask):
     async def after_all_async(self, shared):
         self.log.append(f"{self.label}-after_all")
 
-@pytest.mark.asyncio
-async def test_async_workflow():
+def test_async_workflow():
     log = []
     s1 = AsyncRecorderStep(log)
     wf = AsyncWorkflow(s1)
-    await wf.run_async(None)
+
+    import asyncio
+    asyncio.run(wf.run_async(None))
+
     assert log == [
         "ast-before_all",
         "ast-setup",

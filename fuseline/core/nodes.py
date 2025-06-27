@@ -1,7 +1,10 @@
 import inspect
 from typing import Any, Callable, Dict, List, Optional, Type, Union
 
-from networkx.classes.multidigraph import MultiDiGraph
+try:
+    from networkx.classes.multidigraph import MultiDiGraph
+except Exception:  # pragma: no cover - fallback for minimal environments
+    from fuseline.utils.simple_graph import MultiDiGraph
 from typeguard import TypeCheckError, check_type
 
 from fuseline.utils.logging import get_logger
