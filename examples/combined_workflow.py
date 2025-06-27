@@ -30,5 +30,5 @@ if __name__ == "__main__":
     done = DoneTask()
     printer = PrintTask()
     printer >> done  # manual chaining after typed dependencies
-    wf = Workflow(start=printer.mul.add, outputs=[done])
+    wf = Workflow(outputs=[done])
     wf.run({"x": 2, "y": 3})

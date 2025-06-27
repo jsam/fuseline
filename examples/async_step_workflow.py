@@ -20,7 +20,7 @@ async def main():
     s2 = AsyncPrintStep("async world")
 
     s1 >> s2
-    wf = AsyncWorkflow(s1)
+    wf = AsyncWorkflow(outputs=[s2])
     await wf.run_async(None)
 
 

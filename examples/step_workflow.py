@@ -17,5 +17,5 @@ if __name__ == "__main__":
     world = PrintStep("world")
 
     hello >> world
-    flow = Workflow(hello)
+    flow = Workflow(outputs=[world])
     flow.run(None)
