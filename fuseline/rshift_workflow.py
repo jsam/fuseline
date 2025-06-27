@@ -46,7 +46,7 @@ class Step:
 
     def setup(self, shared: Any) -> Any:  # pragma: no cover - to be overridden
         """Prepare the step for execution."""
-        pass
+        return None
 
     def run_step(self, setup_res: Any) -> Any:  # pragma: no cover - to be overridden
         """Execute the step."""
@@ -54,7 +54,7 @@ class Step:
 
     def teardown(self, shared: Any, setup_res: Any, exec_res: Any) -> Any:  # pragma: no cover
         """Clean up after :py:meth:`run_step`. Return value is propagated as the step result."""
-        pass
+        return exec_res
 
     def after_all(self, shared: Any) -> Any:  # pragma: no cover - to be overridden
         """Hook executed once after the final call to :py:meth:`run`."""
@@ -96,13 +96,41 @@ class _ConditionalTransition:
 
 
 class Task(Step):
-    """Step with optional retry logic."""
+    """Step with optional retry logic and typed dependencies."""
 
     def __init__(self, max_retries: int = 1, wait: float = 0) -> None:
         super().__init__()
         self.max_retries = max_retries
         self.wait = wait
         self.cur_retry: Optional[int] = None
+        self.deps: Dict[str, Step] = {}
+        task_method = getattr(self, "task", None)
+        self.is_typed = callable(task_method)
+        if self.is_typed:
+            for param in inspect.signature(task_method).parameters.values():
+                if isinstance(param.default, Depends):
+                    dep_obj = param.default.obj
+                    dep_step = (
+                        dep_obj if isinstance(dep_obj, Step) else FunctionTask(dep_obj)
+                    )
+                    dep_step >> self
+                    self.deps[param.name] = dep_step
+
+    def setup(self, shared: Any) -> Any:  # type: ignore[override]
+        if self.is_typed:
+            return shared
+        return super().setup(shared)
+
+    def run_step(self, setup_res: Any) -> Any:  # type: ignore[override]
+        task_method = getattr(self, "task", None)
+        if callable(task_method):
+            kwargs = {name: setup_res[d] for name, d in self.deps.items()}
+            kwargs.update({k: v for k, v in self.params.items() if k not in kwargs})
+            result = task_method(**kwargs)
+            if isinstance(setup_res, dict):
+                setup_res[self] = result
+            return result
+        raise NotImplementedError
 
     def exec_fallback(self, setup_res: Any, exc: Exception) -> Any:
         raise exc
@@ -314,37 +342,11 @@ class FunctionTask(Task):
 
 
 class TypedTask(Task):
-    """Task with dependencies defined by a ``task`` method."""
+    """Deprecated alias for :class:`Task`."""
 
-    def __init__(self, max_retries: int = 1, wait: float = 0) -> None:
-        super().__init__(max_retries, wait)
-        self.deps: Dict[str, Step] = {}
-        for param in inspect.signature(self.task).parameters.values():
-            if isinstance(param.default, Depends):
-                dep_obj = param.default.obj
-                dep_step = (
-                    dep_obj
-                    if isinstance(dep_obj, Step)
-                    else FunctionTask(dep_obj)
-                )
-                dep_step >> self
-                self.deps[param.name] = dep_step
-
-    def setup(self, shared: Dict[Step, Any]) -> Dict[Step, Any]:  # type: ignore[override]
-        return shared
-
-    def run_step(self, shared: Dict[Step, Any]) -> Any:  # type: ignore[override]
-        kwargs = {name: shared[d] for name, d in self.deps.items()}
-        kwargs.update({k: v for k, v in self.params.items() if k not in kwargs})
-        result = self.task(**kwargs)
-        shared[self] = result
-        return result
-
-    def teardown(self, shared: Any, setup_res: Any, exec_res: Any) -> Any:  # type: ignore[override]
-        return exec_res
-
-    def task(self, **kwargs: Any) -> Any:  # pragma: no cover - to be implemented by subclasses
-        raise NotImplementedError
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        warnings.warn("TypedTask is deprecated; inherit from Task instead", DeprecationWarning)
+        super().__init__(*args, **kwargs)
 
 
 def workflow_from_functions(outputs: List[Callable[..., Any]]) -> Workflow:

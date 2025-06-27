@@ -34,7 +34,6 @@ from .rshift_workflow import (
     BatchWorkflow,
     Depends,
     FunctionTask,
-    Step,
     Task,
     TypedTask,
     Workflow,
