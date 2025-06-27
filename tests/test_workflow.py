@@ -1,0 +1,107 @@
+import asyncio
+from fuseline.workflow import Step, Task, Workflow, AsyncWorkflow, AsyncTask
+
+class RecorderStep(Step):
+    def __init__(self, log, label="step", action="default"):
+        super().__init__()
+        self.log = log
+        self.label = label
+        self.action = action
+    def before_all(self, shared):
+        self.log.append(f"{self.label}-before_all")
+    def setup(self, shared):
+        self.log.append(f"{self.label}-setup")
+        return self.label
+    def run_step(self, setup_res):
+        self.log.append(f"{self.label}-run:{setup_res}")
+        return self.action
+    def teardown(self, shared, setup_res, exec_res):
+        self.log.append(f"{self.label}-teardown")
+        return exec_res
+    def after_all(self, shared):
+        self.log.append(f"{self.label}-after_all")
+
+
+def test_step_run_lifecycle():
+    log = []
+    step = RecorderStep(log, label="s1", action="result")
+    result = step.run(None)
+    assert result == "result"
+    assert log == [
+        "s1-before_all",
+        "s1-setup",
+        "s1-run:s1",
+        "s1-teardown",
+        "s1-after_all",
+    ]
+
+
+def test_workflow_sequence():
+    log = []
+    s1 = RecorderStep(log, label="s1")
+    s2 = RecorderStep(log, label="s2")
+    s1 >> s2
+    wf = Workflow(s1)
+    wf.run(None)
+    assert log == [
+        "s1-setup",
+        "s1-run:s1",
+        "s1-teardown",
+        "s2-setup",
+        "s2-run:s2",
+        "s2-teardown",
+    ]
+
+
+def test_workflow_conditional_transition():
+    log = []
+    s1 = RecorderStep(log, label="s1", action="skip")
+    s2 = RecorderStep(log, label="s2")
+    s3 = RecorderStep(log, label="s3")
+    s1 >> s2
+    (s1 - "skip") >> s3
+    wf = Workflow(s1)
+    wf.run(None)
+    assert log == [
+        "s1-setup",
+        "s1-run:s1",
+        "s1-teardown",
+        "s3-setup",
+        "s3-run:s3",
+        "s3-teardown",
+    ]
+
+
+class AsyncRecorderStep(AsyncTask):
+    def __init__(self, log, label="ast", action=None):
+        super().__init__()
+        self.log = log
+        self.label = label
+        self.action = action
+
+    async def setup_async(self, shared):
+        self.log.append(f"{self.label}-setup")
+        return self.label
+
+    async def run_step_async(self, setup_res):
+        self.log.append(f"{self.label}-run:{setup_res}")
+        return self.action
+
+    async def teardown_async(self, shared, setup_res, exec_res):
+        self.log.append(f"{self.label}-teardown")
+        return exec_res
+
+
+import pytest
+
+@pytest.mark.asyncio
+async def test_async_workflow():
+    log = []
+    s1 = AsyncRecorderStep(log)
+    wf = AsyncWorkflow(s1)
+    await wf.run_async(None)
+    assert log == [
+        "ast-setup",
+        "ast-run:ast",
+        "ast-teardown",
+    ]
