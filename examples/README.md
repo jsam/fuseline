@@ -30,3 +30,14 @@ Asynchronous variant of the typed workflow example using ``AsyncTask`` and ``Asy
 
 Mixes typed task dependencies with manual ``>>`` chaining to build a hybrid workflow.
 
+## math_workflow.py
+
+Demonstrates a small workflow accepting three parameters ``a``, ``b`` and ``c``. Two
+tasks compute ``a + b`` and then multiply that result by ``c`` before a final task
+prints the outcome.
+
+## async_math_workflow.py
+
+Asynchronous version of ``math_workflow.py`` showing the same logic executed with
+``AsyncTask`` and ``AsyncWorkflow``.
+

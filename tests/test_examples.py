@@ -15,6 +15,8 @@ EXAMPLES: dict[str, Iterable[str]] = {
     "typed_task_workflow.py": ["10"],
     "async_typed_task_workflow.py": ["10"],
     "combined_workflow.py": ["result:", "done"],
+    "math_workflow.py": ["result: 9"],
+    "async_math_workflow.py": ["result: 9"],
 }
 
 
