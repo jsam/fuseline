@@ -29,11 +29,12 @@ class Step:
     :py:meth:`teardown` and :py:meth:`after_all` to customise behaviour.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, *, execution_group: int = 0) -> None:
         self.params: Dict[str, Any] = {}
         self.successors: Dict[str, List["Step"]] = {}
         self.predecessors: List["Step"] = []
         self.tracer: Tracer | None = None
+        self.execution_group = execution_group
 
     def _log_event(self, event: str, **data: Any) -> None:
         if self.tracer:
@@ -110,8 +111,8 @@ class _ConditionalTransition:
 class Task(Step):
     """Step with optional retry logic and typed dependencies."""
 
-    def __init__(self, max_retries: int = 1, wait: float = 0) -> None:
-        super().__init__()
+    def __init__(self, max_retries: int = 1, wait: float = 0, *, execution_group: int = 0) -> None:
+        super().__init__(execution_group=execution_group)
         self.max_retries = max_retries
         self.wait = wait
         self.cur_retry: Optional[int] = None
@@ -349,8 +350,9 @@ class Workflow(Step):
             step._log_event("step_enqueued")
         last_result: Any = None
         while ready:
-            batch = ready
-            ready = []
+            current_group = min(s.execution_group for s in ready)
+            batch = [s for s in ready if s.execution_group == current_group]
+            ready = [s for s in ready if s.execution_group != current_group]
 
             def run_step(s: Step = None) -> Any:
                 return self._execute_step(s, shared)
@@ -392,8 +394,8 @@ class BatchWorkflow(Workflow):
 
 
 class AsyncTask(Task):
-    def __init__(self, max_retries: int = 1, wait: float = 0) -> None:
-        super().__init__(max_retries, wait)
+    def __init__(self, max_retries: int = 1, wait: float = 0, *, execution_group: int = 0) -> None:
+        super().__init__(max_retries, wait, execution_group=execution_group)
         self.deps = {}
         self.dep_conditions: Dict[str, Callable[[Any], bool]] = {}
         self.was_skipped = False
@@ -577,8 +579,9 @@ class AsyncWorkflow(Workflow, AsyncTask):
             step._log_event("step_enqueued")
         last_result: Any = None
         while ready:
-            batch = ready
-            ready = []
+            current_group = min(s.execution_group for s in ready)
+            batch = [s for s in ready if s.execution_group == current_group]
+            ready = [s for s in ready if s.execution_group != current_group]
 
             async def run_step(s: Step) -> Any:
                 return await self._execute_step_async(s, shared, engine)
@@ -648,8 +651,10 @@ class Depends:
 class FunctionTask(Task):
     """Task wrapping a Python callable."""
 
-    def __init__(self, func: Callable[..., Any], max_retries: int = 1, wait: float = 0) -> None:
-        super().__init__(max_retries, wait)
+    def __init__(
+        self, func: Callable[..., Any], max_retries: int = 1, wait: float = 0, *, execution_group: int = 0
+    ) -> None:
+        super().__init__(max_retries, wait, execution_group=execution_group)
         self.func = func
         self.deps: Dict[str, FunctionTask] = {}
         self.dep_conditions: Dict[str, Callable[[Any], bool]] = {}

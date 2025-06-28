@@ -1,7 +1,8 @@
 import json
 import re
+from typing import Any
 
-from fuseline import Computed, Depends
+from fuseline import Computed, Depends, ProcessEngine
 from fuseline.workflow import (
     AsyncTask,
     AsyncWorkflow,
@@ -224,6 +225,7 @@ def test_workflow_export(tmp_path):
     for lst in deps.values():
         for sid in lst:
             assert sid in steps
+    assert sum("execution_group:" in line for line in text) == len(steps)
 
 
 def test_export_with_condition(tmp_path):
@@ -357,3 +359,22 @@ def test_trace_multiple_runs(tmp_path) -> None:
     started = [e for e in events if e["event"] == "workflow_started"]
     assert len(started) == 2
     assert len({e["workflow_instance_id"] for e in started}) == 2
+
+
+def test_execution_groups_order() -> None:
+    log: list[str] = []
+
+    class Rec(Task):
+        def __init__(self, label: str, *, group: int) -> None:
+            super().__init__(execution_group=group)
+            self.label = label
+
+        def run_step(self, setup_res: Any) -> None:  # pragma: no cover - simple
+            log.append(self.label)
+
+    s1 = Rec("s1", group=1)
+    s2 = Rec("s2", group=0)
+    wf = Workflow(outputs=[s1, s2])
+    wf.run(execution_engine=ProcessEngine())
+
+    assert log == ["s2", "s1"]
