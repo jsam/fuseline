@@ -1,6 +1,7 @@
 from fuseline import Depends, ProcessEngine, Task, Workflow
 from fuseline.typing import Computed
 
+
 class Add(Task):
     def run_step(self, x: int, y: int) -> int:
         return x + y
