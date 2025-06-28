@@ -1,7 +1,6 @@
 import asyncio
 
-from fuseline import AsyncTask, AsyncWorkflow, Depends
-from fuseline.typing import Computed
+from fuseline import AsyncTask, AsyncWorkflow, Computed, Depends
 
 
 class AsyncAddTask(AsyncTask):

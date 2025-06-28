@@ -1,8 +1,7 @@
 import json
 import re
 
-from fuseline import Depends
-from fuseline.typing import Computed
+from fuseline import Computed, Depends
 from fuseline.workflow import (
     AsyncTask,
     AsyncWorkflow,
@@ -144,8 +143,7 @@ def test_typed_workflow():
     def multiply(x: int) -> int:
         return x * 2
 
-    from fuseline import Depends
-    from fuseline.typing import Computed
+    from fuseline import Computed, Depends
 
     def add_one(x: Computed[int] = Depends(multiply)) -> int:
         return x + 1

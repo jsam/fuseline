@@ -1,5 +1,4 @@
-from fuseline import Depends, Task, Workflow
-from fuseline.typing import Computed
+from fuseline import Computed, Depends, Task, Workflow
 
 
 class AddTask(Task):

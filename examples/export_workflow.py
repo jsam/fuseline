@@ -1,7 +1,6 @@
 from pathlib import Path
 
-from fuseline import Depends, ProcessEngine, Task, Workflow
-from fuseline.typing import Computed
+from fuseline import Computed, Depends, ProcessEngine, Task, Workflow
 
 
 class AddTask(Task):
