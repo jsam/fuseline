@@ -15,6 +15,8 @@ import time
 import warnings
 from typing import Any, Callable, Dict, List, Optional
 
+from .engines import ProcessEngine
+
 
 class Step:
     """Minimal unit of work in a :class:`Workflow`.
@@ -165,20 +167,14 @@ class BatchTask(Task):
 
 
 class Workflow(Step):
-    """A sequence of :class:`Step` objects.
+    """A sequence of :class:`Step` objects executed via an engine."""
 
-    Workflows are constructed from their output steps. The starting step is
-    derived by walking the dependencies of those outputs and selecting the
-    first node without a predecessor.
-    """
-
-    def __init__(self, outputs: List[Step]) -> None:
+    def __init__(self, outputs: List[Step], execution_engine: "ProcessEngine | None" = None) -> None:
         super().__init__()
         self.outputs = outputs
-        roots = self._find_roots(outputs)
-        for a, b in zip(roots, roots[1:]):
-            a >> b
-        self.start_step = roots[0] if roots else None
+        self.execution_engine = execution_engine
+        self.roots = self._find_roots(outputs)
+        self.start_step = self.roots[0] if self.roots else None
 
     def _find_roots(self, outputs: List[Step]) -> List[Step]:
         steps: List[Step] = []
@@ -202,7 +198,9 @@ class Workflow(Step):
 
         return [s for s, has_pred in preds.items() if not has_pred]
 
-    def run(self, inputs: Optional[Dict[str, Any]] = None) -> Any:  # type: ignore[override]
+    def run(
+        self, inputs: Optional[Dict[str, Any]] = None, execution_engine: "ProcessEngine | None" = None
+    ) -> Any:  # type: ignore[override]
         """Execute the workflow.
 
         Parameters
@@ -213,8 +211,11 @@ class Workflow(Step):
         """
         self.params = inputs or {}
         shared: Dict[Any, Any] = {}
+        engine = execution_engine or self.execution_engine or ProcessEngine()
         self.before_all(shared)
-        result = self._run(shared)
+        setup_res = self.setup(shared)
+        result = self._run_engine(shared, engine)
+        result = self.teardown(shared, setup_res, result)
         self.after_all(shared)
         if self.outputs:
             if len(self.outputs) == 1:
@@ -235,27 +236,60 @@ class Workflow(Step):
             )
         return nxt
 
-    def _orch(self, shared: Any, params: Optional[Dict[str, Any]] = None) -> Any:
-        curr: Optional[Step] = self.start_step
-        p = params or {**self.params}
-        last_result: Any = None
-        last_action: Optional[str] = None
-        while curr:
-            curr.set_params({**p, **curr.params})
-            curr.before_all(shared)
-            result = curr._run(shared)
-            if isinstance(shared, dict):
-                shared[curr] = result
-            curr.after_all(shared)
-            last_result = result
-            last_action = result if isinstance(result, str) else None
-            curr = self.get_next_step(curr, last_action)
-        return last_result
+    def _collect_steps(self) -> List[Step]:
+        seen: List[Step] = []
 
-    def _run(self, shared: Any) -> Any:
-        p = self.setup(shared)
-        o = self._orch(shared)
-        return self.teardown(shared, p, o)
+        def walk(step: Step) -> None:
+            if step in seen:
+                return
+            for pred in step.predecessors:
+                walk(pred)
+            if isinstance(step, Task):
+                for dep in step.deps.values():
+                    walk(dep)
+            seen.append(step)
+
+        for out in self.outputs:
+            walk(out)
+        return seen
+
+    def _execute_step(self, step: Step, shared: Dict[Any, Any]) -> Any:
+        step.set_params({**self.params, **step.params})
+        step.before_all(shared)
+        result = step._run(shared)
+        if isinstance(shared, dict):
+            shared[step] = result
+        step.after_all(shared)
+        return result
+
+    def _run_engine(self, shared: Any, engine: ProcessEngine) -> Any:
+        nodes = self._collect_steps()
+        indegree: Dict[Step, int] = {n: 0 for n in nodes}
+        for n in nodes:
+            for succ in n.successors.values():
+                indegree[succ] = indegree.get(succ, 0) + 1
+
+        ready = [n for n, d in indegree.items() if d == 0]
+        last_result: Any = None
+        while ready:
+            batch = ready
+            ready = []
+
+            def run_step(s: Step = None) -> Any:
+                return self._execute_step(s, shared)
+
+            results = engine.run_steps([lambda s=s: run_step(s) for s in batch])
+
+            for step, res in zip(batch, results):
+                last_result = res
+                action = res if isinstance(res, str) else None
+                succ = self.get_next_step(step, action)
+                if succ is not None:
+                    indegree[succ] -= 1
+                    if indegree[succ] == 0:
+                        ready.append(succ)
+
+        return last_result
 
     def teardown(self, shared: Any, setup_res: Any, exec_res: Any) -> Any:
         return exec_res
@@ -264,11 +298,20 @@ class Workflow(Step):
 class BatchWorkflow(Workflow):
     """Run the same workflow for a batch of parameter sets."""
 
-    def _run(self, shared: Any) -> Any:
-        pr = self.setup(shared) or []
-        for bp in pr:
-            self._orch(shared, {**self.params, **bp})
-        return self.teardown(shared, pr, None)
+    def run(
+        self, inputs: Optional[Dict[str, Any]] = None, execution_engine: "ProcessEngine | None" = None
+    ) -> Any:
+        self.params = inputs or {}
+        shared: Dict[Any, Any] = {}
+        engine = execution_engine or self.execution_engine or ProcessEngine()
+        self.before_all(shared)
+        param_sets = self.setup(shared) or []
+        for bp in param_sets:
+            self.params.update(bp)
+            self._run_engine(shared, engine)
+        result = self.teardown(shared, param_sets, None)
+        self.after_all(shared)
+        return result
 
 
 class AsyncTask(Task):
@@ -372,33 +415,76 @@ class AsyncParallelBatchTask(AsyncTask, BatchTask):
 
 
 class AsyncWorkflow(Workflow, AsyncTask):
-    async def _orch_async(self, shared: Any, params: Optional[Dict[str, Any]] = None) -> Any:
-        curr: Optional[Step] = self.start_step
-        p = params or {**self.params}
+    async def _execute_step_async(self, step: Step, shared: Dict[Any, Any], engine: ProcessEngine) -> Any:
+        step.set_params({**self.params, **step.params})
+        if isinstance(step, AsyncWorkflow):
+            result = await step._run_async(shared, engine)
+        elif isinstance(step, AsyncTask):
+            await step.before_all_async(shared)
+            result = await step._run_async(shared)
+            if isinstance(shared, dict):
+                shared[step] = result
+            await step.after_all_async(shared)
+        else:
+            result = self._execute_step(step, shared)
+        return result
+
+    async def run_async(
+        self, inputs: Optional[Dict[str, Any]] = None, execution_engine: "ProcessEngine | None" = None
+    ) -> Any:
+        self.params = inputs or {}
+        shared: Dict[Any, Any] = {}
+        engine = execution_engine or self.execution_engine or ProcessEngine()
+        await self.before_all_async(shared)
+        result = await self._run_async(shared, engine)
+        await self.after_all_async(shared)
+        if self.outputs:
+            if len(self.outputs) == 1:
+                return shared.get(self.outputs[0], result)
+            return [shared.get(o) for o in self.outputs]
+        return result
+
+    async def _run_engine_async(self, shared: Any, engine: ProcessEngine) -> Any:
+        nodes = self._collect_steps()
+        indegree: Dict[Step, int] = {n: 0 for n in nodes}
+        for n in nodes:
+            for succ in n.successors.values():
+                indegree[succ] = indegree.get(succ, 0) + 1
+
+        ready = [n for n, d in indegree.items() if d == 0]
         last_result: Any = None
-        last_action: Optional[str] = None
-        while curr:
-            curr.set_params({**p, **curr.params})
-            if isinstance(curr, AsyncTask):
-                await curr.before_all_async(shared)
-                result = await curr._run_async(shared)
-                if isinstance(shared, dict):
-                    shared[curr] = result
-                await curr.after_all_async(shared)
+        while ready:
+            batch = ready
+            ready = []
+
+            async def run_step(s: Step) -> Any:
+                return await self._execute_step_async(s, shared, engine)
+
+            if engine.processes == 1 or len(batch) <= 1:
+                results = [await run_step(s) for s in batch]
             else:
-                curr.before_all(shared)
-                result = curr._run(shared)
-                if isinstance(shared, dict):
-                    shared[curr] = result
-                curr.after_all(shared)
-            last_result = result
-            last_action = result if isinstance(result, str) else None
-            curr = self.get_next_step(curr, last_action)
+                if len(batch) > engine.processes:
+                    warnings.warn(
+                        f"ProcessEngine limited to {engine.processes} workers; running {len(batch)} tasks sequentially"
+                    )
+                    results = [await run_step(s) for s in batch]
+                else:
+                    results = await asyncio.gather(*(run_step(s) for s in batch))
+
+            for step, res in zip(batch, results):
+                last_result = res
+                action = res if isinstance(res, str) else None
+                succ = self.get_next_step(step, action)
+                if succ is not None:
+                    indegree[succ] -= 1
+                    if indegree[succ] == 0:
+                        ready.append(succ)
+
         return last_result
 
-    async def _run_async(self, shared: Any) -> Any:
+    async def _run_async(self, shared: Any, engine: ProcessEngine) -> Any:
         p = await self.setup_async(shared)
-        o = await self._orch_async(shared)
+        o = await self._run_engine_async(shared, engine)
         return await self.teardown_async(shared, p, o)
 
     async def teardown_async(self, shared: Any, setup_res: Any, exec_res: Any) -> Any:

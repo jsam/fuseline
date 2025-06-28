@@ -1,4 +1,4 @@
-from fuseline import Depends, Task, Workflow
+from fuseline import Depends, ProcessEngine, Task, Workflow
 from fuseline.typing import Computed
 
 
@@ -36,9 +36,4 @@ class JoinTask(Task):
 if __name__ == "__main__":
     join = JoinTask()
     wf = Workflow(outputs=[join])
-    # Rewire execution order to run all tasks sequentially
-    join.mul2.add.successors["default"] = join.mul2
-    join.mul2.successors["default"] = join.mul3.add
-    join.mul3.add.successors["default"] = join.mul3
-    wf.start_step = join.mul2.add
-    wf.run({"a": 1, "b": 2})
+    wf.run({"a": 1, "b": 2}, execution_engine=ProcessEngine(2))

@@ -1,6 +1,6 @@
 import asyncio
 
-from fuseline import AsyncTask, AsyncWorkflow, Depends
+from fuseline import AsyncTask, AsyncWorkflow, Depends, ProcessEngine
 from fuseline.typing import Computed
 
 
@@ -42,12 +42,7 @@ class AsyncJoinTask(AsyncTask):
 async def main() -> None:
     join = AsyncJoinTask()
     wf = AsyncWorkflow(outputs=[join])
-    # Rewire execution order to run all tasks sequentially
-    join.mul2.add.successors["default"] = join.mul2
-    join.mul2.successors["default"] = join.mul3.add
-    join.mul3.add.successors["default"] = join.mul3
-    wf.start_step = join.mul2.add
-    await wf.run_async({"a": 1, "b": 2})
+    await wf.run_async({"a": 1, "b": 2}, execution_engine=ProcessEngine(2))
 
 
 if __name__ == "__main__":
