@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Awaitable, Callable, Iterable, List
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Iterable, List
+
+if TYPE_CHECKING:  # pragma: no cover - circular import for type checking
+    from .workflow import Workflow
 
 
 class ExecutionEngine(ABC):
