@@ -1,8 +1,0 @@
-{"event": "workflow_started"}
-{"event": "step_enqueued", "step": "Add"}
-{"event": "step_started", "step": "Add"}
-{"event": "step_finished", "step": "Add", "result": 3, "skipped": false}
-{"event": "step_enqueued", "step": "Mul"}
-{"event": "step_started", "step": "Mul"}
-{"event": "step_finished", "step": "Mul", "result": 6, "skipped": false}
-{"event": "workflow_finished"}
