@@ -221,6 +221,37 @@ def test_workflow_export(tmp_path):
             assert sid in steps
 
 
+def test_export_with_condition(tmp_path):
+    class Equals:
+        def __init__(self, expected: int) -> None:
+            self.expected = expected
+
+        def __call__(self, value: int) -> bool:  # pragma: no cover - trivial
+            return value == self.expected
+
+    class Dec(Task):
+        def run_step(self, flag: int) -> int:
+            return flag
+
+    dec = Dec()
+
+    class Left(Task):
+        def run_step(self, _flag: int = Depends(dec, condition=Equals(1))) -> None:
+            pass
+
+    class Right(Task):
+        def run_step(self, _flag: int = Depends(dec, condition=Equals(2))) -> None:
+            pass
+
+    wf = Workflow(outputs=[Left(), Right()])
+    path = tmp_path / "cond.yaml"
+    wf.export(path)
+
+    text = path.read_text()
+    assert "expected: 1" in text
+    assert "expected: 2" in text
+
+
 def test_workflow_trace(tmp_path):
     class A(Task):
         def run_step(self) -> int:
