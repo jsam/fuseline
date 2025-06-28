@@ -220,7 +220,7 @@ class Workflow(Step):
                 "class": type(step).__name__,
                 "successors": {act: [name_map[t] for t in tgts] for act, tgts in step.successors.items()},
             }
-            if isinstance(step, Task):
+            if isinstance(step, Task) and step.deps:
                 entry["dependencies"] = {
                     name: name_map[dep] for name, dep in step.deps.items()
                 }
