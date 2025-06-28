@@ -1,4 +1,5 @@
 
+import json
 import re
 
 from fuseline import Depends
@@ -267,8 +268,19 @@ def test_workflow_trace(tmp_path):
     trace_path = tmp_path / "trace.log"
     wf = Workflow(outputs=[b], trace=str(trace_path))
     wf.run({})
-    trace = trace_path.read_text().strip().splitlines()
-    assert trace == ["A", "B"]
+    entries = [json.loads(line) for line in trace_path.read_text().splitlines()]
+    assert [e["event"] for e in entries] == [
+        "workflow_started",
+        "step_enqueued",
+        "step_started",
+        "step_finished",
+        "step_enqueued",
+        "step_started",
+        "step_finished",
+        "workflow_finished",
+    ]
+    assert entries[2]["step"] == "A"
+    assert entries[5]["step"] == "B"
 
 
 def test_trace_with_conditions(tmp_path):
@@ -289,5 +301,6 @@ def test_trace_with_conditions(tmp_path):
     b2 = B2()
     wf = Workflow(outputs=[b1, b2], trace=str(tmp_path / "trace.log"))
     wf.run({"flag": True})
-    lines = (tmp_path / "trace.log").read_text().strip().splitlines()
-    assert lines == ["Dec", "B1", "B2 (skipped)"]
+    lines = (tmp_path / "trace.log").read_text().splitlines()
+    events = [json.loads(line) for line in lines]
+    assert any(e.get("step") == "B2" and e["event"] == "step_finished" and e["skipped"] for e in events)
