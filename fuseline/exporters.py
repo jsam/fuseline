@@ -24,6 +24,7 @@ class YamlExporter(Exporter):
             entry = {
                 "class": type(step).__name__,
                 "successors": succ_data,
+                "execution_group": step.execution_group,
             }
             if isinstance(step, Task) and step.deps:
                 deps_data = {}
