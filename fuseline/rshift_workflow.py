@@ -326,7 +326,9 @@ class Workflow(Step):
         engine = execution_engine or self.execution_engine or ProcessEngine()
         self.workflow_instance_id = uuid.uuid4().hex
         if self.trace_path:
-            open(self.trace_path, "w", encoding="utf-8").close()
+            # Ensure the trace file exists but do not truncate so multiple
+            # workflow runs can append to the same file.
+            open(self.trace_path, "a", encoding="utf-8").close()
             for step in self._collect_steps():
                 step.trace_event = self._write_trace
             self._write_trace({"event": "workflow_started"})
@@ -594,7 +596,8 @@ class AsyncWorkflow(Workflow, AsyncTask):
         engine = execution_engine or self.execution_engine or ProcessEngine()
         self.workflow_instance_id = uuid.uuid4().hex
         if self.trace_path:
-            open(self.trace_path, "w", encoding="utf-8").close()
+            # Append to existing trace file so multiple runs are captured
+            open(self.trace_path, "a", encoding="utf-8").close()
             for step in self._collect_steps():
                 step.trace_event = self._write_trace
             self._write_trace({"event": "workflow_started"})

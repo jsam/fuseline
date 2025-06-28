@@ -1,5 +1,7 @@
 """Example demonstrating conditional execution with ``Depends``."""
+
 from pathlib import Path
+
 from fuseline import Depends, Task, Workflow
 
 
@@ -18,25 +20,24 @@ class DecideTask(Task):
         print("deciding")
         return flag
 
+
 decider = DecideTask()
 
 
 class DefaultTask(Task):
-    def run_step(
-        self, _flag: bool = Depends(decider, condition=Equals(False))
-    ) -> None:
+    def run_step(self, _flag: bool = Depends(decider, condition=Equals(False))) -> None:
         print("default branch")
 
+
 class SkipTask(Task):
-    def run_step(
-        self, _flag: bool = Depends(decider, condition=Equals(True))
-    ) -> None:
+    def run_step(self, _flag: bool = Depends(decider, condition=Equals(True))) -> None:
         print("skip branch")
+
 
 if __name__ == "__main__":
     default = DefaultTask()
     skip = SkipTask()
-    wf = Workflow(outputs=[default, skip], trace=str(__file__).replace('.py', '.trace'))
+    wf = Workflow(outputs=[default, skip], trace=str(__file__).replace(".py", ".trace"))
     wf.run({"flag": True})
     wf.run({"flag": False})
 
