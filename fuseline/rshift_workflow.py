@@ -228,9 +228,15 @@ class Workflow(Step):
 
         data: Dict[str, Any] = {"steps": {}, "outputs": [name_map[o] for o in self.outputs]}
         for step in steps:
+            succ = step.successors
+            if len(succ) == 1 and "default" in succ:
+                succ_data: Any = [name_map[t] for t in succ.get("default", [])]
+            else:
+                succ_data = {act: [name_map[t] for t in tgts] for act, tgts in succ.items()}
+
             entry = {
                 "class": type(step).__name__,
-                "successors": {act: [name_map[t] for t in tgts] for act, tgts in step.successors.items()},
+                "successors": succ_data,
             }
             if isinstance(step, Task) and step.deps:
                 deps_data = {}
@@ -239,7 +245,11 @@ class Workflow(Step):
                     cond = step.dep_conditions.get(name)
                     if cond is not None:
                         cond_name = getattr(cond, "__name__", cond.__class__.__name__)
-                        dep_entry["condition"] = cond_name
+                        cond_info: Dict[str, Any] = {"type": cond_name}
+                        cond_params = getattr(cond, "__dict__", None)
+                        if cond_params:
+                            cond_info["params"] = cond_params
+                        dep_entry["condition"] = cond_info
                     deps_data[name] = dep_entry
                 entry["dependencies"] = deps_data
             data["steps"][name_map[step]] = entry
