@@ -21,7 +21,7 @@ async def main():
 
     s1 >> s2
     wf = AsyncWorkflow(outputs=[s2])
-    await wf.run_async(None)
+    await wf.run_async()
 
 
 if __name__ == "__main__":

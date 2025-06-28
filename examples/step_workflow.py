@@ -18,4 +18,4 @@ if __name__ == "__main__":
 
     hello >> world
     flow = Workflow(outputs=[world])
-    flow.run(None)
+    flow.run()

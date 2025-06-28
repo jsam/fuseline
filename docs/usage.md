@@ -22,7 +22,7 @@ hello = Hello()
 world = World()
 hello >> world
 flow = Workflow(outputs=[world])
-flow.run(None)
+flow.run()
 ```
 
 ## Typed Dependencies
@@ -64,7 +64,7 @@ class AsyncHello(AsyncTask):
 async def main():
     step = AsyncHello()
     wf = AsyncWorkflow(outputs=[step])
-    await wf.run_async(None)
+    await wf.run_async()
 
 asyncio.run(main())
 ```

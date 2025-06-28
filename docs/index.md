@@ -26,7 +26,7 @@ class World(Task):
 hello = Hello()
 world = World()
 hello >> world
-Workflow(outputs=[world]).run(None)
+Workflow(outputs=[world]).run()
 ```
 
 Head over to the [Usage Guide](usage.md) for more details.
