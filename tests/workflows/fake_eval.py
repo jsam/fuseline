@@ -1,7 +1,6 @@
 from typing import Tuple
 
-from fuseline import Depends
-from fuseline.typing import Computed
+from fuseline import Computed, Depends
 
 
 def calculate_precision_recall(true_positives: int, false_positives: int, false_negatives: int) -> Tuple[float, float]:

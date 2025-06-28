@@ -31,8 +31,7 @@ Steps can depend on the output of other steps using `Depends` and
 `Computed`.
 
 ```python
-from fuseline import Depends, Task, Workflow
-from fuseline.typing import Computed
+from fuseline import Computed, Depends, Task, Workflow
 
 class Add(Task):
     def run_step(self, x: int, y: int) -> int:
