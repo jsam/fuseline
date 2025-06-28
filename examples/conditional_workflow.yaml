@@ -1,0 +1,31 @@
+steps:
+  step0:
+    class: DecideTask
+    successors:
+      - step1
+      - step2
+  step1:
+    class: DefaultTask
+    successors:
+
+    dependencies:
+      _flag:
+        step: step0
+        condition:
+          type: Equals
+          params:
+            expected: False
+  step2:
+    class: SkipTask
+    successors:
+
+    dependencies:
+      _flag:
+        step: step0
+        condition:
+          type: Equals
+          params:
+            expected: True
+outputs:
+  - step1
+  - step2
