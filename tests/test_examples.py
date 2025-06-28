@@ -40,6 +40,7 @@ def test_examples(name: str, expected: Iterable[str], capsys: pytest.CaptureFixt
         entries = [json.loads(line) for line in trace_file.read_text().splitlines()]
         assert [e["event"] for e in entries][:2] == ["workflow_started", "step_enqueued"]
         assert "process_id" in entries[0]
+        assert "host_id" in entries[0]
         trace_file.unlink()
 
 
