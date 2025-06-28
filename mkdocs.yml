@@ -5,11 +5,19 @@ repo_url: https://github.com/jsam/fuseline
 
 nav:
   - Home: index.md
+  - Usage Guide: usage.md
   - API Reference: api.md
 
 plugins:
   - search
-  - mkdocstrings
+  - mkdocstrings:
+      handlers:
+        python:
+          setup_commands:
+            - import sys; sys.path.append("..")
 
 theme:
   name: material
+markdown_extensions:
+  - admonition
+  - codehilite
