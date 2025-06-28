@@ -59,6 +59,11 @@ Builds a fork-join workflow similar to ``parallel_math_workflow.py`` and then
 exports the graph structure to ``export_workflow.yaml`` using
 ``Workflow.export``.
 
+The exported YAML describes each step with its class name, successors and
+dependencies.  ``successors`` is a mapping from an *action* name to a list of
+steps executed when that action is returned from the step.  When a step only
+has one path forward the action name defaults to ``"default"``.
+
 ## trace_workflow.py
 
 Runs a simple workflow while recording the order of executed steps to
