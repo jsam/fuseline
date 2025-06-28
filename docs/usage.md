@@ -82,7 +82,9 @@ wf.run({"a": 1, "b": 2}, execution_engine=ProcessEngine(2))
 ## Exporting and Tracing
 
 Workflows can be exported to YAML with `Workflow.export()` and execution
-traces can be recorded using the `trace` parameter.
+traces can be recorded using the `trace` parameter.  Both features rely on
+pluggable exporters and tracers so alternative formats or backends can be
+added easily.
 
 ```python
 wf.export("workflow.yaml")

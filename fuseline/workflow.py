@@ -19,7 +19,7 @@ from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional
 
 from .engines import ProcessEngine
-from .interfaces import ExecutionEngine
+from .interfaces import ExecutionEngine, Tracer
 
 
 class Step:
@@ -35,11 +35,11 @@ class Step:
         self.params: Dict[str, Any] = {}
         self.successors: Dict[str, List["Step"]] = {}
         self.predecessors: List["Step"] = []
-        self.trace_event: Callable[[dict], None] | None = None
+        self.tracer: Tracer | None = None
 
     def _log_event(self, event: str, **data: Any) -> None:
-        if self.trace_event:
-            self.trace_event({"event": event, "step": type(self).__name__, **data})
+        if self.tracer:
+            self.tracer.record({"event": event, "step": type(self).__name__, **data})
 
     def set_params(self, params: Dict[str, Any]) -> None:
         """Store parameters passed from the workflow."""
@@ -204,26 +204,23 @@ class Workflow(Step):
         outputs: List[Step],
         execution_engine: "ExecutionEngine | None" = None,
         *,
-        trace: str | None = None,
+        trace: str | Tracer | None = None,
     ) -> None:
         super().__init__()
         self.outputs = outputs
         self.execution_engine = execution_engine
-        self.trace_path = trace
+        if isinstance(trace, str):
+            from .tracing import FileTracer
+
+            self.tracer: Tracer | None = FileTracer(trace)
+            self.trace_path = trace
+        else:
+            self.tracer = trace
+            self.trace_path = None
         self.roots = self._find_roots(outputs)
         self.start_step = self.roots[0] if self.roots else None
         self.workflow_id = uuid.uuid4().hex
         self.workflow_instance_id: str | None = None
-
-    def _write_trace(self, record: dict) -> None:
-        if not self.trace_path:
-            return
-        record.setdefault("workflow_id", self.workflow_id)
-        record.setdefault("workflow_instance_id", self.workflow_instance_id)
-        record.setdefault("timestamp", datetime.utcnow().isoformat())
-        with open(self.trace_path, "a", encoding="utf-8") as f:
-            json_line = json.dumps(record, default=str)
-            f.write(json_line + "\n")
 
     def _find_roots(self, outputs: List[Step]) -> List[Step]:
         steps: List[Step] = []
@@ -247,69 +244,16 @@ class Workflow(Step):
 
         return [s for s, has_pred in preds.items() if not has_pred]
 
-    def export(self, path: str) -> None:
-        """Serialize the workflow graph to YAML.
+    def export(self, path: str, exporter: "Exporter | None" = None) -> None:
+        """Serialize the workflow graph using *exporter*.
 
-        The output contains all steps with their class names, successors and
-        typed dependencies. The file is written using a JSON compatible YAML
-        format so no extra dependencies are required.
+        By default the workflow is exported to YAML via :class:`YamlExporter`.
         """
 
-        steps = self._collect_steps()
-        name_map = {step: f"step{idx}" for idx, step in enumerate(steps)}
+        from .exporters import YamlExporter
 
-        data: Dict[str, Any] = {"steps": {}, "outputs": [name_map[o] for o in self.outputs]}
-        for step in steps:
-            succ = step.successors
-            if len(succ) == 1 and "default" in succ:
-                succ_data: Any = [name_map[t] for t in succ.get("default", [])]
-            else:
-                succ_data = {act: [name_map[t] for t in tgts] for act, tgts in succ.items()}
-
-            entry = {
-                "class": type(step).__name__,
-                "successors": succ_data,
-            }
-            if isinstance(step, Task) and step.deps:
-                deps_data = {}
-                for name, dep in step.deps.items():
-                    dep_entry: Dict[str, Any] = {"step": name_map[dep]}
-                    cond = step.dep_conditions.get(name)
-                    if cond is not None:
-                        cond_name = getattr(cond, "__name__", cond.__class__.__name__)
-                        cond_info: Dict[str, Any] = {"type": cond_name}
-                        cond_params = getattr(cond, "__dict__", None)
-                        if cond_params:
-                            cond_info["params"] = cond_params
-                        dep_entry["condition"] = cond_info
-                    deps_data[name] = dep_entry
-                entry["dependencies"] = deps_data
-            data["steps"][name_map[step]] = entry
-
-        def _dump_yaml(obj: Any, indent: int = 0) -> str:
-            pad = "  " * indent
-            if isinstance(obj, dict):
-                lines = []
-                for k, v in obj.items():
-                    if isinstance(v, (dict, list)):
-                        lines.append(f"{pad}{k}:")
-                        lines.append(_dump_yaml(v, indent + 1))
-                    else:
-                        lines.append(f"{pad}{k}: {v}")
-                return "\n".join(lines)
-            if isinstance(obj, list):
-                lines = []
-                for item in obj:
-                    if isinstance(item, (dict, list)):
-                        lines.append(f"{pad}-")
-                        lines.append(_dump_yaml(item, indent + 1))
-                    else:
-                        lines.append(f"{pad}- {item}")
-                return "\n".join(lines)
-            return f"{pad}{obj}"
-
-        with open(path, "w", encoding="utf-8") as f:
-            f.write(_dump_yaml(data))
+        exporter = exporter or YamlExporter()
+        exporter.export(self, path)
 
     def run(
         self, inputs: Optional[Dict[str, Any]] = None, execution_engine: "ExecutionEngine | None" = None
@@ -326,20 +270,23 @@ class Workflow(Step):
         shared: Dict[Any, Any] = {}
         engine = execution_engine or self.execution_engine or ProcessEngine()
         self.workflow_instance_id = uuid.uuid4().hex
-        if self.trace_path:
-            # Ensure the trace file exists but do not truncate so multiple
-            # workflow runs can append to the same file.
-            open(self.trace_path, "a", encoding="utf-8").close()
+        if self.tracer:
+            from .tracing import BoundTracer
+
+            bound = BoundTracer(self.tracer, self.workflow_id, self.workflow_instance_id)
             for step in self._collect_steps():
-                step.trace_event = self._write_trace
-            self._write_trace({"event": "workflow_started"})
+                step.tracer = bound
+            bound.record({"event": "workflow_started"})
         self.before_all(shared)
         setup_res = self.setup(shared)
         result = self._run_engine(shared, engine)
         result = self.teardown(shared, setup_res, result)
         self.after_all(shared)
-        if self.trace_path:
-            self._write_trace({"event": "workflow_finished"})
+        if self.tracer:
+            from .tracing import BoundTracer
+
+            bound = BoundTracer(self.tracer, self.workflow_id, self.workflow_instance_id)
+            bound.record({"event": "workflow_finished"})
         if self.outputs:
             if len(self.outputs) == 1:
                 return shared.get(self.outputs[0], result)
@@ -598,17 +545,21 @@ class AsyncWorkflow(Workflow, AsyncTask):
         shared: Dict[Any, Any] = {}
         engine = execution_engine or self.execution_engine or ProcessEngine()
         self.workflow_instance_id = uuid.uuid4().hex
-        if self.trace_path:
-            # Append to existing trace file so multiple runs are captured
-            open(self.trace_path, "a", encoding="utf-8").close()
+        if self.tracer:
+            from .tracing import BoundTracer
+
+            bound = BoundTracer(self.tracer, self.workflow_id, self.workflow_instance_id)
             for step in self._collect_steps():
-                step.trace_event = self._write_trace
-            self._write_trace({"event": "workflow_started"})
+                step.tracer = bound
+            bound.record({"event": "workflow_started"})
         await self.before_all_async(shared)
         result = await self._run_async(shared, engine)
         await self.after_all_async(shared)
-        if self.trace_path:
-            self._write_trace({"event": "workflow_finished"})
+        if self.tracer:
+            from .tracing import BoundTracer
+
+            bound = BoundTracer(self.tracer, self.workflow_id, self.workflow_instance_id)
+            bound.record({"event": "workflow_finished"})
         if self.outputs:
             if len(self.outputs) == 1:
                 return shared.get(self.outputs[0], result)

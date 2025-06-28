@@ -24,7 +24,9 @@
 __version__ = "0.1.2"
 __version_tuple__ = (0, 1, 2)
 from .engines import ProcessEngine
-from .interfaces import ExecutionEngine
+from .interfaces import ExecutionEngine, Exporter, Tracer
+from .exporters import YamlExporter
+from .tracing import FileTracer
 from .typing import Computed, T
 from .workflow import (
     AsyncBatchTask,
