@@ -1,5 +1,5 @@
 """Example demonstrating conditional execution with ``Depends``."""
-
+from pathlib import Path
 from fuseline import Depends, Task, Workflow
 
 
@@ -36,5 +36,9 @@ class SkipTask(Task):
 if __name__ == "__main__":
     default = DefaultTask()
     skip = SkipTask()
-    wf = Workflow(outputs=[default, skip])
+    wf = Workflow(outputs=[default, skip], trace=str(__file__).replace('.py', '.trace'))
     wf.run({"flag": True})
+    wf.run({"flag": False})
+
+    path = Path(__file__).with_suffix(".yaml")
+    wf.export(str(path))
