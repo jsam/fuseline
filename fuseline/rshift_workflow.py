@@ -108,6 +108,7 @@ class Task(Step):
         self.cur_retry: Optional[int] = None
         self.deps: Dict[str, Step] = {}
         self.dep_conditions: Dict[str, Callable[[Any], bool]] = {}
+        self.was_skipped = False
         run_method = type(self).run_step
         sig = inspect.signature(run_method)
         params = list(sig.parameters.values())
@@ -134,6 +135,7 @@ class Task(Step):
         return super().setup(shared)
 
     def _exec(self, setup_res: Any) -> Any:
+        self.was_skipped = False
         for self.cur_retry in range(self.max_retries):
             try:
                 if self.is_typed:
@@ -142,6 +144,7 @@ class Task(Step):
                         val = setup_res[dep]
                         cond = self.dep_conditions.get(name)
                         if cond is not None and not cond(val):
+                            self.was_skipped = True
                             return None
                         kwargs[name] = val
                     kwargs.update(
@@ -230,9 +233,15 @@ class Workflow(Step):
                 "successors": {act: [name_map[t] for t in tgts] for act, tgts in step.successors.items()},
             }
             if isinstance(step, Task) and step.deps:
-                entry["dependencies"] = {
-                    name: name_map[dep] for name, dep in step.deps.items()
-                }
+                deps_data = {}
+                for name, dep in step.deps.items():
+                    dep_entry: Dict[str, Any] = {"step": name_map[dep]}
+                    cond = step.dep_conditions.get(name)
+                    if cond is not None:
+                        cond_name = getattr(cond, "__name__", cond.__class__.__name__)
+                        dep_entry["condition"] = cond_name
+                    deps_data[name] = dep_entry
+                entry["dependencies"] = deps_data
             data["steps"][name_map[step]] = entry
 
         def _dump_yaml(obj: Any, indent: int = 0) -> str:
@@ -319,11 +328,12 @@ class Workflow(Step):
 
     def _execute_step(self, step: Step, shared: Dict[Any, Any]) -> Any:
         step.set_params({**self.params, **step.params})
-        if self.trace_path:
-            with open(self.trace_path, "a", encoding="utf-8") as f:
-                f.write(f"{type(step).__name__}\n")
         step.before_all(shared)
         result = step._run(shared)
+        if self.trace_path:
+            with open(self.trace_path, "a", encoding="utf-8") as f:
+                mark = " (skipped)" if getattr(step, "was_skipped", False) else ""
+                f.write(f"{type(step).__name__}{mark}\n")
         if isinstance(shared, dict):
             shared[step] = result
         step.after_all(shared)
@@ -386,6 +396,7 @@ class AsyncTask(Task):
         super().__init__(max_retries, wait)
         self.deps = {}
         self.dep_conditions: Dict[str, Callable[[Any], bool]] = {}
+        self.was_skipped = False
         run_method = type(self).run_step_async
         sig = inspect.signature(run_method)
         params = list(sig.parameters.values())
@@ -417,6 +428,7 @@ class AsyncTask(Task):
         pass
 
     async def _exec(self, setup_res: Any) -> Any:
+        self.was_skipped = False
         for i in range(self.max_retries):
             try:
                 if self.is_typed:
@@ -425,6 +437,7 @@ class AsyncTask(Task):
                         val = setup_res[dep]
                         cond = self.dep_conditions.get(name)
                         if cond is not None and not cond(val):
+                            self.was_skipped = True
                             return None
                         kwargs[name] = val
                     kwargs.update(
@@ -493,9 +506,6 @@ class AsyncParallelBatchTask(AsyncTask, BatchTask):
 class AsyncWorkflow(Workflow, AsyncTask):
     async def _execute_step_async(self, step: Step, shared: Dict[Any, Any], engine: ProcessEngine) -> Any:
         step.set_params({**self.params, **step.params})
-        if self.trace_path:
-            with open(self.trace_path, "a", encoding="utf-8") as f:
-                f.write(f"{type(step).__name__}\n")
         if isinstance(step, AsyncWorkflow):
             result = await step._run_async(shared, engine)
         elif isinstance(step, AsyncTask):
@@ -506,6 +516,10 @@ class AsyncWorkflow(Workflow, AsyncTask):
             await step.after_all_async(shared)
         else:
             result = self._execute_step(step, shared)
+        if self.trace_path:
+            with open(self.trace_path, "a", encoding="utf-8") as f:
+                mark = " (skipped)" if getattr(step, "was_skipped", False) else ""
+                f.write(f"{type(step).__name__}{mark}\n")
         return result
 
     async def run_async(

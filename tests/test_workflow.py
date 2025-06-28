@@ -208,6 +208,9 @@ def test_workflow_export(tmp_path):
         m = re.match(r"\s*(\w+):\s*(step\d+)", line)
         if m and current:
             deps.setdefault(current, []).append(m.group(2))
+        m = re.match(r"\s*step:\s*(step\d+)", line)
+        if m and current:
+            deps.setdefault(current, []).append(m.group(1))
 
     assert edges.get("outputs")
     for lst in edges.values():
@@ -235,3 +238,25 @@ def test_workflow_trace(tmp_path):
     wf.run({})
     trace = trace_path.read_text().strip().splitlines()
     assert trace == ["A", "B"]
+
+
+def test_trace_with_conditions(tmp_path):
+    class Dec(Task):
+        def run_step(self, flag: bool) -> bool:
+            return flag
+
+    dec = Dec()
+
+    class B1(Task):
+        def run_step(self, _flag: bool = Depends(dec, condition=lambda x: x)) -> None:
+            pass
+
+    class B2(Task):
+        def run_step(self, _flag: bool = Depends(dec, condition=lambda x: not x)) -> None:
+            pass
+    b1 = B1()
+    b2 = B2()
+    wf = Workflow(outputs=[b1, b2], trace=str(tmp_path / "trace.log"))
+    wf.run({"flag": True})
+    lines = (tmp_path / "trace.log").read_text().strip().splitlines()
+    assert lines == ["Dec", "B1", "B2 (skipped)"]
