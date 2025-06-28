@@ -84,3 +84,4 @@ jobs:
       site-version: ${{ needs.build.outputs.version }}
       version-alias: "stable"
       set-default: true
+
