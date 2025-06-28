@@ -19,6 +19,7 @@ from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional
 
 from .engines import ProcessEngine
+from .interfaces import ExecutionEngine
 
 
 class Step:
@@ -201,7 +202,7 @@ class Workflow(Step):
     def __init__(
         self,
         outputs: List[Step],
-        execution_engine: "ProcessEngine | None" = None,
+        execution_engine: "ExecutionEngine | None" = None,
         *,
         trace: str | None = None,
     ) -> None:
@@ -311,7 +312,7 @@ class Workflow(Step):
             f.write(_dump_yaml(data))
 
     def run(
-        self, inputs: Optional[Dict[str, Any]] = None, execution_engine: "ProcessEngine | None" = None
+        self, inputs: Optional[Dict[str, Any]] = None, execution_engine: "ExecutionEngine | None" = None
     ) -> Any:  # type: ignore[override]
         """Execute the workflow.
 
@@ -390,7 +391,7 @@ class Workflow(Step):
         step.after_all(shared)
         return result
 
-    def _run_engine(self, shared: Any, engine: ProcessEngine) -> Any:
+    def _run_engine(self, shared: Any, engine: ExecutionEngine) -> Any:
         nodes = self._collect_steps()
         indegree: Dict[Step, int] = {n: 0 for n in nodes}
         for n in nodes:
@@ -430,7 +431,7 @@ class BatchWorkflow(Workflow):
     """Run the same workflow for a batch of parameter sets."""
 
     def run(
-        self, inputs: Optional[Dict[str, Any]] = None, execution_engine: "ProcessEngine | None" = None
+        self, inputs: Optional[Dict[str, Any]] = None, execution_engine: "ExecutionEngine | None" = None
     ) -> Any:
         self.params = inputs or {}
         shared: Dict[Any, Any] = {}
@@ -568,7 +569,9 @@ class AsyncParallelBatchTask(AsyncTask, BatchTask):
 
 
 class AsyncWorkflow(Workflow, AsyncTask):
-    async def _execute_step_async(self, step: Step, shared: Dict[Any, Any], engine: ProcessEngine) -> Any:
+    async def _execute_step_async(
+        self, step: Step, shared: Dict[Any, Any], engine: ExecutionEngine
+    ) -> Any:
         step.set_params({**self.params, **step.params})
         if isinstance(step, AsyncWorkflow):
             result = await step._run_async(shared, engine)
@@ -589,7 +592,7 @@ class AsyncWorkflow(Workflow, AsyncTask):
         return result
 
     async def run_async(
-        self, inputs: Optional[Dict[str, Any]] = None, execution_engine: "ProcessEngine | None" = None
+        self, inputs: Optional[Dict[str, Any]] = None, execution_engine: "ExecutionEngine | None" = None
     ) -> Any:
         self.params = inputs or {}
         shared: Dict[Any, Any] = {}
@@ -612,7 +615,7 @@ class AsyncWorkflow(Workflow, AsyncTask):
             return [shared.get(o) for o in self.outputs]
         return result
 
-    async def _run_engine_async(self, shared: Any, engine: ProcessEngine) -> Any:
+    async def _run_engine_async(self, shared: Any, engine: ExecutionEngine) -> Any:
         nodes = self._collect_steps()
         indegree: Dict[Step, int] = {n: 0 for n in nodes}
         for n in nodes:
@@ -631,16 +634,7 @@ class AsyncWorkflow(Workflow, AsyncTask):
             async def run_step(s: Step) -> Any:
                 return await self._execute_step_async(s, shared, engine)
 
-            if engine.processes == 1 or len(batch) <= 1:
-                results = [await run_step(s) for s in batch]
-            else:
-                if len(batch) > engine.processes:
-                    warnings.warn(
-                        f"ProcessEngine limited to {engine.processes} workers; running {len(batch)} tasks sequentially"
-                    )
-                    results = [await run_step(s) for s in batch]
-                else:
-                    results = await asyncio.gather(*(run_step(s) for s in batch))
+            results = await engine.run_async_steps([lambda s=s: run_step(s) for s in batch])
 
             for step, res in zip(batch, results):
                 last_result = res
@@ -653,7 +647,7 @@ class AsyncWorkflow(Workflow, AsyncTask):
 
         return last_result
 
-    async def _run_async(self, shared: Any, engine: ProcessEngine) -> Any:
+    async def _run_async(self, shared: Any, engine: ExecutionEngine) -> Any:
         p = await self.setup_async(shared)
         o = await self._run_engine_async(shared, engine)
         return await self.teardown_async(shared, p, o)

@@ -70,7 +70,8 @@ asyncio.run(main())
 
 ## Parallel Execution
 
-Run independent branches in parallel using `ProcessEngine`.
+Run independent branches in parallel using an execution engine such as
+`ProcessEngine`.
 
 ```python
 from fuseline import ProcessEngine

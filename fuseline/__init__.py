@@ -24,6 +24,7 @@
 __version__ = "0.1.2"
 __version_tuple__ = (0, 1, 2)
 from .engines import ProcessEngine
+from .interfaces import ExecutionEngine
 from .typing import Computed, T
 from .workflow import (
     AsyncBatchTask,
