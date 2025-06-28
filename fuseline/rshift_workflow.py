@@ -63,7 +63,9 @@ class Step:
         """Execute the step."""
         pass
 
-    def teardown(self, shared: Any, setup_res: Any, exec_res: Any) -> Any:  # pragma: no cover
+    def teardown(
+        self, shared: Any, setup_res: Any, exec_res: Any | None = None
+    ) -> Any:  # pragma: no cover
         """Clean up after :py:meth:`run_step`. Return value is propagated as the step result."""
         return exec_res
 
@@ -422,7 +424,9 @@ class Workflow(Step):
 
         return last_result
 
-    def teardown(self, shared: Any, setup_res: Any, exec_res: Any) -> Any:
+    def teardown(
+        self, shared: Any, setup_res: Any, exec_res: Any | None = None
+    ) -> Any:
         return exec_res
 
 
@@ -440,7 +444,7 @@ class BatchWorkflow(Workflow):
         for bp in param_sets:
             self.params.update(bp)
             self._run_engine(shared, engine)
-        result = self.teardown(shared, param_sets, None)
+        result = self.teardown(shared, param_sets)
         self.after_all(shared)
         return result
 
@@ -524,7 +528,9 @@ class AsyncTask(Task):
     async def run_step_fallback_async(self, setup_res: Any, exc: Exception) -> Any:  # pragma: no cover
         raise exc
 
-    async def teardown_async(self, shared: Any, setup_res: Any, exec_res: Any) -> Any:  # pragma: no cover
+    async def teardown_async(
+        self, shared: Any, setup_res: Any, exec_res: Any | None = None
+    ) -> Any:  # pragma: no cover
         return exec_res
 
     async def after_all_async(self, shared: Any) -> Any:  # pragma: no cover
@@ -658,7 +664,9 @@ class AsyncWorkflow(Workflow, AsyncTask):
         o = await self._run_engine_async(shared, engine)
         return await self.teardown_async(shared, p, o)
 
-    async def teardown_async(self, shared: Any, setup_res: Any, exec_res: Any) -> Any:
+    async def teardown_async(
+        self, shared: Any, setup_res: Any, exec_res: Any | None = None
+    ) -> Any:
         return exec_res
 
 
@@ -667,7 +675,7 @@ class AsyncBatchWorkflow(AsyncWorkflow, BatchWorkflow):
         pr = await self.setup_async(shared) or []
         for bp in pr:
             await self._orch_async(shared, {**self.params, **bp})
-        return await self.teardown_async(shared, pr, None)
+        return await self.teardown_async(shared, pr)
 
 
 class AsyncParallelBatchWorkflow(AsyncWorkflow, BatchWorkflow):
@@ -676,7 +684,7 @@ class AsyncParallelBatchWorkflow(AsyncWorkflow, BatchWorkflow):
         await asyncio.gather(
             *(self._orch_async(shared, {**self.params, **bp}) for bp in pr)
         )
-        return await self.teardown_async(shared, pr, None)
+        return await self.teardown_async(shared, pr)
 
 
 class Condition:
@@ -727,7 +735,9 @@ class FunctionTask(Task):
         shared[self] = result
         return result
 
-    def teardown(self, shared: Any, setup_res: Any, exec_res: Any) -> Any:  # type: ignore[override]
+    def teardown(
+        self, shared: Any, setup_res: Any, exec_res: Any | None = None
+    ) -> Any:  # type: ignore[override]
         return exec_res
 
 
