@@ -52,3 +52,9 @@ workflow is executed with ``ProcessEngine(2)`` to run the branches in parallel.
 
 Asynchronous version of ``parallel_math_workflow.py`` using ``AsyncTask`` and
 ``AsyncWorkflow``.
+
+## export_workflow.py
+
+Builds a fork-join workflow similar to ``parallel_math_workflow.py`` and then
+exports the graph structure to ``export_workflow.yaml`` using
+``Workflow.export``.

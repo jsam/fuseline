@@ -19,6 +19,7 @@ EXAMPLES: dict[str, Iterable[str]] = {
     "async_math_workflow.py": ["result: 9"],
     "parallel_math_workflow.py": ["results: 6, 9"],
     "async_parallel_math_workflow.py": ["results: 6, 9"],
+    "export_workflow.py": ["results: 6, 9", "exported to"],
 }
 
 
