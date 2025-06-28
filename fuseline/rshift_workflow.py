@@ -13,7 +13,9 @@ import asyncio
 import inspect
 import json
 import time
+import uuid
 import warnings
+from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional
 
 from .engines import ProcessEngine
@@ -209,10 +211,15 @@ class Workflow(Step):
         self.trace_path = trace
         self.roots = self._find_roots(outputs)
         self.start_step = self.roots[0] if self.roots else None
+        self.workflow_id = uuid.uuid4().hex
+        self.workflow_instance_id: str | None = None
 
     def _write_trace(self, record: dict) -> None:
         if not self.trace_path:
             return
+        record.setdefault("workflow_id", self.workflow_id)
+        record.setdefault("workflow_instance_id", self.workflow_instance_id)
+        record.setdefault("timestamp", datetime.utcnow().isoformat())
         with open(self.trace_path, "a", encoding="utf-8") as f:
             json_line = json.dumps(record, default=str)
             f.write(json_line + "\n")
@@ -317,6 +324,7 @@ class Workflow(Step):
         self.params = inputs or {}
         shared: Dict[Any, Any] = {}
         engine = execution_engine or self.execution_engine or ProcessEngine()
+        self.workflow_instance_id = uuid.uuid4().hex
         if self.trace_path:
             open(self.trace_path, "w", encoding="utf-8").close()
             for step in self._collect_steps():
@@ -584,6 +592,7 @@ class AsyncWorkflow(Workflow, AsyncTask):
         self.params = inputs or {}
         shared: Dict[Any, Any] = {}
         engine = execution_engine or self.execution_engine or ProcessEngine()
+        self.workflow_instance_id = uuid.uuid4().hex
         if self.trace_path:
             open(self.trace_path, "w", encoding="utf-8").close()
             for step in self._collect_steps():
