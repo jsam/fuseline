@@ -24,7 +24,7 @@ check: poetry-export
 lint: poetry-export
 	tox -e lint
 format: poetry-export
-        tox -e format
+	tox -e format
 
 typing:
 	poetry run ruff check . --select TC
@@ -59,3 +59,4 @@ gh-pages:
 	@git push origin gh-pages
 	@git checkout -
 	@echo "gh-pages branch updated successfully"
+
