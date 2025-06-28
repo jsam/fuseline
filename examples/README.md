@@ -53,6 +53,12 @@ workflow is executed with ``ProcessEngine(2)`` to run the branches in parallel.
 Asynchronous version of ``parallel_math_workflow.py`` using ``AsyncTask`` and
 ``AsyncWorkflow``.
 
+## conditional_workflow.py
+
+Illustrates branching based on the return value of a step. The first task
+chooses between ``"default"`` and ``"skip"`` paths, showing how to name actions
+and wire steps for each option.
+
 ## export_workflow.py
 
 Builds a fork-join workflow similar to ``parallel_math_workflow.py`` and then
