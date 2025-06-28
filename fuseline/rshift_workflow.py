@@ -198,6 +198,34 @@ class Workflow(Step):
 
         return [s for s, has_pred in preds.items() if not has_pred]
 
+    def export(self, path: str) -> None:
+        """Serialize the workflow graph to YAML.
+
+        The output contains all steps with their class names, successors and
+        typed dependencies. The file is written using a JSON compatible YAML
+        format so no extra dependencies are required.
+        """
+
+        steps = self._collect_steps()
+        name_map = {step: f"step{idx}" for idx, step in enumerate(steps)}
+
+        data: Dict[str, Any] = {"steps": {}, "outputs": [name_map[o] for o in self.outputs]}
+        for step in steps:
+            entry = {
+                "class": type(step).__name__,
+                "successors": {act: name_map[tgt] for act, tgt in step.successors.items()},
+            }
+            if isinstance(step, Task):
+                entry["dependencies"] = {
+                    name: name_map[dep] for name, dep in step.deps.items()
+                }
+            data["steps"][name_map[step]] = entry
+
+        import json
+
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+
     def run(
         self, inputs: Optional[Dict[str, Any]] = None, execution_engine: "ProcessEngine | None" = None
     ) -> Any:  # type: ignore[override]

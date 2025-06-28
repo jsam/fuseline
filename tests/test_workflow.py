@@ -162,3 +162,22 @@ def test_typed_step_dependencies():
     wf = Workflow(outputs=[mul])
     result = wf.run({"x": 2, "y": 3})
     assert result == 10
+
+
+def test_workflow_export(tmp_path):
+    add = AddTask()
+    mul = MulTask()
+    add >> mul
+    wf = Workflow(outputs=[mul])
+    path = tmp_path / "wf.yaml"
+    wf.export(str(path))
+
+    import json
+
+    data = json.loads(path.read_text())
+    assert data["outputs"]
+    for step_info in data["steps"].values():
+        for sid in step_info.get("successors", {}).values():
+            assert sid in data["steps"]
+        for sid in step_info.get("dependencies", {}).values():
+            assert sid in data["steps"]
