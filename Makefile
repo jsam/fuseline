@@ -1,4 +1,4 @@
-.PHONY: dev-dependencies update-dependencies test docs fix check lint format ci-test ci-coverage poetry-export gh-pages
+.PHONY: dev-dependencies update-dependencies test docs fix check lint format typing ci-test ci-coverage poetry-export gh-pages
 
 #########################
 ###### dev commands #####
@@ -24,7 +24,10 @@ check: poetry-export
 lint: poetry-export
 	tox -e lint
 format: poetry-export
-	tox -e format
+        tox -e format
+
+typing:
+	poetry run ruff check . --select TC
 
 
 #########################

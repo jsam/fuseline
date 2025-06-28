@@ -26,5 +26,6 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install poetry tox
         make poetry-export
-    - name: Check typing
-      run: make typing
+      - name: Check typing with ruff
+        run: make typing
+
