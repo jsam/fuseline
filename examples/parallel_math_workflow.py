@@ -7,15 +7,16 @@ class AddTask(Task):
         return a + b
 
 
+add = AddTask()
+
+
 class MultiplyBy2(Task):
-    add = AddTask()
 
     def run_step(self, value: Computed[int] = Depends(add)) -> int:
         return value * 2
 
 
 class MultiplyBy3(Task):
-    add = AddTask()
 
     def run_step(self, value: Computed[int] = Depends(add)) -> int:
         return value * 3

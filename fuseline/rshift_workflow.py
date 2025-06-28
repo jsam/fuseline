@@ -29,7 +29,7 @@ class Step:
 
     def __init__(self) -> None:
         self.params: Dict[str, Any] = {}
-        self.successors: Dict[str, "Step"] = {}
+        self.successors: Dict[str, List["Step"]] = {}
         self.predecessors: List["Step"] = []
 
     def set_params(self, params: Dict[str, Any]) -> None:
@@ -38,9 +38,7 @@ class Step:
 
     def next(self, node: "Step", action: str = "default") -> "Step":
         """Add a successor step to run after this one."""
-        if action in self.successors:
-            warnings.warn(f"Overwriting successor for action '{action}'")
-        self.successors[action] = node
+        self.successors.setdefault(action, []).append(node)
         if self not in node.predecessors:
             node.predecessors.append(self)
         return node
@@ -169,10 +167,17 @@ class BatchTask(Task):
 class Workflow(Step):
     """A sequence of :class:`Step` objects executed via an engine."""
 
-    def __init__(self, outputs: List[Step], execution_engine: "ProcessEngine | None" = None) -> None:
+    def __init__(
+        self,
+        outputs: List[Step],
+        execution_engine: "ProcessEngine | None" = None,
+        *,
+        trace: str | None = None,
+    ) -> None:
         super().__init__()
         self.outputs = outputs
         self.execution_engine = execution_engine
+        self.trace_path = trace
         self.roots = self._find_roots(outputs)
         self.start_step = self.roots[0] if self.roots else None
 
@@ -213,7 +218,7 @@ class Workflow(Step):
         for step in steps:
             entry = {
                 "class": type(step).__name__,
-                "successors": {act: name_map[tgt] for act, tgt in step.successors.items()},
+                "successors": {act: [name_map[t] for t in tgts] for act, tgts in step.successors.items()},
             }
             if isinstance(step, Task):
                 entry["dependencies"] = {
@@ -221,10 +226,30 @@ class Workflow(Step):
                 }
             data["steps"][name_map[step]] = entry
 
-        import json
+        def _dump_yaml(obj: Any, indent: int = 0) -> str:
+            pad = "  " * indent
+            if isinstance(obj, dict):
+                lines = []
+                for k, v in obj.items():
+                    if isinstance(v, (dict, list)):
+                        lines.append(f"{pad}{k}:")
+                        lines.append(_dump_yaml(v, indent + 1))
+                    else:
+                        lines.append(f"{pad}{k}: {v}")
+                return "\n".join(lines)
+            if isinstance(obj, list):
+                lines = []
+                for item in obj:
+                    if isinstance(item, (dict, list)):
+                        lines.append(f"{pad}-")
+                        lines.append(_dump_yaml(item, indent + 1))
+                    else:
+                        lines.append(f"{pad}- {item}")
+                return "\n".join(lines)
+            return f"{pad}{obj}"
 
         with open(path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
+            f.write(_dump_yaml(data))
 
     def run(
         self, inputs: Optional[Dict[str, Any]] = None, execution_engine: "ProcessEngine | None" = None
@@ -240,6 +265,8 @@ class Workflow(Step):
         self.params = inputs or {}
         shared: Dict[Any, Any] = {}
         engine = execution_engine or self.execution_engine or ProcessEngine()
+        if self.trace_path:
+            open(self.trace_path, "w", encoding="utf-8").close()
         self.before_all(shared)
         setup_res = self.setup(shared)
         result = self._run_engine(shared, engine)
@@ -256,13 +283,13 @@ class Workflow(Step):
         self.start_step = start
         return start
 
-    def get_next_step(self, curr: Step, action: Optional[str]) -> Optional[Step]:
-        nxt = curr.successors.get(action or "default")
+    def get_next_steps(self, curr: Step, action: Optional[str]) -> List[Step]:
+        nxt = curr.successors.get(action or "default", [])
         if not nxt and curr.successors:
             warnings.warn(
                 f"Workflow ends: '{action}' not found in {list(curr.successors)}"
             )
-        return nxt
+        return list(nxt)
 
     def _collect_steps(self) -> List[Step]:
         seen: List[Step] = []
@@ -283,6 +310,9 @@ class Workflow(Step):
 
     def _execute_step(self, step: Step, shared: Dict[Any, Any]) -> Any:
         step.set_params({**self.params, **step.params})
+        if self.trace_path:
+            with open(self.trace_path, "a", encoding="utf-8") as f:
+                f.write(f"{type(step).__name__}\n")
         step.before_all(shared)
         result = step._run(shared)
         if isinstance(shared, dict):
@@ -294,8 +324,9 @@ class Workflow(Step):
         nodes = self._collect_steps()
         indegree: Dict[Step, int] = {n: 0 for n in nodes}
         for n in nodes:
-            for succ in n.successors.values():
-                indegree[succ] = indegree.get(succ, 0) + 1
+            for succs in n.successors.values():
+                for succ in succs:
+                    indegree[succ] = indegree.get(succ, 0) + 1
 
         ready = [n for n, d in indegree.items() if d == 0]
         last_result: Any = None
@@ -311,8 +342,7 @@ class Workflow(Step):
             for step, res in zip(batch, results):
                 last_result = res
                 action = res if isinstance(res, str) else None
-                succ = self.get_next_step(step, action)
-                if succ is not None:
+                for succ in self.get_next_steps(step, action):
                     indegree[succ] -= 1
                     if indegree[succ] == 0:
                         ready.append(succ)
@@ -445,6 +475,9 @@ class AsyncParallelBatchTask(AsyncTask, BatchTask):
 class AsyncWorkflow(Workflow, AsyncTask):
     async def _execute_step_async(self, step: Step, shared: Dict[Any, Any], engine: ProcessEngine) -> Any:
         step.set_params({**self.params, **step.params})
+        if self.trace_path:
+            with open(self.trace_path, "a", encoding="utf-8") as f:
+                f.write(f"{type(step).__name__}\n")
         if isinstance(step, AsyncWorkflow):
             result = await step._run_async(shared, engine)
         elif isinstance(step, AsyncTask):
@@ -476,8 +509,9 @@ class AsyncWorkflow(Workflow, AsyncTask):
         nodes = self._collect_steps()
         indegree: Dict[Step, int] = {n: 0 for n in nodes}
         for n in nodes:
-            for succ in n.successors.values():
-                indegree[succ] = indegree.get(succ, 0) + 1
+            for succs in n.successors.values():
+                for succ in succs:
+                    indegree[succ] = indegree.get(succ, 0) + 1
 
         ready = [n for n, d in indegree.items() if d == 0]
         last_result: Any = None
@@ -502,8 +536,7 @@ class AsyncWorkflow(Workflow, AsyncTask):
             for step, res in zip(batch, results):
                 last_result = res
                 action = res if isinstance(res, str) else None
-                succ = self.get_next_step(step, action)
-                if succ is not None:
+                for succ in self.get_next_steps(step, action):
                     indegree[succ] -= 1
                     if indegree[succ] == 0:
                         ready.append(succ)
