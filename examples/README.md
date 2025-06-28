@@ -58,3 +58,8 @@ Asynchronous version of ``parallel_math_workflow.py`` using ``AsyncTask`` and
 Builds a fork-join workflow similar to ``parallel_math_workflow.py`` and then
 exports the graph structure to ``export_workflow.yaml`` using
 ``Workflow.export``.
+
+## trace_workflow.py
+
+Runs a simple workflow while recording the order of executed steps to
+``trace_workflow.trace`` using the ``trace`` argument on ``Workflow``.

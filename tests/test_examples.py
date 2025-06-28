@@ -20,6 +20,7 @@ EXAMPLES: dict[str, Iterable[str]] = {
     "parallel_math_workflow.py": ["results: 6, 9"],
     "async_parallel_math_workflow.py": ["results: 6, 9"],
     "export_workflow.py": ["results: 6, 9", "exported to"],
+    "trace_workflow.py": ["workflow traced"],
 }
 
 
@@ -31,5 +32,11 @@ def test_examples(name: str, expected: Iterable[str], capsys: pytest.CaptureFixt
     out = capsys.readouterr().out
     for fragment in expected:
         assert fragment in out
+    if name == "trace_workflow.py":
+        trace_file = ROOT / "examples" / "trace_workflow.trace"
+        assert trace_file.exists()
+        content = trace_file.read_text().strip().splitlines()
+        assert content == ["Add", "Mul"]
+        trace_file.unlink()
 
 

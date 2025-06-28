@@ -10,8 +10,10 @@ class AsyncAddTask(AsyncTask):
         return a + b
 
 
+add = AsyncAddTask()
+
+
 class AsyncMultiplyBy2(AsyncTask):
-    add = AsyncAddTask()
 
     async def run_step_async(self, value: Computed[int] = Depends(add)) -> int:
         await asyncio.sleep(0.1)
@@ -19,7 +21,6 @@ class AsyncMultiplyBy2(AsyncTask):
 
 
 class AsyncMultiplyBy3(AsyncTask):
-    add = AsyncAddTask()
 
     async def run_step_async(self, value: Computed[int] = Depends(add)) -> int:
         await asyncio.sleep(0.1)

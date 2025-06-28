@@ -1,4 +1,6 @@
 
+import re
+
 from fuseline import Depends
 from fuseline.typing import Computed
 from fuseline.workflow import (
@@ -165,19 +167,71 @@ def test_typed_step_dependencies():
 
 
 def test_workflow_export(tmp_path):
-    add = AddTask()
-    mul = MulTask()
+    class LocalAdd(Task):
+        def run_step(self, x: int, y: int) -> int:
+            return x + y
+
+    class LocalMul(Task):
+        add_step = LocalAdd()
+
+        def run_step(self, val: Computed[int] = Depends(add_step)) -> int:
+            return val * 2
+
+    add = LocalAdd()
+    mul = LocalMul()
     add >> mul
     wf = Workflow(outputs=[mul])
     path = tmp_path / "wf.yaml"
     wf.export(str(path))
 
-    import json
 
-    data = json.loads(path.read_text())
-    assert data["outputs"]
-    for step_info in data["steps"].values():
-        for sid in step_info.get("successors", {}).values():
-            assert sid in data["steps"]
-        for sid in step_info.get("dependencies", {}).values():
-            assert sid in data["steps"]
+    text = path.read_text().splitlines()
+    steps = set()
+    edges: dict[str, list[str]] = {}
+    deps: dict[str, list[str]] = {}
+    current = None
+    for line in text:
+        m = re.match(r"\s*(step\d+):", line)
+        if m:
+            current = m.group(1)
+            steps.add(current)
+        m = re.match(r"\s*outputs:\s*", line)
+        if m:
+            current = "outputs"
+            edges[current] = []
+        m = re.match(r"\s*-\s*(step\d+)", line)
+        if m and current:
+            if current == "outputs":
+                edges.setdefault("outputs", []).append(m.group(1))
+            else:
+                edges.setdefault(current, []).append(m.group(1))
+        m = re.match(r"\s*(\w+):\s*(step\d+)", line)
+        if m and current:
+            deps.setdefault(current, []).append(m.group(2))
+
+    assert edges.get("outputs")
+    for lst in edges.values():
+        for sid in lst:
+            assert sid in steps
+    for lst in deps.values():
+        for sid in lst:
+            assert sid in steps
+
+
+def test_workflow_trace(tmp_path):
+    class A(Task):
+        def run_step(self) -> int:
+            return 1
+
+    class B(Task):
+        a = A()
+
+        def run_step(self, val: Computed[str] = Depends(a)) -> None:
+            pass
+
+    b = B()
+    trace_path = tmp_path / "trace.log"
+    wf = Workflow(outputs=[b], trace=str(trace_path))
+    wf.run({})
+    trace = trace_path.read_text().strip().splitlines()
+    assert trace == ["A", "B"]
