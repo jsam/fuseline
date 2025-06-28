@@ -32,6 +32,7 @@ from .rshift_workflow import (
     AsyncWorkflow,
     BatchTask,
     BatchWorkflow,
+    Condition,
     Depends,
     FunctionTask,
     ProcessEngine,

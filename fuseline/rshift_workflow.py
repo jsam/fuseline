@@ -107,6 +107,7 @@ class Task(Step):
         self.wait = wait
         self.cur_retry: Optional[int] = None
         self.deps: Dict[str, Step] = {}
+        self.dep_conditions: Dict[str, Callable[[Any], bool]] = {}
         run_method = type(self).run_step
         sig = inspect.signature(run_method)
         params = list(sig.parameters.values())
@@ -119,6 +120,8 @@ class Task(Step):
                 )
                 dep_step >> self
                 self.deps[param.name] = dep_step
+                if param.default.condition is not None:
+                    self.dep_conditions[param.name] = param.default.condition
             elif param.name not in {"self", "setup_res", "shared"}:
                 self.param_names.append(param.name)
         self.is_typed = bool(self.deps) or not (
@@ -134,7 +137,13 @@ class Task(Step):
         for self.cur_retry in range(self.max_retries):
             try:
                 if self.is_typed:
-                    kwargs = {name: setup_res[d] for name, d in self.deps.items()}
+                    kwargs = {}
+                    for name, dep in self.deps.items():
+                        val = setup_res[dep]
+                        cond = self.dep_conditions.get(name)
+                        if cond is not None and not cond(val):
+                            return None
+                        kwargs[name] = val
                     kwargs.update(
                         {
                             k: v
@@ -376,6 +385,7 @@ class AsyncTask(Task):
     def __init__(self, max_retries: int = 1, wait: float = 0) -> None:
         super().__init__(max_retries, wait)
         self.deps = {}
+        self.dep_conditions: Dict[str, Callable[[Any], bool]] = {}
         run_method = type(self).run_step_async
         sig = inspect.signature(run_method)
         params = list(sig.parameters.values())
@@ -388,6 +398,8 @@ class AsyncTask(Task):
                 )
                 dep_step >> self
                 self.deps[param.name] = dep_step
+                if param.default.condition is not None:
+                    self.dep_conditions[param.name] = param.default.condition
             elif param.name not in {"self", "setup_res", "shared"}:
                 self.param_names.append(param.name)
         self.is_typed = bool(self.deps) or not (
@@ -408,7 +420,13 @@ class AsyncTask(Task):
         for i in range(self.max_retries):
             try:
                 if self.is_typed:
-                    kwargs = {name: setup_res[d] for name, d in self.deps.items()}
+                    kwargs = {}
+                    for name, dep in self.deps.items():
+                        val = setup_res[dep]
+                        cond = self.dep_conditions.get(name)
+                        if cond is not None and not cond(val):
+                            return None
+                        kwargs[name] = val
                     kwargs.update(
                         {
                             k: v
@@ -569,11 +587,27 @@ class AsyncParallelBatchWorkflow(AsyncWorkflow, BatchWorkflow):
         return await self.teardown_async(shared, pr, None)
 
 
-class Depends:
-    """Declare a dependency on another callable or step."""
+class Condition:
+    """Base class for conditional dependency evaluation."""
 
-    def __init__(self, obj: Callable[..., Any] | Step) -> None:
+    def __call__(self, value: Any) -> bool:
+        return bool(value)
+
+
+class Depends:
+    """Declare a dependency on another callable or step with an optional condition."""
+
+    def __init__(
+        self,
+        obj: Callable[..., Any] | Step,
+        *,
+        condition: Callable[[Any], bool] | Condition | type[Condition] | None = None,
+    ) -> None:
         self.obj = obj
+        if isinstance(condition, type) and issubclass(condition, Condition):
+            self.condition = condition()
+        else:
+            self.condition = condition
 
 
 class FunctionTask(Task):
@@ -583,12 +617,19 @@ class FunctionTask(Task):
         super().__init__(max_retries, wait)
         self.func = func
         self.deps: Dict[str, FunctionTask] = {}
+        self.dep_conditions: Dict[str, Callable[[Any], bool]] = {}
 
     def setup(self, shared: Dict["FunctionTask", Any]) -> Dict["FunctionTask", Any]:  # type: ignore[override]
         return shared
 
     def run_step(self, shared: Dict["FunctionTask", Any]) -> Any:
-        kwargs = {name: shared[d] for name, d in self.deps.items()}
+        kwargs = {}
+        for name, dep in self.deps.items():
+            val = shared[dep]
+            cond = self.dep_conditions.get(name)
+            if cond is not None and not cond(val):
+                return None
+            kwargs[name] = val
         kwargs.update({k: v for k, v in self.params.items() if k not in kwargs})
         result = self.func(**kwargs)
         shared[self] = result
@@ -627,6 +668,8 @@ def workflow_from_functions(outputs: List[Callable[..., Any]]) -> Workflow:
                 dep >> step
                 if isinstance(step, FunctionTask):
                     step.deps[param.name] = dep  # type: ignore[assignment]
+                    if param.default.condition is not None:
+                        step.dep_conditions[param.name] = param.default.condition
                 has_pred[step] = True
         has_pred.setdefault(step, False)
         return step
