@@ -287,9 +287,11 @@ def test_workflow_trace(tmp_path):
     assert entries[5]["step"] == "B"
     workflow_id = entries[0]["workflow_id"]
     instance_id = entries[0]["workflow_instance_id"]
+    process_id = entries[0]["process_id"]
     for e in entries:
         assert e["workflow_id"] == workflow_id
         assert e["workflow_instance_id"] == instance_id
+        assert e["process_id"] == process_id
         assert "timestamp" in e
 
 
@@ -317,9 +319,11 @@ def test_trace_with_conditions(tmp_path):
     assert any(e.get("step") == "B2" and e["event"] == "step_finished" and e["skipped"] for e in events)
     wf_id = events[0]["workflow_id"]
     inst_id = events[0]["workflow_instance_id"]
+    proc_id = events[0]["process_id"]
     for e in events:
         assert e["workflow_id"] == wf_id
         assert e["workflow_instance_id"] == inst_id
+        assert e["process_id"] == proc_id
         assert "timestamp" in e
 
 
