@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import json
 import time
 import warnings
 from typing import Any, Callable, Dict, List, Optional
@@ -31,6 +32,11 @@ class Step:
         self.params: Dict[str, Any] = {}
         self.successors: Dict[str, List["Step"]] = {}
         self.predecessors: List["Step"] = []
+        self.trace_event: Callable[[dict], None] | None = None
+
+    def _log_event(self, event: str, **data: Any) -> None:
+        if self.trace_event:
+            self.trace_event({"event": event, "step": type(self).__name__, **data})
 
     def set_params(self, params: Dict[str, Any]) -> None:
         """Store parameters passed from the workflow."""
@@ -75,7 +81,9 @@ class Step:
         if self.successors:
             warnings.warn("Step won't run successors. Use Workflow.")
         self.before_all(shared)
+        self._log_event("step_started")
         result = self._run(shared)
+        self._log_event("step_finished", result=result, skipped=getattr(self, "was_skipped", False))
         self.after_all(shared)
         return result
 
@@ -143,9 +151,18 @@ class Task(Step):
                     for name, dep in self.deps.items():
                         val = setup_res[dep]
                         cond = self.dep_conditions.get(name)
-                        if cond is not None and not cond(val):
-                            self.was_skipped = True
-                            return None
+                        if cond is not None:
+                            passed = bool(cond(val))
+                            self._log_event(
+                                "condition_check",
+                                dependency=name,
+                                value=val,
+                                passed=passed,
+                            )
+                            if not passed:
+                                self.was_skipped = True
+                                return None
+
                         kwargs[name] = val
                     kwargs.update(
                         {
@@ -192,6 +209,13 @@ class Workflow(Step):
         self.trace_path = trace
         self.roots = self._find_roots(outputs)
         self.start_step = self.roots[0] if self.roots else None
+
+    def _write_trace(self, record: dict) -> None:
+        if not self.trace_path:
+            return
+        with open(self.trace_path, "a", encoding="utf-8") as f:
+            json_line = json.dumps(record, default=str)
+            f.write(json_line + "\n")
 
     def _find_roots(self, outputs: List[Step]) -> List[Step]:
         steps: List[Step] = []
@@ -295,11 +319,16 @@ class Workflow(Step):
         engine = execution_engine or self.execution_engine or ProcessEngine()
         if self.trace_path:
             open(self.trace_path, "w", encoding="utf-8").close()
+            for step in self._collect_steps():
+                step.trace_event = self._write_trace
+            self._write_trace({"event": "workflow_started"})
         self.before_all(shared)
         setup_res = self.setup(shared)
         result = self._run_engine(shared, engine)
         result = self.teardown(shared, setup_res, result)
         self.after_all(shared)
+        if self.trace_path:
+            self._write_trace({"event": "workflow_finished"})
         if self.outputs:
             if len(self.outputs) == 1:
                 return shared.get(self.outputs[0], result)
@@ -339,11 +368,13 @@ class Workflow(Step):
     def _execute_step(self, step: Step, shared: Dict[Any, Any]) -> Any:
         step.set_params({**self.params, **step.params})
         step.before_all(shared)
+        step._log_event("step_started")
         result = step._run(shared)
-        if self.trace_path:
-            with open(self.trace_path, "a", encoding="utf-8") as f:
-                mark = " (skipped)" if getattr(step, "was_skipped", False) else ""
-                f.write(f"{type(step).__name__}{mark}\n")
+        step._log_event(
+            "step_finished",
+            result=result,
+            skipped=getattr(step, "was_skipped", False),
+        )
         if isinstance(shared, dict):
             shared[step] = result
         step.after_all(shared)
@@ -358,6 +389,8 @@ class Workflow(Step):
                     indegree[succ] = indegree.get(succ, 0) + 1
 
         ready = [n for n, d in indegree.items() if d == 0]
+        for step in ready:
+            step._log_event("step_enqueued")
         last_result: Any = None
         while ready:
             batch = ready
@@ -374,6 +407,7 @@ class Workflow(Step):
                 for succ in self.get_next_steps(step, action):
                     indegree[succ] -= 1
                     if indegree[succ] == 0:
+                        succ._log_event("step_enqueued")
                         ready.append(succ)
 
         return last_result
@@ -446,9 +480,17 @@ class AsyncTask(Task):
                     for name, dep in self.deps.items():
                         val = setup_res[dep]
                         cond = self.dep_conditions.get(name)
-                        if cond is not None and not cond(val):
-                            self.was_skipped = True
-                            return None
+                        if cond is not None:
+                            passed = bool(cond(val))
+                            self._log_event(
+                                "condition_check",
+                                dependency=name,
+                                value=val,
+                                passed=passed,
+                            )
+                            if not passed:
+                                self.was_skipped = True
+                                return None
                         kwargs[name] = val
                     kwargs.update(
                         {
@@ -484,7 +526,9 @@ class AsyncTask(Task):
         self.params = inputs or {}
         shared: Dict[Any, Any] = {}
         await self.before_all_async(shared)
+        self._log_event("step_started")
         result = await self._run_async(shared)
+        self._log_event("step_finished", result=result, skipped=getattr(self, "was_skipped", False))
         await self.after_all_async(shared)
         if self.outputs:
             if len(self.outputs) == 1:
@@ -520,16 +564,18 @@ class AsyncWorkflow(Workflow, AsyncTask):
             result = await step._run_async(shared, engine)
         elif isinstance(step, AsyncTask):
             await step.before_all_async(shared)
+            step._log_event("step_started")
             result = await step._run_async(shared)
+            step._log_event(
+                "step_finished",
+                result=result,
+                skipped=getattr(step, "was_skipped", False),
+            )
             if isinstance(shared, dict):
                 shared[step] = result
             await step.after_all_async(shared)
         else:
             result = self._execute_step(step, shared)
-        if self.trace_path:
-            with open(self.trace_path, "a", encoding="utf-8") as f:
-                mark = " (skipped)" if getattr(step, "was_skipped", False) else ""
-                f.write(f"{type(step).__name__}{mark}\n")
         return result
 
     async def run_async(
@@ -538,9 +584,16 @@ class AsyncWorkflow(Workflow, AsyncTask):
         self.params = inputs or {}
         shared: Dict[Any, Any] = {}
         engine = execution_engine or self.execution_engine or ProcessEngine()
+        if self.trace_path:
+            open(self.trace_path, "w", encoding="utf-8").close()
+            for step in self._collect_steps():
+                step.trace_event = self._write_trace
+            self._write_trace({"event": "workflow_started"})
         await self.before_all_async(shared)
         result = await self._run_async(shared, engine)
         await self.after_all_async(shared)
+        if self.trace_path:
+            self._write_trace({"event": "workflow_finished"})
         if self.outputs:
             if len(self.outputs) == 1:
                 return shared.get(self.outputs[0], result)
@@ -556,6 +609,8 @@ class AsyncWorkflow(Workflow, AsyncTask):
                     indegree[succ] = indegree.get(succ, 0) + 1
 
         ready = [n for n, d in indegree.items() if d == 0]
+        for step in ready:
+            step._log_event("step_enqueued")
         last_result: Any = None
         while ready:
             batch = ready
@@ -581,6 +636,7 @@ class AsyncWorkflow(Workflow, AsyncTask):
                 for succ in self.get_next_steps(step, action):
                     indegree[succ] -= 1
                     if indegree[succ] == 0:
+                        succ._log_event("step_enqueued")
                         ready.append(succ)
 
         return last_result

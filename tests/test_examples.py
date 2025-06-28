@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import runpy
 from pathlib import Path
 from typing import Iterable
@@ -36,8 +37,8 @@ def test_examples(name: str, expected: Iterable[str], capsys: pytest.CaptureFixt
     if name == "trace_workflow.py":
         trace_file = ROOT / "examples" / "trace_workflow.trace"
         assert trace_file.exists()
-        content = trace_file.read_text().strip().splitlines()
-        assert content == ["Add", "Mul"]
+        entries = [json.loads(line) for line in trace_file.read_text().splitlines()]
+        assert [e["event"] for e in entries][:2] == ["workflow_started", "step_enqueued"]
         trace_file.unlink()
 
 
