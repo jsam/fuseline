@@ -58,7 +58,7 @@ def test_workflow_sequence():
     s2 = RecorderStep(log, label="s2")
     s1 >> s2
     wf = Workflow(outputs=[s2])
-    wf.run(None)
+    wf.run()
     assert log == [
         "s1-before_all",
         "s1-setup",
@@ -81,7 +81,7 @@ def test_workflow_conditional_transition():
     s1 >> s2
     (s1 - "skip") >> s3
     wf = Workflow(outputs=[s2, s3])
-    wf.run(None)
+    wf.run()
     assert log == [
         "s1-before_all",
         "s1-setup",
