@@ -33,25 +33,13 @@ packages = ["fuseline"]
 requires = ["poetry-core", "poetry-dynamic-versioning"]
 build-backend = "poetry_dynamic_versioning.backend"
 
-[tool.poetry.scripts]
-fuse =  "fuseline.cli.__main__:cli"
+
 
 ############################
 ### Package requirements ###
 ############################
 [tool.poetry.dependencies]
 python = ">=3.10,<3.13"
-networkx = "^3.4"
-numpy = ">=2.0"
-filelock = "^3.15.4"
-click = "^8.1.7"
-toml = "^0.10.2"
-typeguard = "^4.3.0"
-tabulate = "^0.9.0"
-colorama = "^0.4.6"
-pydot = "^3.0.1"
-loguru = "^0.7.2"
-pydantic = "^2.10.6"
 
 [tool.poetry.group.dev]
 optional = true
@@ -65,7 +53,6 @@ mkdocs-macros-adr-summary = "*"
 mkdocs-gen-files = ">=0.5.0"
 mkdocs-material = ">=9.1.16"
 mike = ">=2.0.0"
-mypy = ">=0.990"
 pymdown-extensions = ">=10.0.1"
 pytest = "^8.0.0"
 pytest-asyncio = ">=0.20.3"
@@ -80,10 +67,6 @@ pytest-mock = "^3.14.0"
 ############################
 ### Tools configuration  ###
 ############################
-types-networkx = "^3.2.1.20240703"
-types-colorama = "^0.4.15.20240311"
-types-tabulate = "^0.9.0.20240106"
-types-toml = "^0.10.8.20240310"
 
 
 [tool.coverage.run]
@@ -98,16 +81,8 @@ exclude_also = [
     "\\.\\.\\.",
     ]
 
-[tool.mypy]
-files = "fuseline"
-python_version = "3.10"
-plugins = ["pydantic.mypy"]
-
 [tool.pytest.ini_options]
-asyncio_mode = "auto"
-minversion = "6.0"
-asyncio_default_fixture_loop_scope = "function"
-addopts = "-n auto --cov-report=term-missing"
+addopts = ""
 testpaths = [
     "tests",
 ]
@@ -149,15 +124,3 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # Ignore unused imports on init files
 "tests/**/*.py" = ["S101"]  # Allow assert usage on tests
-
-[tool.fuseline.config]
-engine = "SerialEngine"
-
-[tool.fuseline.workflows]
-fake_eval = [
-    "tests.workflows.fake_eval.evaluate_model",
-]
-fake_run = [
-    "tests.workflows.fake_run.hello_world_one",
-    "tests.workflows.fake_run.hello_world_two",
-]

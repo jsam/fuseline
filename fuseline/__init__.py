@@ -23,3 +23,23 @@
 
 __version__ = "0.1.2"
 __version_tuple__ = (0, 1, 2)
+from .rshift_workflow import (
+    AsyncBatchTask,
+    AsyncBatchWorkflow,
+    AsyncParallelBatchTask,
+    AsyncParallelBatchWorkflow,
+    AsyncTask,
+    AsyncWorkflow,
+    BatchTask,
+    BatchWorkflow,
+    Condition,
+    Depends,
+    FunctionTask,
+    ProcessEngine,
+    Task,
+    TypedTask,
+    Workflow,
+    workflow_from_functions,
+)
+
+

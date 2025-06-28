@@ -1,4 +1,4 @@
-.PHONY: dev-dependencies update-dependencies test docs fix check typing lint format ci-test ci-coverage poetry-export gh-pages
+.PHONY: dev-dependencies update-dependencies test docs fix check lint format ci-test ci-coverage poetry-export gh-pages
 
 #########################
 ###### dev commands #####
@@ -10,24 +10,19 @@ update-dependencies:
 	poetry update --with dev
 
 test:
-	poetry run pytest -n auto --cov
+	poetry run pytest
 
 docs:
 	poetry run mkdocs serve
 
+
 fix:
 	poetry run ruff check . --fix
 	poetry run ruff format .
-
 check: poetry-export
 	tox
-
-typing: poetry-export
-	tox -e typing
-
 lint: poetry-export
 	tox -e lint
-
 format: poetry-export
 	tox -e format
 
