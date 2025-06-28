@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from .interfaces import Exporter
-from .workflow import Step, Task, Workflow
+from .workflow import Task, Workflow
 
 
 class YamlExporter(Exporter):
