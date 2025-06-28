@@ -41,3 +41,13 @@ prints the outcome.
 Asynchronous version of ``math_workflow.py`` showing the same logic executed with
 ``AsyncTask`` and ``AsyncWorkflow``.
 
+
+## parallel_math_workflow.py
+
+Expands the math example by sending the sum into two separate multiply tasks
+that multiply by ``2`` and ``3``. A final task prints both results.
+
+## async_parallel_math_workflow.py
+
+Asynchronous version of ``parallel_math_workflow.py`` using ``AsyncTask`` and
+``AsyncWorkflow``.
