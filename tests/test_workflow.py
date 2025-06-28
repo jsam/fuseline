@@ -1,4 +1,3 @@
-
 import json
 import re
 
@@ -19,17 +18,22 @@ class RecorderStep(Task):
         self.log = log
         self.label = label
         self.action = action
+
     def before_all(self, shared):
         self.log.append(f"{self.label}-before_all")
+
     def setup(self, shared):
         self.log.append(f"{self.label}-setup")
         return self.label
+
     def run_step(self, setup_res):
         self.log.append(f"{self.label}-run:{setup_res}")
         return self.action
+
     def teardown(self, shared, setup_res, exec_res):
         self.log.append(f"{self.label}-teardown")
         return exec_res
+
     def after_all(self, shared):
         self.log.append(f"{self.label}-after_all")
 
@@ -117,12 +121,14 @@ class AsyncRecorderStep(AsyncTask):
     async def after_all_async(self, shared):
         self.log.append(f"{self.label}-after_all")
 
+
 def test_async_workflow():
     log = []
     s1 = AsyncRecorderStep(log)
     wf = AsyncWorkflow(outputs=[s1])
 
     import asyncio
+
     asyncio.run(wf.run_async({}))
 
     assert log == [
@@ -132,6 +138,7 @@ def test_async_workflow():
         "ast-teardown",
         "ast-after_all",
     ]
+
 
 def test_typed_workflow():
     def multiply(x: int) -> int:
@@ -184,7 +191,6 @@ def test_workflow_export(tmp_path):
     wf = Workflow(outputs=[mul])
     path = tmp_path / "wf.yaml"
     wf.export(str(path))
-
 
     text = path.read_text().splitlines()
     steps = set()
@@ -303,19 +309,45 @@ def test_trace_with_conditions(tmp_path):
     class B2(Task):
         def run_step(self, _flag: bool = Depends(dec, condition=lambda x: not x)) -> None:
             pass
+
     b1 = B1()
     b2 = B2()
     wf = Workflow(outputs=[b1, b2], trace=str(tmp_path / "trace.log"))
     wf.run({"flag": True})
     lines = (tmp_path / "trace.log").read_text().splitlines()
     events = [json.loads(line) for line in lines]
-    assert any(
-        e.get("step") == "B2" and e["event"] == "step_finished" and e["skipped"]
-        for e in events
-    )
+    assert any(e.get("step") == "B2" and e["event"] == "step_finished" and e["skipped"] for e in events)
     wf_id = events[0]["workflow_id"]
     inst_id = events[0]["workflow_instance_id"]
     for e in events:
         assert e["workflow_id"] == wf_id
         assert e["workflow_instance_id"] == inst_id
         assert "timestamp" in e
+
+
+def test_trace_multiple_runs(tmp_path) -> None:
+    class Dec(Task):
+        def run_step(self, flag: bool) -> bool:  # pragma: no cover - trivial
+            return flag
+
+    dec = Dec()
+
+    class Left(Task):
+        def run_step(self, _flag: bool = Depends(dec, condition=lambda x: x)) -> None:  # pragma: no cover - simple
+            pass
+
+    class Right(Task):
+        def run_step(self, _flag: bool = Depends(dec, condition=lambda x: not x)) -> None:  # pragma: no cover - simple
+            pass
+
+    left = Left()
+    right = Right()
+    trace_path = tmp_path / "trace.log"
+    wf = Workflow(outputs=[left, right], trace=str(trace_path))
+    wf.run({"flag": True})
+    wf.run({"flag": False})
+
+    events = [json.loads(line) for line in trace_path.read_text().splitlines()]
+    started = [e for e in events if e["event"] == "workflow_started"]
+    assert len(started) == 2
+    assert len({e["workflow_instance_id"] for e in started}) == 2
