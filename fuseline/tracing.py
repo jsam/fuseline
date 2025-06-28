@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
-
 import os
+import socket
+from datetime import datetime
 
 from .interfaces import Tracer
 
@@ -34,4 +34,5 @@ class BoundTracer(Tracer):
         event.setdefault("workflow_id", self.workflow_id)
         event.setdefault("workflow_instance_id", self.instance_id)
         event.setdefault("process_id", os.getpid())
+        event.setdefault("host_id", socket.gethostname())
         self.tracer.record(event)
