@@ -16,3 +16,19 @@ class ExecutionEngine(ABC):
     ) -> List[Any]:
         """Execute a sequence of async callables."""
         return [await step() for step in steps]
+
+
+class Tracer(ABC):
+    """Interface for recording workflow execution events."""
+
+    @abstractmethod
+    def record(self, event: dict) -> None:
+        """Persist a trace event."""
+
+
+class Exporter(ABC):
+    """Interface for serializing workflows."""
+
+    @abstractmethod
+    def export(self, workflow: "Workflow", path: str) -> None:
+        """Export *workflow* to *path* in a specific format."""
