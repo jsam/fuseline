@@ -4,10 +4,12 @@ steps:
     successors:
       - step1
       - step2
+    execution_group: 0
   step1:
     class: DefaultTask
     successors:
 
+    execution_group: 0
     dependencies:
       _flag:
         step: step0
@@ -19,6 +21,7 @@ steps:
     class: SkipTask
     successors:
 
+    execution_group: 0
     dependencies:
       _flag:
         step: step0
