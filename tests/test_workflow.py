@@ -579,3 +579,57 @@ def test_multi_target_outputs(tmp_path) -> None:
     assert set(started[1:3]) == {"B", "C"}
     assert set(started[3:5]) == {"D", "E"}
 
+
+def test_edge_skipped_false_condition(tmp_path) -> None:
+    """TC-04: Verify that a false edge-condition prevents the target task."""
+
+    class Start(Task):
+        def run_step(self, payload: dict) -> dict:
+            return payload
+
+    start = Start()
+
+    class Validate(Task):
+        def run_step(self, payload: Computed[dict] = Depends(start)) -> str:
+            return "valid" if payload["valid"] else "reject"
+
+    validate = Validate()
+
+    class Process(Task):
+        def __init__(self) -> None:
+            super().__init__()
+            self.executed = False
+
+        def run_step(self, _flag: str) -> str:  # pragma: no cover - should not run
+            self.executed = True
+            return "PROCESSED"
+
+    process = Process()
+
+    class Reject(Task):
+        def __init__(self) -> None:
+            super().__init__()
+            self.status: str | None = None
+
+        def run_step(self) -> str:
+            self.status = "REJECTED"
+            return "FAILED"
+
+    reject = Reject()
+
+    start >> validate
+    validate >> process
+    (validate - "reject") >> reject
+
+    trace_path = tmp_path / "trace.log"
+    wf = Workflow(outputs=[process, reject], trace=str(trace_path))
+    result = wf.run({"payload": {"valid": False}})
+
+    assert result == [None, "FAILED"]
+    assert reject.status == "REJECTED"
+    assert not process.executed
+
+    events = [json.loads(line) for line in trace_path.read_text().splitlines()]
+    started = [e["step"] for e in events if e["event"] == "step_started"]
+    assert started == ["Start", "Validate", "Reject"]
+    assert not any(e.get("step") == "Process" for e in events)
