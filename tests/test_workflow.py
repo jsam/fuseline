@@ -501,6 +501,13 @@ def test_parallel_fan_out_join_execution_time(tmp_path) -> None:
         rel=0.3,
     )
 
+    assert (
+        start_step.execution_group
+        < p1.execution_group
+        == p2.execution_group
+        < join.execution_group
+    )
+
     events = [json.loads(line) for line in trace_path.read_text().splitlines()]
     start_started = [e for e in events if e["event"] == "step_started" and e["step"] == "StartStep"]
     start_finished = [e for e in events if e["event"] == "step_finished" and e["step"] == "StartStep"]
