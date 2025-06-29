@@ -13,6 +13,7 @@ from fuseline.workflow import (
     Step,
     Task,
     Workflow,
+    Status,
     workflow_from_functions,
 )
 
@@ -1185,3 +1186,40 @@ def test_or_join_condition_source(tmp_path) -> None:
 
     assert cond.source is p1
     assert result["payload"]["source"] == "Producer1"
+
+
+def test_fail_fast_policy(tmp_path) -> None:
+    """TC-09  –  Fail-fast policy."""
+
+    class Critical(Task):
+        def run_step(self) -> None:
+            raise RuntimeError("boom")
+
+    critical = Critical()
+
+    class Down1(Task):
+        pass
+
+    class Down2(Task):
+        pass
+
+    d1 = Down1()
+    d2 = Down2()
+    critical >> d1
+    critical >> d2
+
+    trace_path = tmp_path / "trace.log"
+    wf = Workflow(outputs=[d1, d2], trace=str(trace_path))
+    result = wf.run()
+
+    assert result is None
+    assert wf.state == Status.FAILED
+    assert d1.state == Status.CANCELLED
+    assert d2.state == Status.CANCELLED
+
+    events = [json.loads(line) for line in trace_path.read_text().splitlines()]
+    started = [e["step"] for e in events if e["event"] == "step_started"]
+    assert started == ["Critical"]
+    assert any(e["event"] == "step_failed" and e["step"] == "Critical" for e in events)
+    cancelled = [e["step"] for e in events if e["event"] == "step_cancelled"]
+    assert set(cancelled) == {"Down1", "Down2"}
