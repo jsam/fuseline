@@ -14,10 +14,22 @@ import inspect
 import time
 import uuid
 import warnings
+from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Sequence
 
 from .engines import ProcessEngine
 from .interfaces import ExecutionEngine, Exporter, Tracer
+
+
+class Status(str, Enum):
+    """Execution status for workflow steps and workflows."""
+
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+    SKIPPED = "SKIPPED"
 
 
 class Step:
@@ -35,6 +47,7 @@ class Step:
         self.predecessors: List["Step"] = []
         self.tracer: Tracer | None = None
         self.execution_group = 0
+        self.state: Status = Status.PENDING
 
     def _log_event(self, event: str, **data: Any) -> None:
         if self.tracer:
@@ -260,6 +273,7 @@ class Workflow(Step):
         self.start_step = self.roots[0] if self.roots else None
         self.workflow_id = uuid.uuid4().hex
         self.workflow_instance_id: str | None = None
+        self.state: Status = Status.PENDING
         self._assign_execution_groups()
 
     def _find_roots(self, outputs: List[Step]) -> List[Step]:
@@ -340,18 +354,34 @@ class Workflow(Step):
             for step in self._collect_steps():
                 step.tracer = bound
             bound.record({"event": "workflow_started"})
-        self.before_all(shared)
-        setup_res = self.setup(shared)
-        result = self._run_engine(shared, engine)
-        result = self.teardown(shared, setup_res, result)
-        self.after_all(shared)
-        if self.tracer:
+        self.state = Status.RUNNING
+        try:
+            self.before_all(shared)
+            setup_res = self.setup(shared)
+            result = self._run_engine(shared, engine)
+            result = self.teardown(shared, setup_res, result)
+            self.state = Status.SUCCEEDED
+        except Exception:
+            self.state = Status.FAILED
+            for step in self._collect_steps():
+                if step.state == Status.PENDING:
+                    step.state = Status.CANCELLED
+                    step._log_event("step_cancelled")
+            if self.tracer:
+                from .tracing import BoundTracer
+
+                BoundTracer(
+                    self.tracer, self.workflow_id, self.workflow_instance_id
+                ).record({"event": "workflow_finished"})
+            return None
+        finally:
+            self.after_all(shared)
+        if self.tracer and self.state != Status.FAILED:
             from .tracing import BoundTracer
 
-            bound = BoundTracer(
+            BoundTracer(
                 self.tracer, self.workflow_id, self.workflow_instance_id
-            )
-            bound.record({"event": "workflow_finished"})
+            ).record({"event": "workflow_finished"})
         if self.outputs:
             if len(self.outputs) == 1:
                 return shared.get(self.outputs[0], result)
@@ -396,16 +426,26 @@ class Workflow(Step):
         step.set_params({**self.params, **step.params})
         step.before_all(shared)
         step._log_event("step_started")
-        result = step._run(shared)
-        step._log_event(
-            "step_finished",
-            result=result,
-            skipped=getattr(step, "was_skipped", False),
-        )
-        if isinstance(shared, dict):
-            shared[step] = result
-        step.after_all(shared)
-        return result
+        step.state = Status.RUNNING
+        try:
+            result = step._run(shared)
+            step.state = (
+                Status.SKIPPED if getattr(step, "was_skipped", False) else Status.SUCCEEDED
+            )
+            step._log_event(
+                "step_finished",
+                result=result,
+                skipped=getattr(step, "was_skipped", False),
+            )
+            if isinstance(shared, dict):
+                shared[step] = result
+            step.after_all(shared)
+            return result
+        except Exception as exc:
+            step.state = Status.FAILED
+            step._log_event("step_failed", error=str(exc))
+            step.after_all(shared)
+            raise
 
     def _run_engine(self, shared: Any, engine: ExecutionEngine) -> Any:
         nodes = self._collect_steps()
@@ -430,10 +470,19 @@ class Workflow(Step):
             batch = [s for s in ready if s.execution_group == current_group]
             ready = [s for s in ready if s.execution_group != current_group]
 
+            exc: dict[str, Exception] = {}
+
             def run_step(s: Step = None) -> Any:
-                return self._execute_step(s, shared)
+                try:
+                    return self._execute_step(s, shared)
+                except Exception as e:  # pragma: no cover - bubble up
+                    exc['err'] = e
+                    return None
 
             results = engine.run_steps([lambda s=s: run_step(s) for s in batch])
+
+            if exc:
+                raise exc['err']
 
             for step, res in zip(batch, results):
                 last_result = res
@@ -658,15 +707,25 @@ class AsyncWorkflow(Workflow, AsyncTask):
         elif isinstance(step, AsyncTask):
             await step.before_all_async(shared)
             step._log_event("step_started")
-            result = await step._run_async(shared)
-            step._log_event(
-                "step_finished",
-                result=result,
-                skipped=getattr(step, "was_skipped", False),
-            )
-            if isinstance(shared, dict):
-                shared[step] = result
-            await step.after_all_async(shared)
+            step.state = Status.RUNNING
+            try:
+                result = await step._run_async(shared)
+                step.state = (
+                    Status.SKIPPED if getattr(step, "was_skipped", False) else Status.SUCCEEDED
+                )
+                step._log_event(
+                    "step_finished",
+                    result=result,
+                    skipped=getattr(step, "was_skipped", False),
+                )
+                if isinstance(shared, dict):
+                    shared[step] = result
+                await step.after_all_async(shared)
+            except Exception as exc:
+                step.state = Status.FAILED
+                step._log_event("step_failed", error=str(exc))
+                await step.after_all_async(shared)
+                raise
         else:
             result = self._execute_step(step, shared)
         return result
@@ -689,16 +748,31 @@ class AsyncWorkflow(Workflow, AsyncTask):
             for step in self._collect_steps():
                 step.tracer = bound
             bound.record({"event": "workflow_started"})
-        await self.before_all_async(shared)
-        result = await self._run_async(shared, engine)
-        await self.after_all_async(shared)
+        self.state = Status.RUNNING
+        try:
+            await self.before_all_async(shared)
+            result = await self._run_async(shared, engine)
+            await self.after_all_async(shared)
+            self.state = Status.SUCCEEDED
+        except Exception:
+            self.state = Status.FAILED
+            for step in self._collect_steps():
+                if step.state == Status.PENDING:
+                    step.state = Status.CANCELLED
+                    step._log_event("step_cancelled")
+            if self.tracer:
+                from .tracing import BoundTracer
+
+                BoundTracer(
+                    self.tracer, self.workflow_id, self.workflow_instance_id
+                ).record({"event": "workflow_finished"})
+            return None
         if self.tracer:
             from .tracing import BoundTracer
 
-            bound = BoundTracer(
+            BoundTracer(
                 self.tracer, self.workflow_id, self.workflow_instance_id
-            )
-            bound.record({"event": "workflow_finished"})
+            ).record({"event": "workflow_finished"})
         if self.outputs:
             if len(self.outputs) == 1:
                 return shared.get(self.outputs[0], result)
@@ -728,12 +802,21 @@ class AsyncWorkflow(Workflow, AsyncTask):
             batch = [s for s in ready if s.execution_group == current_group]
             ready = [s for s in ready if s.execution_group != current_group]
 
+            exc: dict[str, Exception] = {}
+
             async def run_step(s: Step) -> Any:
-                return await self._execute_step_async(s, shared, engine)
+                try:
+                    return await self._execute_step_async(s, shared, engine)
+                except Exception as e:  # pragma: no cover - bubble up
+                    exc['err'] = e
+                    return None
 
             results = await engine.run_async_steps(
                 [lambda s=s: run_step(s) for s in batch]
             )
+
+            if exc:
+                raise exc['err']
 
             for step, res in zip(batch, results):
                 last_result = res
