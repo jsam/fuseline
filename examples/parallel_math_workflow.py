@@ -12,17 +12,11 @@ add = AddTask()
 
 
 class MultiplyBy2(Task):
-    def __init__(self) -> None:
-        super().__init__()
-
     def run_step(self, value: Computed[int] = Depends(add)) -> int:
         return value * 2
 
 
 class MultiplyBy3(Task):
-    def __init__(self) -> None:
-        super().__init__()
-
     def run_step(self, value: Computed[int] = Depends(add)) -> int:
         return value * 3
 
@@ -30,9 +24,6 @@ class MultiplyBy3(Task):
 class JoinTask(Task):
     mul2 = MultiplyBy2()
     mul3 = MultiplyBy3()
-
-    def __init__(self) -> None:
-        super().__init__()
 
     def run_step(
         self,
