@@ -1,6 +1,9 @@
 import json
 import re
+import time
 from typing import Any
+
+import pytest
 
 from fuseline import Computed, Depends, ProcessEngine
 from fuseline.workflow import (
@@ -379,3 +382,40 @@ def test_execution_groups_order() -> None:
     wf.run(execution_engine=ProcessEngine())
 
     assert log == ["s2", "s1"]
+
+
+def test_linear_chain_execution_time() -> None:
+    """Verify sequential execution order and timing in a simple chain."""
+
+    class SleepTask(Task):
+        def __init__(self, label: str, duration: float) -> None:
+            super().__init__()
+            self.label = label
+            self.duration = duration
+            self.start: float | None = None
+            self.end: float | None = None
+
+        def run_step(self, setup_res: Any) -> str | None:
+            self.start = time.perf_counter()
+            time.sleep(self.duration)
+            self.end = time.perf_counter()
+            return "SUCCESS" if self.label == "C" else None
+
+    a = SleepTask("A", 0.05)
+    b = SleepTask("B", 0.05)
+    c = SleepTask("C", 0.05)
+
+    a >> b
+    b >> c
+
+    wf = Workflow(outputs=[c])
+
+    start = time.perf_counter()
+    result = wf.run(execution_engine=ProcessEngine())
+    elapsed = time.perf_counter() - start
+
+    assert result == "SUCCESS"
+    assert a.end is not None and b.start is not None and b.end is not None and c.start is not None
+    assert a.end <= b.start
+    assert b.end <= c.start
+    assert elapsed == pytest.approx(a.duration + b.duration + c.duration, rel=0.2)
