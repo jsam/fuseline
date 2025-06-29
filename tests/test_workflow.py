@@ -501,12 +501,7 @@ def test_parallel_fan_out_join_execution_time(tmp_path) -> None:
         rel=0.3,
     )
 
-    assert (
-        start_step.execution_group
-        < p1.execution_group
-        == p2.execution_group
-        < join.execution_group
-    )
+    assert start_step.execution_group < p1.execution_group == p2.execution_group < join.execution_group
 
     events = [json.loads(line) for line in trace_path.read_text().splitlines()]
     start_started = [e for e in events if e["event"] == "step_started" and e["step"] == "StartStep"]
@@ -689,6 +684,7 @@ def test_diamond_mixed_conditions(tmp_path) -> None:
     assert started == ["Gate", "B"]
     assert not any(e.get("step") in {"A", "C"} for e in events)
 
+
 def test_diamond_mixed_conditions_depends(tmp_path) -> None:
     """TC-05b - Diamond with mixed conditions using dependency checks."""
 
@@ -780,9 +776,7 @@ def test_runtime_computed_condition_on_merged_edge(tmp_path) -> None:
             left_value: Computed[dict] = Depends(left),
             right_value: Computed[dict] = Depends(right),
         ) -> str:
-            return (
-                "same" if left_value["val"] == right_value["val"] else "different"
-            )
+            return "same" if left_value["val"] == right_value["val"] else "different"
 
     decide = Decide()
 
@@ -802,9 +796,7 @@ def test_runtime_computed_condition_on_merged_edge(tmp_path) -> None:
             left_value: Computed[dict] = Depends(left),
             right_value: Computed[dict] = Depends(right),
         ) -> str:
-            self.reason = (
-                f"Values diverged: {left_value['val']} vs {right_value['val']}"
-            )
+            self.reason = f"Values diverged: {left_value['val']} vs {right_value['val']}"
             return self.reason
 
     diff = Different()
@@ -831,24 +823,94 @@ def test_runtime_computed_condition_on_merged_edge(tmp_path) -> None:
     assert started[4] == "Different"
     assert "Same" not in started
 
-    decide_start = next(
-        i
-        for i, e in enumerate(events)
-        if e["event"] == "step_started" and e["step"] == "Decide"
-    )
-    left_finished = next(
-        i
-        for i, e in enumerate(events)
-        if e["event"] == "step_finished" and e["step"] == "PLeft"
-    )
-    right_finished = next(
-        i
-        for i, e in enumerate(events)
-        if e["event"] == "step_finished" and e["step"] == "PRight"
-    )
+    decide_start = next(i for i, e in enumerate(events) if e["event"] == "step_started" and e["step"] == "Decide")
+    left_finished = next(i for i, e in enumerate(events) if e["event"] == "step_finished" and e["step"] == "PLeft")
+    right_finished = next(i for i, e in enumerate(events) if e["event"] == "step_finished" and e["step"] == "PRight")
     assert decide_start > left_finished
     assert decide_start > right_finished
-    assert (
-        len([e for e in events if e["event"] == "step_started" and e["step"] == "Decide"])
-        == 1
-    )
+    assert len([e for e in events if e["event"] == "step_started" and e["step"] == "Decide"]) == 1
+
+
+def test_three_parent_and_join(tmp_path) -> None:
+    """TC-07 - AND-join with three parents."""
+
+    class SleepTask(Task):
+        def __init__(self, label: str, duration: float, value: int) -> None:
+            super().__init__()
+            self.label = label
+            self.duration = duration
+            self.value = value
+            self.start: float | None = None
+            self.end: float | None = None
+
+        def run_step(self) -> dict:
+            self.start = time.perf_counter()
+            time.sleep(self.duration)
+            self.end = time.perf_counter()
+            return {f"from{self.label}": self.value}
+
+    class StepA(SleepTask):
+        pass
+
+    class StepB(SleepTask):
+        pass
+
+    class StepC(SleepTask):
+        pass
+
+    a = StepA("A", 0.05, 1)
+    b = StepB("B", 0.15, 2)
+    c = StepC("C", 0.05, 3)
+
+    class JoinZ(Task):
+        def __init__(self, duration: float) -> None:
+            super().__init__()
+            self.duration = duration
+            self.received: dict[str, int] | None = None
+            self.start: float | None = None
+            self.end: float | None = None
+
+        def run_step(
+            self,
+            from_a: Computed[dict] = Depends(a),
+            from_b: Computed[dict] = Depends(b),
+            from_c: Computed[dict] = Depends(c),
+        ) -> dict:
+            self.start = time.perf_counter()
+            time.sleep(self.duration)
+            self.received = {**from_a, **from_b, **from_c}
+            self.end = time.perf_counter()
+            return self.received
+
+    join = JoinZ(0.05)
+
+    a >> join
+    b >> join
+    c >> join
+
+    trace_path = tmp_path / "trace.log"
+    wf = Workflow(outputs=[join], trace=str(trace_path))
+
+    start_time = time.perf_counter()
+    result = wf.run(execution_engine=ProcessEngine(3))
+    elapsed = time.perf_counter() - start_time
+
+    assert result == {"fromA": 1, "fromB": 2, "fromC": 3}
+    assert join.received == result
+
+    assert a.end is not None and b.end is not None and c.end is not None and join.start is not None
+    assert max(a.end, b.end, c.end) <= join.start
+    assert elapsed == pytest.approx(max(a.duration, b.duration, c.duration) + join.duration, rel=0.3)
+
+    events = [json.loads(line) for line in trace_path.read_text().splitlines()]
+    join_started = [e for e in events if e["event"] == "step_started" and e["step"] == "JoinZ"]
+    join_finished = [e for e in events if e["event"] == "step_finished" and e["step"] == "JoinZ"]
+    assert len(join_started) == len(join_finished) == 1
+
+    join_start = next(i for i, e in enumerate(events) if e["event"] == "step_started" and e["step"] == "JoinZ")
+    a_finished = next(i for i, e in enumerate(events) if e["event"] == "step_finished" and e["step"] == "StepA")
+    b_finished = next(i for i, e in enumerate(events) if e["event"] == "step_finished" and e["step"] == "StepB")
+    c_finished = next(i for i, e in enumerate(events) if e["event"] == "step_finished" and e["step"] == "StepC")
+    assert join_start > a_finished
+    assert join_start > b_finished
+    assert join_start > c_finished
