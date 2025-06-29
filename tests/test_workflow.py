@@ -419,3 +419,94 @@ def test_linear_chain_execution_time() -> None:
     assert a.end <= b.start
     assert b.end <= c.start
     assert elapsed == pytest.approx(a.duration + b.duration + c.duration, rel=0.2)
+
+
+def test_parallel_fan_out_join_execution_time(tmp_path) -> None:
+    """Verify parallel scheduling, join behaviour and single execution."""
+
+    class SleepTask(Task):
+        def __init__(self, duration: float, result: int | None = None) -> None:
+            super().__init__()
+            self.duration = duration
+            self.result = result
+            self.start: float | None = None
+            self.end: float | None = None
+
+        def run_step(self, setup_res: Any) -> int | None:  # pragma: no cover - simple
+            self.start = time.perf_counter()
+            time.sleep(self.duration)
+            self.end = time.perf_counter()
+            return self.result
+
+    class StartStep(SleepTask):
+        pass
+
+    class P1Step(SleepTask):
+        pass
+
+    class P2Step(SleepTask):
+        pass
+
+    start_step = StartStep(0.05)
+    p1 = P1Step(0.1, 1)
+    p2 = P2Step(0.05, 2)
+
+    class JoinTask(Task):
+        def __init__(self, duration: float) -> None:
+            super().__init__()
+            self.duration = duration
+            self.start: float | None = None
+            self.end: float | None = None
+
+        def run_step(
+            self,
+            val1: Computed[int] = Depends(p1),
+            val2: Computed[int] = Depends(p2),
+        ) -> list[str]:
+            self.start = time.perf_counter()
+            time.sleep(self.duration)
+            self.end = time.perf_counter()
+            return [f"op{val1}", f"op{val2}"]
+
+    join = JoinTask(0.05)
+
+    start_step >> p1
+    start_step >> p2
+    p1 >> join
+    p2 >> join
+
+    trace_path = tmp_path / "trace.log"
+    wf = Workflow(outputs=[join], trace=str(trace_path))
+
+    start_time = time.perf_counter()
+    result = wf.run(execution_engine=ProcessEngine(2))
+    elapsed = time.perf_counter() - start_time
+
+    assert result == ["op1", "op2"]
+
+    assert (
+        start_step.end is not None
+        and p1.start is not None
+        and p2.start is not None
+        and join.start is not None
+        and p1.end is not None
+        and p2.end is not None
+    )
+
+    assert start_step.end <= p1.start
+    assert start_step.end <= p2.start
+    assert max(p1.end, p2.end) <= join.start
+    assert elapsed == pytest.approx(
+        start_step.duration + max(p1.duration, p2.duration) + join.duration,
+        rel=0.3,
+    )
+
+    events = [json.loads(line) for line in trace_path.read_text().splitlines()]
+    start_started = [e for e in events if e["event"] == "step_started" and e["step"] == "StartStep"]
+    start_finished = [e for e in events if e["event"] == "step_finished" and e["step"] == "StartStep"]
+    join_started = [e for e in events if e["event"] == "step_started" and e["step"] == "JoinTask"]
+    join_finished = [e for e in events if e["event"] == "step_finished" and e["step"] == "JoinTask"]
+
+    assert len(start_started) == len(start_finished) == 1
+    assert len(join_started) == len(join_finished) == 1
+
