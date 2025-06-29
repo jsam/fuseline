@@ -914,3 +914,49 @@ def test_three_parent_and_join(tmp_path) -> None:
     assert join_start > a_finished
     assert join_start > b_finished
     assert join_start > c_finished
+
+
+@pytest.mark.xfail(reason="OR-join (first-completer wins) not supported")
+def test_or_join_first_completer(tmp_path) -> None:
+    """TC-08 - OR-join where the first completed parent triggers the join."""
+
+    class Producer(Task):
+        def __init__(self, label: str, delay: float) -> None:
+            super().__init__()
+            self.label = label
+            self.delay = delay
+
+        def run_step(self) -> dict:
+            time.sleep(self.delay)
+            return {"payload": {"source": self.label}}
+
+    p1 = Producer("Producer1", 0.05)
+    p2 = Producer("Producer2", 0.1)
+
+    class RaceWinner(Task):
+        def __init__(self) -> None:
+            super().__init__()
+            self.triggers = 0
+            self.payload: dict | None = None
+
+        def run_step(self, payload: dict) -> dict:
+            self.triggers += 1
+            self.payload = payload
+            return payload
+
+    winner = RaceWinner()
+
+    p1 >> winner
+    p2 >> winner
+
+    trace_path = tmp_path / "trace.log"
+    wf = Workflow(outputs=[winner], trace=str(trace_path))
+
+    result = wf.run(execution_engine=ProcessEngine(2))
+
+    assert winner.triggers == 1
+    assert result["payload"]["source"] in {"Producer1", "Producer2"}
+
+    events = [json.loads(line) for line in trace_path.read_text().splitlines()]
+    started = [e for e in events if e["event"] == "step_started" and e["step"] == "RaceWinner"]
+    assert len(started) == 1
