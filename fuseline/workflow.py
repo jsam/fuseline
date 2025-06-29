@@ -14,7 +14,7 @@ import inspect
 import time
 import uuid
 import warnings
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Sequence
 
 from .engines import ProcessEngine
 from .interfaces import ExecutionEngine, Exporter, Tracer
@@ -116,8 +116,10 @@ class Task(Step):
         self.max_retries = max_retries
         self.wait = wait
         self.cur_retry: Optional[int] = None
-        self.deps: Dict[str, Step] = {}
+        self.deps: Dict[str, Step | List[Step]] = {}
         self.dep_conditions: Dict[str, Callable[[Any], bool]] = {}
+        self.or_groups: Dict[str, List[Step]] = {}
+        self.or_triggered: Dict[str, Step] = {}
         self.was_skipped = False
         run_method = type(self).run_step
         sig = inspect.signature(run_method)
@@ -126,9 +128,18 @@ class Task(Step):
         for param in params:
             if isinstance(param.default, Depends):
                 dep_obj = param.default.obj
-                dep_step = dep_obj if isinstance(dep_obj, Step) else FunctionTask(dep_obj)
-                dep_step >> self
-                self.deps[param.name] = dep_step
+                if isinstance(dep_obj, list):
+                    dep_steps: List[Step] = []
+                    for obj in dep_obj:
+                        dstep = obj if isinstance(obj, Step) else FunctionTask(obj)
+                        dstep >> self
+                        dep_steps.append(dstep)
+                    self.deps[param.name] = dep_steps
+                    self.or_groups[param.name] = dep_steps
+                else:
+                    dep_step = dep_obj if isinstance(dep_obj, Step) else FunctionTask(dep_obj)
+                    dep_step >> self
+                    self.deps[param.name] = dep_step
                 if param.default.condition is not None:
                     self.dep_conditions[param.name] = param.default.condition
             elif param.name not in {"self", "setup_res", "shared"}:
@@ -147,21 +158,42 @@ class Task(Step):
                 if self.is_typed:
                     kwargs = {}
                     for name, dep in self.deps.items():
-                        val = setup_res[dep]
-                        cond = self.dep_conditions.get(name)
-                        if cond is not None:
-                            passed = bool(cond(val))
-                            self._log_event(
-                                "condition_check",
-                                dependency=name,
-                                value=val,
-                                passed=passed,
-                            )
-                            if not passed:
-                                self.was_skipped = True
-                                return None
+                        if isinstance(dep, list):
+                            chosen = self.or_triggered.get(name) or dep[0]
+                            val = setup_res[chosen]
+                            cond = self.dep_conditions.get(name)
+                            if cond is not None:
+                                if isinstance(cond, Condition):
+                                    cond.source_step = chosen
+                                passed = bool(cond(val))
+                                self._log_event(
+                                    "condition_check",
+                                    dependency=name,
+                                    value=val,
+                                    passed=passed,
+                                )
+                                if not passed:
+                                    self.was_skipped = True
+                                    return None
+                            kwargs[name] = val
+                        else:
+                            val = setup_res[dep]
+                            cond = self.dep_conditions.get(name)
+                            if cond is not None:
+                                if isinstance(cond, Condition):
+                                    cond.source_step = dep
+                                passed = bool(cond(val))
+                                self._log_event(
+                                    "condition_check",
+                                    dependency=name,
+                                    value=val,
+                                    passed=passed,
+                                )
+                                if not passed:
+                                    self.was_skipped = True
+                                    return None
 
-                        kwargs[name] = val
+                            kwargs[name] = val
                     kwargs.update({k: v for k, v in self.params.items() if k in self.param_names and k not in kwargs})
                     result = type(self).run_step(self, **kwargs)
                     if isinstance(setup_res, dict):
@@ -225,8 +257,13 @@ class Workflow(Step):
                 walk(pred)
             if isinstance(step, Task):
                 for dep in step.deps.values():
-                    preds[step] = True
-                    walk(dep)
+                    if isinstance(dep, list):
+                        for d in dep:
+                            preds[step] = True
+                            walk(d)
+                    else:
+                        preds[step] = True
+                        walk(dep)
             preds.setdefault(step, False)
 
         for out in outputs:
@@ -320,7 +357,11 @@ class Workflow(Step):
                 walk(pred)
             if isinstance(step, Task):
                 for dep in step.deps.values():
-                    walk(dep)
+                    if isinstance(dep, list):
+                        for d in dep:
+                            walk(d)
+                    else:
+                        walk(dep)
             seen.append(step)
 
         for out in self.outputs:
@@ -345,10 +386,16 @@ class Workflow(Step):
     def _run_engine(self, shared: Any, engine: ExecutionEngine) -> Any:
         nodes = self._collect_steps()
         indegree: Dict[Step, int] = {n: 0 for n in nodes}
-        for n in nodes:
-            for succs in n.successors.values():
-                for succ in succs:
-                    indegree[succ] = indegree.get(succ, 0) + 1
+        for succ in nodes:
+            group_preds: set[Step] = set()
+            if isinstance(succ, Task):
+                succ.or_remaining = {k: True for k in succ.or_groups}
+                for group in succ.or_groups.values():
+                    indegree[succ] += 1
+                    group_preds.update(group)
+            for pred in succ.predecessors:
+                if pred not in group_preds:
+                    indegree[succ] += 1
 
         ready = [n for n, d in indegree.items() if d == 0]
         for step in ready:
@@ -368,7 +415,17 @@ class Workflow(Step):
                 last_result = res
                 action = res if isinstance(res, str) else None
                 for succ in self.get_next_steps(step, action):
-                    indegree[succ] -= 1
+                    decreased = False
+                    if isinstance(succ, Task):
+                        for name, group in succ.or_groups.items():
+                            if step in group and succ.or_remaining.get(name):
+                                succ.or_remaining[name] = False
+                                succ.or_triggered[name] = step
+                                indegree[succ] -= 1
+                                decreased = True
+                                break
+                    if not decreased:
+                        indegree[succ] -= 1
                     if indegree[succ] == 0:
                         succ._log_event("step_enqueued")
                         ready.append(succ)
@@ -401,6 +458,8 @@ class AsyncTask(Task):
         super().__init__(max_retries, wait)
         self.deps = {}
         self.dep_conditions: Dict[str, Callable[[Any], bool]] = {}
+        self.or_groups: Dict[str, List[Step]] = {}
+        self.or_triggered: Dict[str, Step] = {}
         self.was_skipped = False
         run_method = type(self).run_step_async
         sig = inspect.signature(run_method)
@@ -409,9 +468,18 @@ class AsyncTask(Task):
         for param in params:
             if isinstance(param.default, Depends):
                 dep_obj = param.default.obj
-                dep_step = dep_obj if isinstance(dep_obj, Step) else FunctionTask(dep_obj)
-                dep_step >> self
-                self.deps[param.name] = dep_step
+                if isinstance(dep_obj, list):
+                    dep_steps: List[Step] = []
+                    for obj in dep_obj:
+                        dstep = obj if isinstance(obj, Step) else FunctionTask(obj)
+                        dstep >> self
+                        dep_steps.append(dstep)
+                    self.deps[param.name] = dep_steps
+                    self.or_groups[param.name] = dep_steps
+                else:
+                    dep_step = dep_obj if isinstance(dep_obj, Step) else FunctionTask(dep_obj)
+                    dep_step >> self
+                    self.deps[param.name] = dep_step
                 if param.default.condition is not None:
                     self.dep_conditions[param.name] = param.default.condition
             elif param.name not in {"self", "setup_res", "shared"}:
@@ -436,20 +504,41 @@ class AsyncTask(Task):
                 if self.is_typed:
                     kwargs = {}
                     for name, dep in self.deps.items():
-                        val = setup_res[dep]
-                        cond = self.dep_conditions.get(name)
-                        if cond is not None:
-                            passed = bool(cond(val))
-                            self._log_event(
-                                "condition_check",
-                                dependency=name,
-                                value=val,
-                                passed=passed,
-                            )
-                            if not passed:
-                                self.was_skipped = True
-                                return None
-                        kwargs[name] = val
+                        if isinstance(dep, list):
+                            chosen = self.or_triggered.get(name) or dep[0]
+                            val = setup_res[chosen]
+                            cond = self.dep_conditions.get(name)
+                            if cond is not None:
+                                if isinstance(cond, Condition):
+                                    cond.source_step = chosen
+                                passed = bool(cond(val))
+                                self._log_event(
+                                    "condition_check",
+                                    dependency=name,
+                                    value=val,
+                                    passed=passed,
+                                )
+                                if not passed:
+                                    self.was_skipped = True
+                                    return None
+                            kwargs[name] = val
+                        else:
+                            val = setup_res[dep]
+                            cond = self.dep_conditions.get(name)
+                            if cond is not None:
+                                if isinstance(cond, Condition):
+                                    cond.source_step = dep
+                                passed = bool(cond(val))
+                                self._log_event(
+                                    "condition_check",
+                                    dependency=name,
+                                    value=val,
+                                    passed=passed,
+                                )
+                                if not passed:
+                                    self.was_skipped = True
+                                    return None
+                            kwargs[name] = val
                     kwargs.update({k: v for k, v in self.params.items() if k in self.param_names and k not in kwargs})
                     method = type(self).run_step_async
                     result = await method(self, **kwargs)
@@ -559,10 +648,16 @@ class AsyncWorkflow(Workflow, AsyncTask):
     async def _run_engine_async(self, shared: Any, engine: ExecutionEngine) -> Any:
         nodes = self._collect_steps()
         indegree: Dict[Step, int] = {n: 0 for n in nodes}
-        for n in nodes:
-            for succs in n.successors.values():
-                for succ in succs:
-                    indegree[succ] = indegree.get(succ, 0) + 1
+        for succ in nodes:
+            group_preds: set[Step] = set()
+            if isinstance(succ, Task):
+                succ.or_remaining = {k: True for k in succ.or_groups}
+                for group in succ.or_groups.values():
+                    indegree[succ] += 1
+                    group_preds.update(group)
+            for pred in succ.predecessors:
+                if pred not in group_preds:
+                    indegree[succ] += 1
 
         ready = [n for n, d in indegree.items() if d == 0]
         for step in ready:
@@ -582,7 +677,17 @@ class AsyncWorkflow(Workflow, AsyncTask):
                 last_result = res
                 action = res if isinstance(res, str) else None
                 for succ in self.get_next_steps(step, action):
-                    indegree[succ] -= 1
+                    decreased = False
+                    if isinstance(succ, Task):
+                        for name, group in succ.or_groups.items():
+                            if step in group and succ.or_remaining.get(name):
+                                succ.or_remaining[name] = False
+                                succ.or_triggered[name] = step
+                                indegree[succ] -= 1
+                                decreased = True
+                                break
+                    if not decreased:
+                        indegree[succ] -= 1
                     if indegree[succ] == 0:
                         succ._log_event("step_enqueued")
                         ready.append(succ)
@@ -616,6 +721,9 @@ class AsyncParallelBatchWorkflow(AsyncWorkflow, BatchWorkflow):
 class Condition:
     """Base class for conditional dependency evaluation."""
 
+    def __init__(self) -> None:
+        self.source_step: Step | None = None
+
     def __call__(self, value: Any) -> bool:
         return bool(value)
 
@@ -625,11 +733,14 @@ class Depends:
 
     def __init__(
         self,
-        obj: Callable[..., Any] | Step,
+        obj: Callable[..., Any] | Step | Sequence[Callable[..., Any] | Step],
         *,
         condition: Callable[[Any], bool] | Condition | type[Condition] | None = None,
     ) -> None:
-        self.obj = obj
+        if isinstance(obj, (list, tuple)):
+            self.obj = list(obj)
+        else:
+            self.obj = obj
         if isinstance(condition, type) and issubclass(condition, Condition):
             self.condition = condition()
         else:
@@ -651,11 +762,25 @@ class FunctionTask(Task):
     def run_step(self, shared: Dict["FunctionTask", Any]) -> Any:
         kwargs = {}
         for name, dep in self.deps.items():
-            val = shared[dep]
-            cond = self.dep_conditions.get(name)
-            if cond is not None and not cond(val):
-                return None
-            kwargs[name] = val
+            if isinstance(dep, list):
+                chosen = self.or_triggered.get(name) or dep[0]
+                val = shared[chosen]
+                cond = self.dep_conditions.get(name)
+                if cond is not None:
+                    if isinstance(cond, Condition):
+                        cond.source_step = chosen
+                    if not cond(val):
+                        return None
+                kwargs[name] = val
+            else:
+                val = shared[dep]
+                cond = self.dep_conditions.get(name)
+                if cond is not None:
+                    if isinstance(cond, Condition):
+                        cond.source_step = dep
+                    if not cond(val):
+                        return None
+                kwargs[name] = val
         kwargs.update({k: v for k, v in self.params.items() if k not in kwargs})
         result = self.func(**kwargs)
         shared[self] = result
@@ -690,13 +815,24 @@ def workflow_from_functions(outputs: List[Callable[..., Any]]) -> Workflow:
         for param in inspect.signature(func).parameters.values():
             if isinstance(param.default, Depends):
                 dep_obj = param.default.obj
-                dep = build_step(dep_obj)
-                dep >> step
-                if isinstance(step, FunctionTask):
-                    step.deps[param.name] = dep  # type: ignore[assignment]
-                    if param.default.condition is not None:
-                        step.dep_conditions[param.name] = param.default.condition
-                has_pred[step] = True
+                if isinstance(dep_obj, list):
+                    deps = [build_step(o) for o in dep_obj]
+                    for d in deps:
+                        d >> step
+                    if isinstance(step, FunctionTask):
+                        step.deps[param.name] = deps  # type: ignore[assignment]
+                        step.or_groups[param.name] = deps
+                        if param.default.condition is not None:
+                            step.dep_conditions[param.name] = param.default.condition
+                    has_pred[step] = True
+                else:
+                    dep = build_step(dep_obj)
+                    dep >> step
+                    if isinstance(step, FunctionTask):
+                        step.deps[param.name] = dep  # type: ignore[assignment]
+                        if param.default.condition is not None:
+                            step.dep_conditions[param.name] = param.default.condition
+                    has_pred[step] = True
         has_pred.setdefault(step, False)
         return step
 
