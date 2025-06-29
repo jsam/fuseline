@@ -14,18 +14,12 @@ add = AsyncAddTask()
 
 
 class AsyncMultiplyBy2(AsyncTask):
-    def __init__(self) -> None:
-        super().__init__()
-
     async def run_step_async(self, value: Computed[int] = Depends(add)) -> int:
         await asyncio.sleep(0.1)
         return value * 2
 
 
 class AsyncMultiplyBy3(AsyncTask):
-    def __init__(self) -> None:
-        super().__init__()
-
     async def run_step_async(self, value: Computed[int] = Depends(add)) -> int:
         await asyncio.sleep(0.1)
         return value * 3
@@ -34,9 +28,6 @@ class AsyncMultiplyBy3(AsyncTask):
 class AsyncJoinTask(AsyncTask):
     mul2 = AsyncMultiplyBy2()
     mul3 = AsyncMultiplyBy3()
-
-    def __init__(self) -> None:
-        super().__init__()
 
     async def run_step_async(
         self,
