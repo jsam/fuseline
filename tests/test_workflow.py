@@ -9,6 +9,8 @@ from fuseline import Computed, Depends, ProcessEngine
 from fuseline.workflow import (
     AsyncTask,
     AsyncWorkflow,
+    Condition,
+    Step,
     Task,
     Workflow,
     workflow_from_functions,
@@ -1033,4 +1035,50 @@ def test_or_join_first_completer_rshift(tmp_path) -> None:
 
     winner_started = started[0]
     assert winner_started < max(p1_finished, p2_finished)
+
+
+def test_or_join_condition_source(tmp_path) -> None:
+    """Ensure Depends with condition knows which producer triggered."""
+
+    class CaptureSource(Condition):
+        def __init__(self) -> None:
+            super().__init__()
+            self.source: Step | None = None
+
+        def __call__(self, value: Any) -> bool:  # pragma: no cover - simple
+            self.source = self.source_step
+            return True
+
+    class Producer(Task):
+        def __init__(self, label: str, delay: float) -> None:
+            super().__init__()
+            self.label = label
+            self.delay = delay
+
+        def run_step(self) -> dict:
+            time.sleep(self.delay)
+            return {"payload": {"source": self.label}}
+
+    class P1(Producer):
+        pass
+
+    class P2(Producer):
+        pass
+
+    p1 = P1("Producer1", 0.05)
+    p2 = P2("Producer2", 0.1)
+
+    cond = CaptureSource()
+
+    class RaceWinner(Task):
+        def run_step(self, payload: dict = Depends([p1, p2], condition=cond)) -> dict:
+            return payload
+
+    winner = RaceWinner()
+
+    wf = Workflow(outputs=[winner])
+    result = wf.run(execution_engine=ProcessEngine(2))
+
+    assert cond.source is p1
+    assert result["payload"]["source"] == "Producer1"
 
