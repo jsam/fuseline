@@ -1,31 +1,31 @@
 steps:
   step0:
-    class: AddTask
+    class: AsyncAddTask
     successors:
       - step1
       - step2
     execution_group: 0
   step1:
-    class: MultiplyBy2
+    class: AsyncMultiplyBy2
     successors:
       - step3
-    execution_group: 0
+    execution_group: 1
     dependencies:
       value:
         step: step0
   step2:
-    class: MultiplyBy3
+    class: AsyncMultiplyBy3
     successors:
       - step3
-    execution_group: 0
+    execution_group: 1
     dependencies:
       value:
         step: step0
   step3:
-    class: JoinTask
+    class: AsyncJoinTask
     successors:
 
-    execution_group: 0
+    execution_group: 2
     dependencies:
       res2:
         step: step1

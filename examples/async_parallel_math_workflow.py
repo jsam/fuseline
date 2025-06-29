@@ -1,4 +1,5 @@
 import asyncio
+from pathlib import Path
 
 from fuseline import AsyncTask, AsyncWorkflow, Computed, Depends, ProcessEngine
 
@@ -13,6 +14,8 @@ add = AsyncAddTask()
 
 
 class AsyncMultiplyBy2(AsyncTask):
+    def __init__(self) -> None:
+        super().__init__(execution_group=1)
 
     async def run_step_async(self, value: Computed[int] = Depends(add)) -> int:
         await asyncio.sleep(0.1)
@@ -20,6 +23,8 @@ class AsyncMultiplyBy2(AsyncTask):
 
 
 class AsyncMultiplyBy3(AsyncTask):
+    def __init__(self) -> None:
+        super().__init__(execution_group=1)
 
     async def run_step_async(self, value: Computed[int] = Depends(add)) -> int:
         await asyncio.sleep(0.1)
@@ -29,6 +34,9 @@ class AsyncMultiplyBy3(AsyncTask):
 class AsyncJoinTask(AsyncTask):
     mul2 = AsyncMultiplyBy2()
     mul3 = AsyncMultiplyBy3()
+
+    def __init__(self) -> None:
+        super().__init__(execution_group=2)
 
     async def run_step_async(
         self,
@@ -43,6 +51,9 @@ async def main() -> None:
     join = AsyncJoinTask()
     wf = AsyncWorkflow(outputs=[join])
     await wf.run_async({"a": 1, "b": 2}, execution_engine=ProcessEngine(2))
+    path = Path(__file__).with_suffix(".yaml")
+    wf.export(str(path))
+    print(f"exported to {path}")
 
 
 if __name__ == "__main__":
