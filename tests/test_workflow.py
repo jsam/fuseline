@@ -633,3 +633,122 @@ def test_edge_skipped_false_condition(tmp_path) -> None:
     started = [e["step"] for e in events if e["event"] == "step_started"]
     assert started == ["Start", "Validate", "Reject"]
     assert not any(e.get("step") == "Process" for e in events)
+
+
+def test_diamond_mixed_conditions(tmp_path) -> None:
+    """TC-05  –  Diamond with mixed conditions."""
+
+    class Gate(Task):
+        def run_step(self, x: int) -> str:
+            if x < 0:
+                return "A"
+            if x > 10:
+                return "C"
+            return "B"
+
+    gate = Gate()
+
+    class A(Task):
+        def __init__(self) -> None:
+            super().__init__()
+            self.executed = False
+
+        def run_step(self, x: int) -> None:  # pragma: no cover - should not run
+            self.executed = True
+
+    class B(Task):
+        def run_step(self, x: int) -> int:
+            return x * x
+
+    class C(Task):
+        def __init__(self) -> None:
+            super().__init__()
+            self.executed = False
+
+        def run_step(self, x: int) -> None:  # pragma: no cover - should not run
+            self.executed = True
+
+    a = A()
+    b = B()
+    c = C()
+
+    (gate - "A") >> a
+    (gate - "B") >> b
+    (gate - "C") >> c
+
+    trace_path = tmp_path / "trace.log"
+    wf = Workflow(outputs=[a, b, c], trace=str(trace_path))
+    result = wf.run({"x": 7})
+
+    assert result == [None, 49, None]
+    assert not a.executed
+    assert not c.executed
+
+    events = [json.loads(line) for line in trace_path.read_text().splitlines()]
+    started = [e["step"] for e in events if e["event"] == "step_started"]
+    assert started == ["Gate", "B"]
+    assert not any(e.get("step") in {"A", "C"} for e in events)
+
+def test_diamond_mixed_conditions_depends(tmp_path) -> None:
+    """TC-05b – Diamond with mixed conditions using dependency checks."""
+
+    class Gate(Task):
+        def run_step(self, x: int) -> dict:
+            if x < 0:
+                return {"branch": "A"}
+            if x > 10:
+                return {"branch": "C"}
+            return {"branch": "B"}
+
+    gate = Gate()
+
+    class A(Task):
+        def __init__(self) -> None:
+            super().__init__()
+            self.executed = False
+
+        def run_step(
+            self,
+            _res: dict = Depends(gate, condition=lambda v: v["branch"] == "A"),
+        ) -> None:  # pragma: no cover - should not run
+            self.executed = True
+
+    class B(Task):
+        def run_step(
+            self,
+            _res: dict = Depends(gate, condition=lambda v: v["branch"] == "B"),
+            x: int = 0,
+        ) -> int:
+            return x * x
+
+    class C(Task):
+        def __init__(self) -> None:
+            super().__init__()
+            self.executed = False
+
+        def run_step(
+            self,
+            _res: dict = Depends(gate, condition=lambda v: v["branch"] == "C"),
+        ) -> None:  # pragma: no cover - should not run
+            self.executed = True
+
+    a = A()
+    b = B()
+    c = C()
+
+    trace_path = tmp_path / "trace.log"
+    wf = Workflow(outputs=[a, b, c], trace=str(trace_path))
+    result = wf.run({"x": 7})
+
+    assert result == [None, 49, None]
+    assert not a.executed
+    assert not c.executed
+
+    events = [json.loads(line) for line in trace_path.read_text().splitlines()]
+    started = [e["step"] for e in events if e["event"] == "step_started"]
+    assert started == ["Gate", "A", "B", "C"]
+
+    finished = [e for e in events if e["event"] == "step_finished"]
+    assert any(e["step"] == "A" and e["skipped"] for e in finished)
+    assert any(e["step"] == "C" and e["skipped"] for e in finished)
+    assert not any(e["step"] == "B" and e["skipped"] for e in finished)
