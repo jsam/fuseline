@@ -794,14 +794,17 @@ class Depends:
 
     def __init__(
         self,
-        obj: Callable[..., Any] | Step | Sequence[Callable[..., Any] | Step],
-        *,
+        *objs: Callable[..., Any] | Step | Sequence[Callable[..., Any] | Step],
         condition: Callable[[Any], bool] | Condition | type[Condition] | None = None,
     ) -> None:
-        if isinstance(obj, (list, tuple)):
-            self.obj = list(obj)
+        if len(objs) == 1:
+            obj = objs[0]
+            if isinstance(obj, (list, tuple)):
+                self.obj = list(obj)
+            else:
+                self.obj = obj
         else:
-            self.obj = obj
+            self.obj = [o for obj in objs for o in (obj if isinstance(obj, (list, tuple)) else [obj])]
         if isinstance(condition, type) and issubclass(condition, Condition):
             self.condition = condition()
         else:
