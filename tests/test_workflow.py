@@ -971,3 +971,66 @@ def test_or_join_first_completer(tmp_path) -> None:
 
     winner_started = started[0]
     assert winner_started > p1_finished or winner_started > p2_finished
+
+
+@pytest.mark.xfail(reason="OR-join via edges alone is not supported")
+def test_or_join_first_completer_rshift(tmp_path) -> None:
+    """TC-08b - OR-join expressed with explicit edges using >>."""
+
+    class Producer(Task):
+        def __init__(self, label: str, delay: float) -> None:
+            super().__init__()
+            self.label = label
+            self.delay = delay
+
+        def run_step(self) -> dict:
+            time.sleep(self.delay)
+            return {"payload": {"source": self.label}}
+
+    p1 = Producer("Producer1", 0.05)
+    p2 = Producer("Producer2", 0.1)
+
+    class RaceWinner(Task):
+        def __init__(self) -> None:
+            super().__init__()
+            self.triggers = 0
+
+        def run_step(self) -> None:
+            self.triggers += 1
+
+    winner = RaceWinner()
+
+    # Explicit edge construction using rshift operator
+    p1 >> winner
+    p2 >> winner
+
+    trace_path = tmp_path / "trace.log"
+    wf = Workflow(outputs=[winner], trace=str(trace_path))
+
+    wf.run(execution_engine=ProcessEngine(2))
+
+    assert winner.triggers == 1
+
+    events = [json.loads(line) for line in trace_path.read_text().splitlines()]
+    started = [
+        i
+        for i, e in enumerate(events)
+        if e["event"] == "step_started" and e["step"] == "RaceWinner"
+    ]
+    finished = [
+        i
+        for i, e in enumerate(events)
+        if e["event"] == "step_finished" and e["step"] == "RaceWinner"
+    ]
+    assert len(started) == len(finished) == 1
+
+    p1_finished = next(
+        i for i, e in enumerate(events) if e["event"] == "step_finished" and e["step"] == "Producer1"
+    )
+    p2_finished = next(
+        i for i, e in enumerate(events) if e["event"] == "step_finished" and e["step"] == "Producer2"
+    )
+
+    winner_started = started[0]
+    assert winner_started < max(p1_finished, p2_finished)
+
