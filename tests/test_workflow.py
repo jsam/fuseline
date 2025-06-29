@@ -958,5 +958,13 @@ def test_or_join_first_completer(tmp_path) -> None:
     assert result["payload"]["source"] in {"Producer1", "Producer2"}
 
     events = [json.loads(line) for line in trace_path.read_text().splitlines()]
-    started = [e for e in events if e["event"] == "step_started" and e["step"] == "RaceWinner"]
-    assert len(started) == 1
+    started = [i for i, e in enumerate(events) if e["event"] == "step_started" and e["step"] == "RaceWinner"]
+    finished = [i for i, e in enumerate(events) if e["event"] == "step_finished" and e["step"] == "RaceWinner"]
+    assert len(started) == len(finished) == 1
+
+    p1_finished = next(i for i, e in enumerate(events) if e["event"] == "step_finished" and e["step"] == "Producer1")
+    p2_finished = next(i for i, e in enumerate(events) if e["event"] == "step_finished" and e["step"] == "Producer2")
+
+    winner_started = started[0]
+    assert winner_started > p1_finished
+    assert winner_started < p2_finished
