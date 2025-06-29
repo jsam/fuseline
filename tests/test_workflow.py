@@ -10,10 +10,10 @@ from fuseline.workflow import (
     AsyncTask,
     AsyncWorkflow,
     Condition,
+    Status,
     Step,
     Task,
     Workflow,
-    Status,
     workflow_from_functions,
 )
 
@@ -1189,7 +1189,7 @@ def test_or_join_condition_source(tmp_path) -> None:
 
 
 def test_fail_fast_policy(tmp_path) -> None:
-    """TC-09  –  Fail-fast policy."""
+    """TC-09 - Fail-fast policy."""
 
     class Critical(Task):
         def run_step(self) -> None:
@@ -1226,7 +1226,7 @@ def test_fail_fast_policy(tmp_path) -> None:
 
 
 def test_fail_fast_policy_depends(tmp_path) -> None:
-    """TC-09b – Fail-fast policy using dependency injection."""
+    """TC-09b - Fail-fast policy using dependency injection."""
 
     class Critical(Task):
         def run_step(self) -> None:
@@ -1265,7 +1265,7 @@ def test_fail_fast_policy_depends(tmp_path) -> None:
 
 
 def test_retry_with_backoff_rshift(tmp_path) -> None:
-    """TC-10 – Retry with back-off using explicit edges."""
+    """TC-10 - Retry with back-off using explicit edges."""
 
     class StartTask(Task):
         def run_step(self) -> None:
@@ -1314,13 +1314,13 @@ def test_retry_with_backoff_rshift(tmp_path) -> None:
     assert flaky.times[1] - flaky.times[0] >= 2
     assert flaky.times[2] - flaky.times[1] >= 2
 
-    events = [json.loads(l) for l in trace_path.read_text().splitlines()]
+    events = [json.loads(line) for line in trace_path.read_text().splitlines()]
     started = [e["step"] for e in events if e["event"] == "step_started"]
     assert started == ["StartTask", "FlakyTask", "FinalTask"]
 
 
 def test_retry_with_backoff_depends(tmp_path) -> None:
-    """TC-10b – Retry with back-off using dependency injection."""
+    """TC-10b - Retry with back-off using dependency injection."""
 
     class FlakyTask(Task):
         def __init__(self) -> None:
@@ -1362,7 +1362,7 @@ def test_retry_with_backoff_depends(tmp_path) -> None:
     assert flaky.times[1] - flaky.times[0] >= 2
     assert flaky.times[2] - flaky.times[1] >= 2
 
-    events = [json.loads(l) for l in trace_path.read_text().splitlines()]
+    events = [json.loads(line) for line in trace_path.read_text().splitlines()]
     started = [e["step"] for e in events if e["event"] == "step_started"]
     assert started == ["FlakyTask", "Consumer"]
 
@@ -1415,7 +1415,7 @@ def test_retry_exhaustion_rshift(tmp_path) -> None:
     assert flaky.times[1] - flaky.times[0] >= 2
     assert flaky.times[2] - flaky.times[1] >= 2
 
-    events = [json.loads(l) for l in trace_path.read_text().splitlines()]
+    events = [json.loads(line) for line in trace_path.read_text().splitlines()]
     started = [e["step"] for e in events if e["event"] == "step_started"]
     assert started == ["StartTask", "FlakyTask"]
     assert any(e["event"] == "step_failed" and e["step"] == "FlakyTask" for e in events)
@@ -1465,7 +1465,7 @@ def test_retry_exhaustion_depends(tmp_path) -> None:
     assert flaky.times[1] - flaky.times[0] >= 2
     assert flaky.times[2] - flaky.times[1] >= 2
 
-    events = [json.loads(l) for l in trace_path.read_text().splitlines()]
+    events = [json.loads(line) for line in trace_path.read_text().splitlines()]
     started = [e["step"] for e in events if e["event"] == "step_started"]
     assert started == ["FlakyTask"]
     assert any(e["event"] == "step_failed" and e["step"] == "FlakyTask" for e in events)
