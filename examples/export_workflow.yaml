@@ -9,7 +9,7 @@ steps:
     class: MultiplyBy2
     successors:
       - step3
-    execution_group: 0
+    execution_group: 1
     dependencies:
       value:
         step: step0
@@ -17,7 +17,7 @@ steps:
     class: MultiplyBy3
     successors:
       - step3
-    execution_group: 0
+    execution_group: 1
     dependencies:
       value:
         step: step0
@@ -25,7 +25,7 @@ steps:
     class: JoinTask
     successors:
 
-    execution_group: 0
+    execution_group: 2
     dependencies:
       res2:
         step: step1

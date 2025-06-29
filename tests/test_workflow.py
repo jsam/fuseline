@@ -1141,7 +1141,7 @@ def test_or_join_first_completer_rshift(tmp_path) -> None:
 
 
 def test_or_join_condition_source(tmp_path) -> None:
-    """Ensure Depends with condition knows which producer triggered."""
+    """TC-08c - Ensure Depends with condition knows which producer triggered."""
 
     class CaptureSource(Condition):
         def __init__(self) -> None:
