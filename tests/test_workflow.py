@@ -1276,8 +1276,11 @@ def test_retry_with_backoff_rshift(tmp_path) -> None:
             super().__init__(max_retries=3, wait=2)
             self.attempts = 0
             self.times: list[float] = []
+            self.retries: list[int] = []
 
         def run_step(self) -> None:
+            assert self.cur_retry is not None
+            self.retries.append(self.cur_retry)
             self.times.append(time.perf_counter())
             self.attempts += 1
             if self.attempts < 3:
@@ -1306,6 +1309,7 @@ def test_retry_with_backoff_rshift(tmp_path) -> None:
     assert wf.state == Status.SUCCEEDED
     assert flaky.state == Status.SUCCEEDED
     assert flaky.attempts == 3
+    assert flaky.retries == [0, 1, 2]
     assert elapsed >= 4
     assert flaky.times[1] - flaky.times[0] >= 2
     assert flaky.times[2] - flaky.times[1] >= 2
@@ -1323,8 +1327,11 @@ def test_retry_with_backoff_depends(tmp_path) -> None:
             super().__init__(max_retries=3, wait=2)
             self.attempts = 0
             self.times: list[float] = []
+            self.retries: list[int] = []
 
         def run_step(self) -> dict:
+            assert self.cur_retry is not None
+            self.retries.append(self.cur_retry)
             self.times.append(time.perf_counter())
             self.attempts += 1
             if self.attempts < 3:
@@ -1350,6 +1357,7 @@ def test_retry_with_backoff_depends(tmp_path) -> None:
     assert wf.state == Status.SUCCEEDED
     assert flaky.state == Status.SUCCEEDED
     assert flaky.attempts == 3
+    assert flaky.retries == [0, 1, 2]
     assert elapsed >= 4
     assert flaky.times[1] - flaky.times[0] >= 2
     assert flaky.times[2] - flaky.times[1] >= 2
@@ -1357,3 +1365,110 @@ def test_retry_with_backoff_depends(tmp_path) -> None:
     events = [json.loads(l) for l in trace_path.read_text().splitlines()]
     started = [e["step"] for e in events if e["event"] == "step_started"]
     assert started == ["FlakyTask", "Consumer"]
+
+
+def test_retry_exhaustion_rshift(tmp_path) -> None:
+    """Exhaust retries and ensure the workflow fails."""
+
+    class StartTask(Task):
+        def run_step(self) -> None:
+            pass
+
+    class FlakyTask(Task):
+        def __init__(self) -> None:
+            super().__init__(max_retries=3, wait=2)
+            self.attempts = 0
+            self.times: list[float] = []
+            self.retries: list[int] = []
+
+        def run_step(self) -> None:
+            assert self.cur_retry is not None
+            self.retries.append(self.cur_retry)
+            self.times.append(time.perf_counter())
+            self.attempts += 1
+            raise RuntimeError("boom")
+
+    class Final(Task):
+        pass
+
+    start = StartTask()
+    flaky = FlakyTask()
+    final = Final()
+
+    start >> flaky
+    flaky >> final
+
+    trace_path = tmp_path / "trace.log"
+    wf = Workflow(outputs=[final], trace=str(trace_path))
+
+    begin = time.perf_counter()
+    result = wf.run()
+    elapsed = time.perf_counter() - begin
+
+    assert result is None
+    assert wf.state == Status.FAILED
+    assert flaky.state == Status.FAILED
+    assert final.state == Status.CANCELLED
+    assert flaky.attempts == 3
+    assert flaky.retries == [0, 1, 2]
+    assert elapsed >= 4
+    assert flaky.times[1] - flaky.times[0] >= 2
+    assert flaky.times[2] - flaky.times[1] >= 2
+
+    events = [json.loads(l) for l in trace_path.read_text().splitlines()]
+    started = [e["step"] for e in events if e["event"] == "step_started"]
+    assert started == ["StartTask", "FlakyTask"]
+    assert any(e["event"] == "step_failed" and e["step"] == "FlakyTask" for e in events)
+    cancelled = [e["step"] for e in events if e["event"] == "step_cancelled"]
+    assert cancelled == ["Final"]
+
+
+def test_retry_exhaustion_depends(tmp_path) -> None:
+    """Exhaust retries using dependency injection."""
+
+    class FlakyTask(Task):
+        def __init__(self) -> None:
+            super().__init__(max_retries=3, wait=2)
+            self.attempts = 0
+            self.times: list[float] = []
+            self.retries: list[int] = []
+
+        def run_step(self) -> dict:
+            assert self.cur_retry is not None
+            self.retries.append(self.cur_retry)
+            self.times.append(time.perf_counter())
+            self.attempts += 1
+            raise RuntimeError("boom")
+
+    flaky = FlakyTask()
+
+    class Consumer(Task):
+        def run_step(self, _val: Computed[dict] = Depends(flaky)) -> None:
+            pass
+
+    consumer = Consumer()
+
+    trace_path = tmp_path / "trace.log"
+    wf = Workflow(outputs=[consumer], trace=str(trace_path))
+
+    begin = time.perf_counter()
+    result = wf.run()
+    elapsed = time.perf_counter() - begin
+
+    assert result is None
+    assert wf.state == Status.FAILED
+    assert flaky.state == Status.FAILED
+    assert consumer.state == Status.CANCELLED
+    assert flaky.attempts == 3
+    assert flaky.retries == [0, 1, 2]
+    assert elapsed >= 4
+    assert flaky.times[1] - flaky.times[0] >= 2
+    assert flaky.times[2] - flaky.times[1] >= 2
+
+    events = [json.loads(l) for l in trace_path.read_text().splitlines()]
+    started = [e["step"] for e in events if e["event"] == "step_started"]
+    assert started == ["FlakyTask"]
+    assert any(e["event"] == "step_failed" and e["step"] == "FlakyTask" for e in events)
+    cancelled = [e["step"] for e in events if e["event"] == "step_cancelled"]
+    assert cancelled == ["Consumer"]
+
