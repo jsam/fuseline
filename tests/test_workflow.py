@@ -1262,3 +1262,98 @@ def test_fail_fast_policy_depends(tmp_path) -> None:
     )
     cancelled = [e["step"] for e in events if e["event"] == "step_cancelled"]
     assert set(cancelled) == {"Down1", "Down2"}
+
+
+def test_retry_with_backoff_rshift(tmp_path) -> None:
+    """TC-10 – Retry with back-off using explicit edges."""
+
+    class StartTask(Task):
+        def run_step(self) -> None:
+            pass
+
+    class FlakyTask(Task):
+        def __init__(self) -> None:
+            super().__init__(max_retries=3, wait=2)
+            self.attempts = 0
+            self.times: list[float] = []
+
+        def run_step(self) -> None:
+            self.times.append(time.perf_counter())
+            self.attempts += 1
+            if self.attempts < 3:
+                raise RuntimeError("boom")
+            return None
+
+    class FinalTask(Task):
+        def run_step(self) -> str:
+            return "DONE"
+
+    start = StartTask()
+    flaky = FlakyTask()
+    final = FinalTask()
+
+    start >> flaky
+    flaky >> final
+
+    trace_path = tmp_path / "trace.log"
+    wf = Workflow(outputs=[final], trace=str(trace_path))
+
+    begin = time.perf_counter()
+    result = wf.run()
+    elapsed = time.perf_counter() - begin
+
+    assert result == "DONE"
+    assert wf.state == Status.SUCCEEDED
+    assert flaky.state == Status.SUCCEEDED
+    assert flaky.attempts == 3
+    assert elapsed >= 4
+    assert flaky.times[1] - flaky.times[0] >= 2
+    assert flaky.times[2] - flaky.times[1] >= 2
+
+    events = [json.loads(l) for l in trace_path.read_text().splitlines()]
+    started = [e["step"] for e in events if e["event"] == "step_started"]
+    assert started == ["StartTask", "FlakyTask", "FinalTask"]
+
+
+def test_retry_with_backoff_depends(tmp_path) -> None:
+    """TC-10b – Retry with back-off using dependency injection."""
+
+    class FlakyTask(Task):
+        def __init__(self) -> None:
+            super().__init__(max_retries=3, wait=2)
+            self.attempts = 0
+            self.times: list[float] = []
+
+        def run_step(self) -> dict:
+            self.times.append(time.perf_counter())
+            self.attempts += 1
+            if self.attempts < 3:
+                raise RuntimeError("boom")
+            return {"val": "OK"}
+
+    flaky = FlakyTask()
+
+    class Consumer(Task):
+        def run_step(self, val: Computed[dict] = Depends(flaky)) -> str:
+            return val["val"]
+
+    consumer = Consumer()
+
+    trace_path = tmp_path / "trace.log"
+    wf = Workflow(outputs=[consumer], trace=str(trace_path))
+
+    begin = time.perf_counter()
+    result = wf.run()
+    elapsed = time.perf_counter() - begin
+
+    assert result == "OK"
+    assert wf.state == Status.SUCCEEDED
+    assert flaky.state == Status.SUCCEEDED
+    assert flaky.attempts == 3
+    assert elapsed >= 4
+    assert flaky.times[1] - flaky.times[0] >= 2
+    assert flaky.times[2] - flaky.times[1] >= 2
+
+    events = [json.loads(l) for l in trace_path.read_text().splitlines()]
+    started = [e["step"] for e in events if e["event"] == "step_started"]
+    assert started == ["FlakyTask", "Consumer"]
