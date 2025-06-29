@@ -1,0 +1,31 @@
+steps:
+  step0:
+    class: AddTask
+    successors:
+      - step1
+      - step2
+  step1:
+    class: MultiplyBy2
+    successors:
+      - step3
+    dependencies:
+      value:
+        step: step0
+  step2:
+    class: MultiplyBy3
+    successors:
+      - step3
+    dependencies:
+      value:
+        step: step0
+  step3:
+    class: JoinTask
+    successors:
+
+    dependencies:
+      res2:
+        step: step1
+      res3:
+        step: step2
+outputs:
+  - step3

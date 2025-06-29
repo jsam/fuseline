@@ -1,3 +1,4 @@
+from pathlib import Path
 from fuseline import Computed, Depends, ProcessEngine, Task, Workflow
 
 
@@ -37,3 +38,5 @@ if __name__ == "__main__":
     join = JoinTask()
     wf = Workflow(outputs=[join])
     wf.run({"a": 1, "b": 2}, execution_engine=ProcessEngine(2))
+    path = Path(__file__).with_suffix(".yaml")
+    wf.export(str(path))
