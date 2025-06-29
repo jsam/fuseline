@@ -1029,7 +1029,7 @@ def test_or_join_first_completer(tmp_path) -> None:
             self.triggers = 0
             self.payload: dict | None = None
 
-        def run_step(self, payload: dict = Depends([p1, p2])) -> dict:
+        def run_step(self, payload: dict = Depends(p1, p2)) -> dict:
             self.triggers += 1
             self.payload = payload
             return payload
@@ -1175,7 +1175,7 @@ def test_or_join_condition_source(tmp_path) -> None:
     cond = CaptureSource()
 
     class RaceWinner(Task):
-        def run_step(self, payload: dict = Depends([p1, p2], condition=cond)) -> dict:
+        def run_step(self, payload: dict = Depends(p1, p2, condition=cond)) -> dict:
             return payload
 
     winner = RaceWinner()
