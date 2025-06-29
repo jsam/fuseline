@@ -636,7 +636,7 @@ def test_edge_skipped_false_condition(tmp_path) -> None:
 
 
 def test_diamond_mixed_conditions(tmp_path) -> None:
-    """TC-05  –  Diamond with mixed conditions."""
+    """TC-05 - Diamond with mixed conditions."""
 
     class Gate(Task):
         def run_step(self, x: int) -> str:
@@ -690,7 +690,7 @@ def test_diamond_mixed_conditions(tmp_path) -> None:
     assert not any(e.get("step") in {"A", "C"} for e in events)
 
 def test_diamond_mixed_conditions_depends(tmp_path) -> None:
-    """TC-05b – Diamond with mixed conditions using dependency checks."""
+    """TC-05b - Diamond with mixed conditions using dependency checks."""
 
     class Gate(Task):
         def run_step(self, x: int) -> dict:
