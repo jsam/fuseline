@@ -29,12 +29,12 @@ class Step:
     :py:meth:`teardown` and :py:meth:`after_all` to customise behaviour.
     """
 
-    def __init__(self, *, execution_group: int = 0) -> None:
+    def __init__(self) -> None:
         self.params: Dict[str, Any] = {}
         self.successors: Dict[str, List["Step"]] = {}
         self.predecessors: List["Step"] = []
         self.tracer: Tracer | None = None
-        self.execution_group = execution_group
+        self.execution_group = 0
 
     def _log_event(self, event: str, **data: Any) -> None:
         if self.tracer:
@@ -111,8 +111,8 @@ class _ConditionalTransition:
 class Task(Step):
     """Step with optional retry logic and typed dependencies."""
 
-    def __init__(self, max_retries: int = 1, wait: float = 0, *, execution_group: int = 0) -> None:
-        super().__init__(execution_group=execution_group)
+    def __init__(self, max_retries: int = 1, wait: float = 0) -> None:
+        super().__init__()
         self.max_retries = max_retries
         self.wait = wait
         self.cur_retry: Optional[int] = None
@@ -126,18 +126,14 @@ class Task(Step):
         for param in params:
             if isinstance(param.default, Depends):
                 dep_obj = param.default.obj
-                dep_step = (
-                    dep_obj if isinstance(dep_obj, Step) else FunctionTask(dep_obj)
-                )
+                dep_step = dep_obj if isinstance(dep_obj, Step) else FunctionTask(dep_obj)
                 dep_step >> self
                 self.deps[param.name] = dep_step
                 if param.default.condition is not None:
                     self.dep_conditions[param.name] = param.default.condition
             elif param.name not in {"self", "setup_res", "shared"}:
                 self.param_names.append(param.name)
-        self.is_typed = bool(self.deps) or not (
-            len(params) == 2 and params[1].name in {"setup_res", "shared"}
-        )
+        self.is_typed = bool(self.deps) or not (len(params) == 2 and params[1].name in {"setup_res", "shared"})
 
     def setup(self, shared: Any) -> Any:  # type: ignore[override]
         if self.is_typed:
@@ -166,13 +162,7 @@ class Task(Step):
                                 return None
 
                         kwargs[name] = val
-                    kwargs.update(
-                        {
-                            k: v
-                            for k, v in self.params.items()
-                            if k in self.param_names and k not in kwargs
-                        }
-                    )
+                    kwargs.update({k: v for k, v in self.params.items() if k in self.param_names and k not in kwargs})
                     result = type(self).run_step(self, **kwargs)
                     if isinstance(setup_res, dict):
                         setup_res[self] = result
@@ -220,6 +210,7 @@ class Workflow(Step):
         self.start_step = self.roots[0] if self.roots else None
         self.workflow_id = uuid.uuid4().hex
         self.workflow_instance_id: str | None = None
+        self._assign_execution_groups()
 
     def _find_roots(self, outputs: List[Step]) -> List[Step]:
         steps: List[Step] = []
@@ -243,6 +234,24 @@ class Workflow(Step):
 
         return [s for s, has_pred in preds.items() if not has_pred]
 
+    def _assign_execution_groups(self) -> None:
+        """Compute execution groups based on dependencies."""
+        steps = self._collect_steps()
+        indegree: Dict[Step, int] = {s: len(s.predecessors) for s in steps}
+        ready = [s for s in steps if indegree[s] == 0]
+        group = 0
+        while ready:
+            next_ready: List[Step] = []
+            for step in ready:
+                step.execution_group = group
+                for succs in step.successors.values():
+                    for succ in succs:
+                        indegree[succ] -= 1
+                        if indegree[succ] == 0:
+                            next_ready.append(succ)
+            ready = next_ready
+            group += 1
+
     def export(self, path: str, exporter: "Exporter | None" = None) -> None:
         """Serialize the workflow graph using *exporter*.
 
@@ -254,9 +263,7 @@ class Workflow(Step):
         exporter = exporter or YamlExporter()
         exporter.export(self, path)
 
-    def run(
-        self, inputs: Optional[Dict[str, Any]] = None, execution_engine: "ExecutionEngine | None" = None
-    ) -> Any:  # type: ignore[override]
+    def run(self, inputs: Optional[Dict[str, Any]] = None, execution_engine: "ExecutionEngine | None" = None) -> Any:  # type: ignore[override]
         """Execute the workflow.
 
         Parameters
@@ -300,9 +307,7 @@ class Workflow(Step):
     def get_next_steps(self, curr: Step, action: Optional[str]) -> List[Step]:
         nxt = curr.successors.get(action or "default", [])
         if not nxt and curr.successors:
-            warnings.warn(
-                f"Workflow ends: '{action}' not found in {list(curr.successors)}"
-            )
+            warnings.warn(f"Workflow ends: '{action}' not found in {list(curr.successors)}")
         return list(nxt)
 
     def _collect_steps(self) -> List[Step]:
@@ -377,9 +382,7 @@ class Workflow(Step):
 class BatchWorkflow(Workflow):
     """Run the same workflow for a batch of parameter sets."""
 
-    def run(
-        self, inputs: Optional[Dict[str, Any]] = None, execution_engine: "ExecutionEngine | None" = None
-    ) -> Any:
+    def run(self, inputs: Optional[Dict[str, Any]] = None, execution_engine: "ExecutionEngine | None" = None) -> Any:
         self.params = inputs or {}
         shared: Dict[Any, Any] = {}
         engine = execution_engine or self.execution_engine or ProcessEngine()
@@ -394,8 +397,8 @@ class BatchWorkflow(Workflow):
 
 
 class AsyncTask(Task):
-    def __init__(self, max_retries: int = 1, wait: float = 0, *, execution_group: int = 0) -> None:
-        super().__init__(max_retries, wait, execution_group=execution_group)
+    def __init__(self, max_retries: int = 1, wait: float = 0) -> None:
+        super().__init__(max_retries, wait)
         self.deps = {}
         self.dep_conditions: Dict[str, Callable[[Any], bool]] = {}
         self.was_skipped = False
@@ -406,18 +409,15 @@ class AsyncTask(Task):
         for param in params:
             if isinstance(param.default, Depends):
                 dep_obj = param.default.obj
-                dep_step = (
-                    dep_obj if isinstance(dep_obj, Step) else FunctionTask(dep_obj)
-                )
+                dep_step = dep_obj if isinstance(dep_obj, Step) else FunctionTask(dep_obj)
                 dep_step >> self
                 self.deps[param.name] = dep_step
                 if param.default.condition is not None:
                     self.dep_conditions[param.name] = param.default.condition
             elif param.name not in {"self", "setup_res", "shared"}:
                 self.param_names.append(param.name)
-        self.is_typed = bool(self.deps) or not (
-            len(params) == 2 and params[1].name in {"setup_res", "shared"}
-        )
+        self.is_typed = bool(self.deps) or not (len(params) == 2 and params[1].name in {"setup_res", "shared"})
+
     async def before_all_async(self, shared: Any) -> Any:  # pragma: no cover
         pass
 
@@ -450,13 +450,7 @@ class AsyncTask(Task):
                                 self.was_skipped = True
                                 return None
                         kwargs[name] = val
-                    kwargs.update(
-                        {
-                            k: v
-                            for k, v in self.params.items()
-                            if k in self.param_names and k not in kwargs
-                        }
-                    )
+                    kwargs.update({k: v for k, v in self.params.items() if k in self.param_names and k not in kwargs})
                     method = type(self).run_step_async
                     result = await method(self, **kwargs)
                     if isinstance(setup_res, dict):
@@ -469,6 +463,7 @@ class AsyncTask(Task):
                     return await self.run_step_fallback_async(setup_res, e)
                 if self.wait > 0:
                     await asyncio.sleep(self.wait)
+
     async def run_step_fallback_async(self, setup_res: Any, exc: Exception) -> Any:  # pragma: no cover
         raise exc
 
@@ -477,7 +472,6 @@ class AsyncTask(Task):
 
     async def after_all_async(self, shared: Any) -> Any:  # pragma: no cover
         pass
-
 
     async def run_async(self, inputs: Optional[Dict[str, Any]] = None) -> Any:
         """Execute the workflow asynchronously."""
@@ -510,15 +504,11 @@ class AsyncBatchTask(AsyncTask, BatchTask):
 
 class AsyncParallelBatchTask(AsyncTask, BatchTask):
     async def _exec(self, items: Any) -> Any:
-        return await asyncio.gather(
-            *(super(AsyncParallelBatchTask, self)._exec(i) for i in items)
-        )
+        return await asyncio.gather(*(super(AsyncParallelBatchTask, self)._exec(i) for i in items))
 
 
 class AsyncWorkflow(Workflow, AsyncTask):
-    async def _execute_step_async(
-        self, step: Step, shared: Dict[Any, Any], engine: ExecutionEngine
-    ) -> Any:
+    async def _execute_step_async(self, step: Step, shared: Dict[Any, Any], engine: ExecutionEngine) -> Any:
         step.set_params({**self.params, **step.params})
         if isinstance(step, AsyncWorkflow):
             result = await step._run_async(shared, engine)
@@ -619,9 +609,7 @@ class AsyncBatchWorkflow(AsyncWorkflow, BatchWorkflow):
 class AsyncParallelBatchWorkflow(AsyncWorkflow, BatchWorkflow):
     async def _run_async(self, shared: Any) -> Any:
         pr = await self.setup_async(shared) or []
-        await asyncio.gather(
-            *(self._orch_async(shared, {**self.params, **bp}) for bp in pr)
-        )
+        await asyncio.gather(*(self._orch_async(shared, {**self.params, **bp}) for bp in pr))
         return await self.teardown_async(shared, pr, None)
 
 
@@ -651,10 +639,8 @@ class Depends:
 class FunctionTask(Task):
     """Task wrapping a Python callable."""
 
-    def __init__(
-        self, func: Callable[..., Any], max_retries: int = 1, wait: float = 0, *, execution_group: int = 0
-    ) -> None:
-        super().__init__(max_retries, wait, execution_group=execution_group)
+    def __init__(self, func: Callable[..., Any], max_retries: int = 1, wait: float = 0) -> None:
+        super().__init__(max_retries, wait)
         self.func = func
         self.deps: Dict[str, FunctionTask] = {}
         self.dep_conditions: Dict[str, Callable[[Any], bool]] = {}
@@ -717,4 +703,3 @@ def workflow_from_functions(outputs: List[Callable[..., Any]]) -> Workflow:
     step_outputs = [build_step(func) for func in outputs]
 
     return Workflow(outputs=step_outputs)
-

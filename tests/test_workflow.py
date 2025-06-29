@@ -365,16 +365,17 @@ def test_execution_groups_order() -> None:
     log: list[str] = []
 
     class Rec(Task):
-        def __init__(self, label: str, *, group: int) -> None:
-            super().__init__(execution_group=group)
+        def __init__(self, label: str) -> None:
+            super().__init__()
             self.label = label
 
         def run_step(self, setup_res: Any) -> None:  # pragma: no cover - simple
             log.append(self.label)
 
-    s1 = Rec("s1", group=1)
-    s2 = Rec("s2", group=0)
-    wf = Workflow(outputs=[s1, s2])
+    s1 = Rec("s1")
+    s2 = Rec("s2")
+    s2 >> s1
+    wf = Workflow(outputs=[s1])
     wf.run(execution_engine=ProcessEngine())
 
     assert log == ["s2", "s1"]
