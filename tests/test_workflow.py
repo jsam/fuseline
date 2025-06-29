@@ -316,7 +316,9 @@ def test_trace_with_conditions(tmp_path):
             pass
 
     class B2(Task):
-        def run_step(self, _flag: bool = Depends(dec, condition=lambda x: not x)) -> None:
+        def run_step(
+            self, _flag: bool = Depends(dec, condition=lambda x: not x)
+        ) -> None:
             pass
 
     b1 = B1()
@@ -325,7 +327,10 @@ def test_trace_with_conditions(tmp_path):
     wf.run({"flag": True})
     lines = (tmp_path / "trace.log").read_text().splitlines()
     events = [json.loads(line) for line in lines]
-    assert any(e.get("step") == "B2" and e["event"] == "step_finished" and e["skipped"] for e in events)
+    assert any(
+        e.get("step") == "B2" and e["event"] == "step_finished" and e["skipped"]
+        for e in events
+    )
     wf_id = events[0]["workflow_id"]
     inst_id = events[0]["workflow_instance_id"]
     proc_id = events[0]["process_id"]
@@ -346,11 +351,15 @@ def test_trace_multiple_runs(tmp_path) -> None:
     dec = Dec()
 
     class Left(Task):
-        def run_step(self, _flag: bool = Depends(dec, condition=lambda x: x)) -> None:  # pragma: no cover - simple
+        def run_step(
+            self, _flag: bool = Depends(dec, condition=lambda x: x)
+        ) -> None:  # pragma: no cover - simple
             pass
 
     class Right(Task):
-        def run_step(self, _flag: bool = Depends(dec, condition=lambda x: not x)) -> None:  # pragma: no cover - simple
+        def run_step(
+            self, _flag: bool = Depends(dec, condition=lambda x: not x)
+        ) -> None:  # pragma: no cover - simple
             pass
 
     left = Left()
@@ -417,7 +426,12 @@ def test_linear_chain_execution_time() -> None:
     elapsed = time.perf_counter() - start
 
     assert result == "SUCCESS"
-    assert a.end is not None and b.start is not None and b.end is not None and c.start is not None
+    assert (
+        a.end is not None
+        and b.start is not None
+        and b.end is not None
+        and c.start is not None
+    )
     assert a.end <= b.start
     assert b.end <= c.start
     assert elapsed == pytest.approx(a.duration + b.duration + c.duration, rel=0.2)
@@ -503,13 +517,26 @@ def test_parallel_fan_out_join_execution_time(tmp_path) -> None:
         rel=0.3,
     )
 
-    assert start_step.execution_group < p1.execution_group == p2.execution_group < join.execution_group
+    assert (
+        start_step.execution_group
+        < p1.execution_group
+        == p2.execution_group
+        < join.execution_group
+    )
 
     events = [json.loads(line) for line in trace_path.read_text().splitlines()]
-    start_started = [e for e in events if e["event"] == "step_started" and e["step"] == "StartStep"]
-    start_finished = [e for e in events if e["event"] == "step_finished" and e["step"] == "StartStep"]
-    join_started = [e for e in events if e["event"] == "step_started" and e["step"] == "JoinTask"]
-    join_finished = [e for e in events if e["event"] == "step_finished" and e["step"] == "JoinTask"]
+    start_started = [
+        e for e in events if e["event"] == "step_started" and e["step"] == "StartStep"
+    ]
+    start_finished = [
+        e for e in events if e["event"] == "step_finished" and e["step"] == "StartStep"
+    ]
+    join_started = [
+        e for e in events if e["event"] == "step_started" and e["step"] == "JoinTask"
+    ]
+    join_finished = [
+        e for e in events if e["event"] == "step_finished" and e["step"] == "JoinTask"
+    ]
 
     assert len(start_started) == len(start_finished) == 1
     assert len(join_started) == len(join_finished) == 1
@@ -568,7 +595,13 @@ def test_multi_target_outputs(tmp_path) -> None:
 
     assert result == ["B\N{MULTIPLICATION X}", "C\N{MULTIPLICATION X}"]
     assert b.seen is c.seen
-    assert a.execution_group < b.execution_group == c.execution_group < d.execution_group == e.execution_group
+    assert (
+        a.execution_group
+        < b.execution_group
+        == c.execution_group
+        < d.execution_group
+        == e.execution_group
+    )
 
     events = [json.loads(line) for line in trace_path.read_text().splitlines()]
     started = [e["step"] for e in events if e["event"] == "step_started"]
@@ -798,7 +831,9 @@ def test_runtime_computed_condition_on_merged_edge(tmp_path) -> None:
             left_value: Computed[dict] = Depends(left),
             right_value: Computed[dict] = Depends(right),
         ) -> str:
-            self.reason = f"Values diverged: {left_value['val']} vs {right_value['val']}"
+            self.reason = (
+                f"Values diverged: {left_value['val']} vs {right_value['val']}"
+            )
             return self.reason
 
     diff = Different()
@@ -825,12 +860,33 @@ def test_runtime_computed_condition_on_merged_edge(tmp_path) -> None:
     assert started[4] == "Different"
     assert "Same" not in started
 
-    decide_start = next(i for i, e in enumerate(events) if e["event"] == "step_started" and e["step"] == "Decide")
-    left_finished = next(i for i, e in enumerate(events) if e["event"] == "step_finished" and e["step"] == "PLeft")
-    right_finished = next(i for i, e in enumerate(events) if e["event"] == "step_finished" and e["step"] == "PRight")
+    decide_start = next(
+        i
+        for i, e in enumerate(events)
+        if e["event"] == "step_started" and e["step"] == "Decide"
+    )
+    left_finished = next(
+        i
+        for i, e in enumerate(events)
+        if e["event"] == "step_finished" and e["step"] == "PLeft"
+    )
+    right_finished = next(
+        i
+        for i, e in enumerate(events)
+        if e["event"] == "step_finished" and e["step"] == "PRight"
+    )
     assert decide_start > left_finished
     assert decide_start > right_finished
-    assert len([e for e in events if e["event"] == "step_started" and e["step"] == "Decide"]) == 1
+    assert (
+        len(
+            [
+                e
+                for e in events
+                if e["event"] == "step_started" and e["step"] == "Decide"
+            ]
+        )
+        == 1
+    )
 
 
 def test_three_parent_and_join(tmp_path) -> None:
@@ -900,19 +956,46 @@ def test_three_parent_and_join(tmp_path) -> None:
     assert result == {"fromA": 1, "fromB": 2, "fromC": 3}
     assert join.received == result
 
-    assert a.end is not None and b.end is not None and c.end is not None and join.start is not None
+    assert (
+        a.end is not None
+        and b.end is not None
+        and c.end is not None
+        and join.start is not None
+    )
     assert max(a.end, b.end, c.end) <= join.start
-    assert elapsed == pytest.approx(max(a.duration, b.duration, c.duration) + join.duration, rel=0.3)
+    assert elapsed == pytest.approx(
+        max(a.duration, b.duration, c.duration) + join.duration, rel=0.3
+    )
 
     events = [json.loads(line) for line in trace_path.read_text().splitlines()]
-    join_started = [e for e in events if e["event"] == "step_started" and e["step"] == "JoinZ"]
-    join_finished = [e for e in events if e["event"] == "step_finished" and e["step"] == "JoinZ"]
+    join_started = [
+        e for e in events if e["event"] == "step_started" and e["step"] == "JoinZ"
+    ]
+    join_finished = [
+        e for e in events if e["event"] == "step_finished" and e["step"] == "JoinZ"
+    ]
     assert len(join_started) == len(join_finished) == 1
 
-    join_start = next(i for i, e in enumerate(events) if e["event"] == "step_started" and e["step"] == "JoinZ")
-    a_finished = next(i for i, e in enumerate(events) if e["event"] == "step_finished" and e["step"] == "StepA")
-    b_finished = next(i for i, e in enumerate(events) if e["event"] == "step_finished" and e["step"] == "StepB")
-    c_finished = next(i for i, e in enumerate(events) if e["event"] == "step_finished" and e["step"] == "StepC")
+    join_start = next(
+        i
+        for i, e in enumerate(events)
+        if e["event"] == "step_started" and e["step"] == "JoinZ"
+    )
+    a_finished = next(
+        i
+        for i, e in enumerate(events)
+        if e["event"] == "step_finished" and e["step"] == "StepA"
+    )
+    b_finished = next(
+        i
+        for i, e in enumerate(events)
+        if e["event"] == "step_finished" and e["step"] == "StepB"
+    )
+    c_finished = next(
+        i
+        for i, e in enumerate(events)
+        if e["event"] == "step_finished" and e["step"] == "StepC"
+    )
     assert join_start > a_finished
     assert join_start > b_finished
     assert join_start > c_finished
@@ -964,12 +1047,28 @@ def test_or_join_first_completer(tmp_path) -> None:
     assert result["payload"]["source"] in {"Producer1", "Producer2"}
 
     events = [json.loads(line) for line in trace_path.read_text().splitlines()]
-    started = [i for i, e in enumerate(events) if e["event"] == "step_started" and e["step"] == "RaceWinner"]
-    finished = [i for i, e in enumerate(events) if e["event"] == "step_finished" and e["step"] == "RaceWinner"]
+    started = [
+        i
+        for i, e in enumerate(events)
+        if e["event"] == "step_started" and e["step"] == "RaceWinner"
+    ]
+    finished = [
+        i
+        for i, e in enumerate(events)
+        if e["event"] == "step_finished" and e["step"] == "RaceWinner"
+    ]
     assert len(started) == len(finished) == 1
 
-    p1_finished = next(i for i, e in enumerate(events) if e["event"] == "step_finished" and e["step"] == "P1")
-    p2_finished = next(i for i, e in enumerate(events) if e["event"] == "step_finished" and e["step"] == "P2")
+    p1_finished = next(
+        i
+        for i, e in enumerate(events)
+        if e["event"] == "step_finished" and e["step"] == "P1"
+    )
+    p2_finished = next(
+        i
+        for i, e in enumerate(events)
+        if e["event"] == "step_finished" and e["step"] == "P2"
+    )
 
     winner_started = started[0]
     assert winner_started > p1_finished or winner_started > p2_finished
@@ -1027,10 +1126,14 @@ def test_or_join_first_completer_rshift(tmp_path) -> None:
     assert len(started) == len(finished) == 1
 
     p1_finished = next(
-        i for i, e in enumerate(events) if e["event"] == "step_finished" and e["step"] == "Producer1"
+        i
+        for i, e in enumerate(events)
+        if e["event"] == "step_finished" and e["step"] == "Producer1"
     )
     p2_finished = next(
-        i for i, e in enumerate(events) if e["event"] == "step_finished" and e["step"] == "Producer2"
+        i
+        for i, e in enumerate(events)
+        if e["event"] == "step_finished" and e["step"] == "Producer2"
     )
 
     winner_started = started[0]
@@ -1042,11 +1145,12 @@ def test_or_join_condition_source(tmp_path) -> None:
 
     class CaptureSource(Condition):
         def __init__(self) -> None:
-            super().__init__()
             self.source: Step | None = None
 
-        def __call__(self, value: Any) -> bool:  # pragma: no cover - simple
-            self.source = self.source_step
+        def __call__(
+            self, value: Any, source: Step
+        ) -> bool:  # pragma: no cover - simple
+            self.source = source
             return True
 
     class Producer(Task):
@@ -1081,4 +1185,3 @@ def test_or_join_condition_source(tmp_path) -> None:
 
     assert cond.source is p1
     assert result["payload"]["source"] == "Producer1"
-
