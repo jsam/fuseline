@@ -752,3 +752,99 @@ def test_diamond_mixed_conditions_depends(tmp_path) -> None:
     assert any(e["step"] == "A" and e["skipped"] for e in finished)
     assert any(e["step"] == "C" and e["skipped"] for e in finished)
     assert not any(e["step"] == "B" and e["skipped"] for e in finished)
+
+
+def test_runtime_computed_condition_on_merged_edge(tmp_path) -> None:
+    """TC-06  –  Runtime-computed condition on merged edge."""
+
+    class Root(Task):
+        def run_step(self) -> None:  # pragma: no cover - simple
+            pass
+
+    root = Root()
+
+    class PLeft(Task):
+        def run_step(self) -> dict:
+            return {"val": "foo"}
+
+    class PRight(Task):
+        def run_step(self) -> dict:
+            return {"val": "bar"}
+
+    left = PLeft()
+    right = PRight()
+
+    class Decide(Task):
+        def run_step(
+            self,
+            l: Computed[dict] = Depends(left),
+            r: Computed[dict] = Depends(right),
+        ) -> str:
+            return "same" if l["val"] == r["val"] else "different"
+
+    decide = Decide()
+
+    class Same(Task):
+        def run_step(self) -> None:  # pragma: no cover - should not run
+            pass
+
+    same = Same()
+
+    class Different(Task):
+        def __init__(self) -> None:
+            super().__init__()
+            self.reason: str | None = None
+
+        def run_step(
+            self,
+            l: Computed[dict] = Depends(left),
+            r: Computed[dict] = Depends(right),
+        ) -> str:
+            self.reason = f"Values diverged: {l['val']} vs {r['val']}"
+            return self.reason
+
+    diff = Different()
+
+    root >> left
+    root >> right
+    left >> decide
+    right >> decide
+    (decide - "same") >> same
+    (decide - "different") >> diff
+
+    trace_path = tmp_path / "trace.log"
+    wf = Workflow(outputs=[same, diff], trace=str(trace_path))
+    result = wf.run()
+
+    assert result == [None, "Values diverged: foo vs bar"]
+    assert diff.reason == "Values diverged: foo vs bar"
+
+    events = [json.loads(line) for line in trace_path.read_text().splitlines()]
+    started = [e["step"] for e in events if e["event"] == "step_started"]
+    assert started[0] == "Root"
+    assert set(started[1:3]) == {"PLeft", "PRight"}
+    assert started[3] == "Decide"
+    assert started[4] == "Different"
+    assert "Same" not in started
+
+    decide_start = next(
+        i
+        for i, e in enumerate(events)
+        if e["event"] == "step_started" and e["step"] == "Decide"
+    )
+    left_finished = next(
+        i
+        for i, e in enumerate(events)
+        if e["event"] == "step_finished" and e["step"] == "PLeft"
+    )
+    right_finished = next(
+        i
+        for i, e in enumerate(events)
+        if e["event"] == "step_finished" and e["step"] == "PRight"
+    )
+    assert decide_start > left_finished
+    assert decide_start > right_finished
+    assert (
+        len([e for e in events if e["event"] == "step_started" and e["step"] == "Decide"])
+        == 1
+    )
