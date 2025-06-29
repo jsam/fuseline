@@ -517,3 +517,65 @@ def test_parallel_fan_out_join_execution_time(tmp_path) -> None:
     assert len(start_started) == len(start_finished) == 1
     assert len(join_started) == len(join_finished) == 1
 
+
+def test_multi_target_outputs(tmp_path) -> None:
+    """Verify fan-out from one task into two independent branches."""
+
+    class A(Task):
+        def run_step(self) -> dict:
+            return {"payload": object()}
+
+    a = A()
+
+    class B(Task):
+        def __init__(self) -> None:
+            super().__init__()
+            self.seen: Any | None = None
+
+        def run_step(self, data: Computed[dict] = Depends(a)) -> dict:
+            self.seen = data
+            return {"result": "B"}
+
+    class C(Task):
+        def __init__(self) -> None:
+            super().__init__()
+            self.seen: Any | None = None
+
+        def run_step(self, data: Computed[dict] = Depends(a)) -> dict:
+            self.seen = data
+            return {"result": "C"}
+
+    b = B()
+    c = C()
+
+    class D(Task):
+        def run_step(self, val: Computed[dict] = Depends(b)) -> str:
+            return f"{val['result']}\N{MULTIPLICATION X}"
+
+    class E(Task):
+        def run_step(self, val: Computed[dict] = Depends(c)) -> str:
+            return f"{val['result']}\N{MULTIPLICATION X}"
+
+    d = D()
+    e = E()
+
+    a >> b
+    a >> c
+    b >> d
+    c >> e
+
+    trace_path = tmp_path / "trace.log"
+    wf = Workflow(outputs=[d, e], trace=str(trace_path))
+
+    result = wf.run(execution_engine=ProcessEngine(2))
+
+    assert result == ["B\N{MULTIPLICATION X}", "C\N{MULTIPLICATION X}"]
+    assert b.seen is c.seen
+    assert a.execution_group < b.execution_group == c.execution_group < d.execution_group == e.execution_group
+
+    events = [json.loads(line) for line in trace_path.read_text().splitlines()]
+    started = [e["step"] for e in events if e["event"] == "step_started"]
+    assert started[0] == "A"
+    assert set(started[1:3]) == {"B", "C"}
+    assert set(started[3:5]) == {"D", "E"}
+
