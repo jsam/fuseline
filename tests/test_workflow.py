@@ -755,7 +755,7 @@ def test_diamond_mixed_conditions_depends(tmp_path) -> None:
 
 
 def test_runtime_computed_condition_on_merged_edge(tmp_path) -> None:
-    """TC-06  –  Runtime-computed condition on merged edge."""
+    """TC-06 - Runtime-computed condition on merged edge."""
 
     class Root(Task):
         def run_step(self) -> None:  # pragma: no cover - simple
@@ -777,10 +777,12 @@ def test_runtime_computed_condition_on_merged_edge(tmp_path) -> None:
     class Decide(Task):
         def run_step(
             self,
-            l: Computed[dict] = Depends(left),
-            r: Computed[dict] = Depends(right),
+            left_value: Computed[dict] = Depends(left),
+            right_value: Computed[dict] = Depends(right),
         ) -> str:
-            return "same" if l["val"] == r["val"] else "different"
+            return (
+                "same" if left_value["val"] == right_value["val"] else "different"
+            )
 
     decide = Decide()
 
@@ -797,10 +799,12 @@ def test_runtime_computed_condition_on_merged_edge(tmp_path) -> None:
 
         def run_step(
             self,
-            l: Computed[dict] = Depends(left),
-            r: Computed[dict] = Depends(right),
+            left_value: Computed[dict] = Depends(left),
+            right_value: Computed[dict] = Depends(right),
         ) -> str:
-            self.reason = f"Values diverged: {l['val']} vs {r['val']}"
+            self.reason = (
+                f"Values diverged: {left_value['val']} vs {right_value['val']}"
+            )
             return self.reason
 
     diff = Different()
