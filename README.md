@@ -10,6 +10,9 @@
 [![Test Coverage](https://api.codeclimate.com/v1/badges/ffcc038906c2c7e2274f/test_coverage)](https://codeclimate.com/github/jsam/fuseline/test_coverage)
 </div>
 
+Fuseline is an **AI agents framework with batteries included**. Think of it as
+what Django is for web developers, but for building intelligent agents.
+
 ## Documentation
 
 The project documentation is written using [Quarto](https://quarto.org). Run
