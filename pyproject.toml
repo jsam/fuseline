@@ -57,6 +57,8 @@ pytest-mock = "^3.14.0"
 ############################
 ### Tools configuration  ###
 ############################
+quarto = "^0.1.0"
+quarto-cli = "^1.7.32"
 
 
 [tool.coverage.run]
