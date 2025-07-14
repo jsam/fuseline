@@ -24,7 +24,7 @@ the docs and publishes them from the `gh-pages` branch.
 
 | Feature | Description |
 |---------|-------------|
-| **Tasks and Steps** | Build units of work by subclassing `Task` or `Step` with lifecycle hooks |
+| **Steps and Tasks** | `Step` provides basic lifecycle hooks while `Task` adds typed dependencies and retry support |
 | **Workflow orchestration** | Chain steps using `>>` or dependency injection and run them with `Workflow` |
 | **Typed dependencies** | Pass values between tasks using `Depends` and `Computed` |
 | **Asynchronous tasks** | Use `AsyncTask` and `AsyncWorkflow` for async execution |
@@ -36,5 +36,7 @@ the docs and publishes them from the `gh-pages` branch.
 | **Tracing** | Record execution events using `FileTracer` |
 | **Function workflows** | Wrap callables with `FunctionTask` or use `workflow_from_functions` |
 | **Branching actions** | Steps can return action names to select successor steps |
+| **Fail-fast policy** | Downstream steps are cancelled when a dependency fails |
+| **AND/OR joins** | Support joining branches after all or any parent steps finish |
 
 
