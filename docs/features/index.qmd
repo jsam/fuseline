@@ -1,10 +1,10 @@
 ---
-title: Features
+title: "Features & Concepts"
 ---
 
-# Features
+# Features & Concepts
 
-This section covers the major features of **fuseline**. Each page provides a brief introduction with an example.
+The pages in this section describe Fuseline's major capabilities with short examples.
 
 - [Steps and Tasks](steps-tasks.qmd)
 - [Workflow orchestration](workflow-orchestration.qmd)

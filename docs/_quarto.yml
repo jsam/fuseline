@@ -7,18 +7,48 @@ website:
   repo-url: https://github.com/jsam/fuseline
   navbar:
     left:
-      - href: index.qmd
+      - href: getting-started/index.qmd
         text: Getting Started
       - href: features/index.qmd
-        text: Features
+        text: Features & Concepts
       - href: api.qmd
         text: API Reference
+  sidebar:
+    style: docked
+    search: true
+    contents:
+      - section: "Getting Started"
+        contents:
+          - getting-started/index.qmd
+          - getting-started/installation.qmd
+          - getting-started/concepts.qmd
+          - getting-started/first-agent.qmd
+      - section: "Features & Concepts"
+        contents:
+          - features/index.qmd
+          - features/steps-tasks.qmd
+          - features/workflow-orchestration.qmd
+          - features/typed-dependencies.qmd
+          - features/asynchronous-tasks.qmd
+          - features/batch-workflows.qmd
+          - features/parallel-execution.qmd
+          - features/conditional-dependencies.qmd
+          - features/retries-with-backoff.qmd
+          - features/workflow-export.qmd
+          - features/tracing.qmd
+          - features/function-workflows.qmd
+          - features/branching-actions.qmd
+          - features/fail-fast-policy.qmd
+          - features/and-or-joins.qmd
+      - section: "API Reference"
+        contents:
+          - api.qmd
 
 format:
   html:
     theme: cosmo
     toc: true
-    toc-location: left
+    toc-location: right
 
 execute:
   freeze: auto
