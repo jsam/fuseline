@@ -39,4 +39,21 @@ the docs and publishes them from the `gh-pages` branch.
 | **Fail-fast policy** | Downstream steps are cancelled when a dependency fails |
 | **AND/OR joins** | Support joining branches after all or any parent steps finish |
 
+## Roadmap
+
+| Missing Feature | Importance | Description |
+|-----------------|------------|-------------|
+| **Web UI and monitoring** | High | Visual dashboard to inspect runs and logs, similar to Airflow or Prefect |
+| **Persistent storage** | High | Database-backed state to resume workflows after interruption |
+| **Distributed executors** | High | Native support for Kubernetes, Dask or Celery clusters |
+| **Scheduling** | High | Cron-like triggers and recurring workflow runs |
+| **Step caching / resume** | High | Avoid re-executing completed steps across runs |
+| **Artifact management** | Medium | Built‑in integration with object stores and artifact tracking |
+| **Dynamic parameter mapping** | Medium | Generate task instances from lists or grids of values |
+| **Command line tools** | Medium | CLI for creating, running and inspecting workflows |
+| **Data lineage and metadata** | Medium | Track dataset versions and dependency history |
+| **Visual DAG editing** | Low | Drag-and-drop interface for authoring workflows |
+| **Multi-language tasks** | Low | Ability to implement steps in languages other than Python |
+| **Security & access control** | Low | Authentication and role-based permissions for multi-user deployments |
+
 
