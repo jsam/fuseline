@@ -9,13 +9,10 @@ website:
     left:
       - href: getting-started/index.qmd
         text: Getting Started
-        sidebar: getting-started
       - href: features/index.qmd
         text: Features & Concepts
-        sidebar: features
       - href: api.qmd
         text: API Reference
-        sidebar: api
   sidebar:
     - id: getting-started
       style: docked
