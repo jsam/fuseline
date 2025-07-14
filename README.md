@@ -9,3 +9,14 @@
 [![Python tests](https://github.com/jsam/fuseline/actions/workflows/python-tests.yml/badge.svg?branch=main)](https://github.com/jsam/fuseline/actions/workflows/python-tests.yml)
 [![Test Coverage](https://api.codeclimate.com/v1/badges/ffcc038906c2c7e2274f/test_coverage)](https://codeclimate.com/github/jsam/fuseline/test_coverage)
 </div>
+
+## Documentation
+
+The project documentation is written using [Quarto](https://quarto.org). Run
+
+```bash
+quarto preview docs
+```
+
+to start a local preview server. The GitHub Pages workflow automatically builds
+the docs and publishes them from the `gh-pages` branch.

@@ -1,3 +1,7 @@
+---
+title: "Usage Guide"
+---
+
 # Usage Guide
 
 This page gives a brief overview of how to build workflows with **fuseline**.

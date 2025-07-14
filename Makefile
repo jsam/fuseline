@@ -13,7 +13,7 @@ test:
 	poetry run pytest
 
 docs:
-	poetry run mkdocs serve
+	quarto preview docs
 
 
 fix:
@@ -51,9 +51,9 @@ ci-coverage:
 gh-pages:
 	@echo "Updating gh-pages branch"
 	@git checkout gh-pages || git checkout -b gh-pages
-	@poetry run mkdocs build
-	@cp -r site/* .
-	@rm -rf site
+	@quarto render docs
+	@cp -r docs/_site/* .
+	@rm -rf docs/_site
 	@git add .
 	@git commit -m "Update documentation"
 	@git push origin gh-pages

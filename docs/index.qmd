@@ -1,3 +1,7 @@
+---
+title: Fuseline
+---
+
 # Fuseline
 
 `fuseline` is a lightweight framework for building small workflow pipelines in Python. It provides primitives for connecting tasks together and executing them synchronously or asynchronously.
@@ -29,4 +33,4 @@ hello >> world
 Workflow(outputs=[world]).run()
 ```
 
-Head over to the [Usage Guide](usage.md) for more details.
+Head over to the [Usage Guide](usage.qmd) for more details.
