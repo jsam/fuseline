@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>Fuseline</title>
+<title>Usage Guide – Fuseline</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -124,11 +124,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
           <div class="collapse navbar-collapse" id="navbarCollapse">
             <ul class="navbar-nav navbar-nav-scroll me-auto">
   <li class="nav-item">
-    <a class="nav-link active" href="./index.html" aria-current="page"> 
+    <a class="nav-link" href="./index.html"> 
 <span class="menu-text">Home</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="./usage.html"> 
+    <a class="nav-link active" href="./usage.html" aria-current="page"> 
 <span class="menu-text">Usage Guide</span></a>
   </li>  
   <li class="nav-item">
@@ -151,10 +151,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#fuseline" id="toc-fuseline" class="nav-link active" data-scroll-target="#fuseline">Fuseline</a>
+  <li><a href="#usage-guide" id="toc-usage-guide" class="nav-link active" data-scroll-target="#usage-guide">Usage Guide</a>
   <ul class="collapse">
-  <li><a href="#installation" id="toc-installation" class="nav-link" data-scroll-target="#installation">Installation</a></li>
-  <li><a href="#quick-start" id="toc-quick-start" class="nav-link" data-scroll-target="#quick-start">Quick start</a></li>
+  <li><a href="#building-steps" id="toc-building-steps" class="nav-link" data-scroll-target="#building-steps">Building Steps</a></li>
+  <li><a href="#typed-dependencies" id="toc-typed-dependencies" class="nav-link" data-scroll-target="#typed-dependencies">Typed Dependencies</a></li>
+  <li><a href="#asynchronous-workflows" id="toc-asynchronous-workflows" class="nav-link" data-scroll-target="#asynchronous-workflows">Asynchronous Workflows</a></li>
+  <li><a href="#parallel-execution" id="toc-parallel-execution" class="nav-link" data-scroll-target="#parallel-execution">Parallel Execution</a></li>
+  <li><a href="#exporting-and-tracing" id="toc-exporting-and-tracing" class="nav-link" data-scroll-target="#exporting-and-tracing">Exporting and Tracing</a></li>
   </ul></li>
   </ul>
 </nav>
@@ -164,7 +167,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Fuseline</h1>
+<h1 class="title">Usage Guide</h1>
 </div>
 
 
@@ -181,31 +184,78 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<section id="fuseline" class="level1">
-<h1>Fuseline</h1>
-<p><code>fuseline</code> is a lightweight framework for building small workflow pipelines in Python. It provides primitives for connecting tasks together and executing them synchronously or asynchronously.</p>
-<section id="installation" class="level2">
-<h2 class="anchored" data-anchor-id="installation">Installation</h2>
-<div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install fuseline</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<section id="usage-guide" class="level1">
+<h1>Usage Guide</h1>
+<p>This page gives a brief overview of how to build workflows with <strong>fuseline</strong>.</p>
+<section id="building-steps" class="level2">
+<h2 class="anchored" data-anchor-id="building-steps">Building Steps</h2>
+<p>Steps subclass <code>Task</code> and implement <code>run_step</code> to perform work. Steps can be connected using the <code>&gt;&gt;</code> operator.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> fuseline <span class="im">import</span> Task, Workflow</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Hello(Task):</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> run_step(<span class="va">self</span>, _setup_res):</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="st">"hello"</span>)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> World(Task):</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> run_step(<span class="va">self</span>, _setup_res):</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="st">"world"</span>)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>hello <span class="op">=</span> Hello()</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>world <span class="op">=</span> World()</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>hello <span class="op">&gt;&gt;</span> world</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>flow <span class="op">=</span> Workflow(outputs<span class="op">=</span>[world])</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>flow.run()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="quick-start" class="level2">
-<h2 class="anchored" data-anchor-id="quick-start">Quick start</h2>
-<p>The following example wires two steps and runs them:</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> fuseline <span class="im">import</span> Task, Workflow</span>
+<section id="typed-dependencies" class="level2">
+<h2 class="anchored" data-anchor-id="typed-dependencies">Typed Dependencies</h2>
+<p>Steps can depend on the output of other steps using <code>Depends</code> and <code>Computed</code>.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> fuseline <span class="im">import</span> Computed, Depends, Task, Workflow</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Hello(Task):</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> run_step(<span class="va">self</span>, _setup_res):</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="st">"hello"</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Add(Task):</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> run_step(<span class="va">self</span>, x: <span class="bu">int</span>, y: <span class="bu">int</span>) <span class="op">-&gt;</span> <span class="bu">int</span>:</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> x <span class="op">+</span> y</span>
 <span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> World(Task):</span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> run_step(<span class="va">self</span>, _setup_res):</span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="st">"world"</span>)</span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>hello <span class="op">=</span> Hello()</span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>world <span class="op">=</span> World()</span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>hello <span class="op">&gt;&gt;</span> world</span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>Workflow(outputs<span class="op">=</span>[world]).run()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>Head over to the <a href="./usage.html">Usage Guide</a> for more details.</p>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Multiply(Task):</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    add <span class="op">=</span> Add()</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> run_step(<span class="va">self</span>, value: Computed[<span class="bu">int</span>] <span class="op">=</span> Depends(add)) <span class="op">-&gt;</span> <span class="bu">int</span>:</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> value <span class="op">*</span> <span class="dv">2</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>mul <span class="op">=</span> Multiply()</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>wf <span class="op">=</span> Workflow(outputs<span class="op">=</span>[mul])</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(wf.run({<span class="st">"x"</span>: <span class="dv">2</span>, <span class="st">"y"</span>: <span class="dv">3</span>}))  <span class="co"># prints 10</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</section>
+<section id="asynchronous-workflows" class="level2">
+<h2 class="anchored" data-anchor-id="asynchronous-workflows">Asynchronous Workflows</h2>
+<p>Use <code>AsyncTask</code> and <code>AsyncWorkflow</code> to execute steps asynchronously.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> asyncio</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> fuseline <span class="im">import</span> AsyncTask, AsyncWorkflow</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> AsyncHello(AsyncTask):</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">async</span> <span class="kw">def</span> run_step_async(<span class="va">self</span>, _setup_res):</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>        <span class="cf">await</span> asyncio.sleep(<span class="fl">0.1</span>)</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="st">"hello"</span>)</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> main():</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>    step <span class="op">=</span> AsyncHello()</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>    wf <span class="op">=</span> AsyncWorkflow(outputs<span class="op">=</span>[step])</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>    <span class="cf">await</span> wf.run_async()</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>asyncio.run(main())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</section>
+<section id="parallel-execution" class="level2">
+<h2 class="anchored" data-anchor-id="parallel-execution">Parallel Execution</h2>
+<p>Run independent branches in parallel using an execution engine such as <code>ProcessEngine</code>.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> fuseline <span class="im">import</span> ProcessEngine</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>wf.run({<span class="st">"a"</span>: <span class="dv">1</span>, <span class="st">"b"</span>: <span class="dv">2</span>}, execution_engine<span class="op">=</span>ProcessEngine(<span class="dv">2</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</section>
+<section id="exporting-and-tracing" class="level2">
+<h2 class="anchored" data-anchor-id="exporting-and-tracing">Exporting and Tracing</h2>
+<p>Workflows can be exported to YAML with <code>Workflow.export()</code> and execution traces can be recorded using the <code>trace</code> parameter. Both features rely on pluggable exporters and tracers so alternative formats or backends can be added easily.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>wf.export(<span class="st">"workflow.yaml"</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>wf <span class="op">=</span> Workflow(outputs<span class="op">=</span>[step], trace<span class="op">=</span><span class="st">"trace.log"</span>)</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>wf.run({})</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>See the example scripts in the <code>examples/</code> directory for more inspiration.</p>
 
 
 </section>

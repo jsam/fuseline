@@ -1,0 +1,72 @@
+[
+  {
+    "objectID": "api.html",
+    "href": "api.html",
+    "title": "API Reference",
+    "section": "",
+    "text": "API Reference"
+  },
+  {
+    "objectID": "usage.html",
+    "href": "usage.html",
+    "title": "Usage Guide",
+    "section": "",
+    "text": "This page gives a brief overview of how to build workflows with fuseline.\n\n\nSteps subclass Task and implement run_step to perform work. Steps can be connected using the &gt;&gt; operator.\nfrom fuseline import Task, Workflow\n\nclass Hello(Task):\n    def run_step(self, _setup_res):\n        print(\"hello\")\n\nclass World(Task):\n    def run_step(self, _setup_res):\n        print(\"world\")\n\nhello = Hello()\nworld = World()\nhello &gt;&gt; world\nflow = Workflow(outputs=[world])\nflow.run()\n\n\n\nSteps can depend on the output of other steps using Depends and Computed.\nfrom fuseline import Computed, Depends, Task, Workflow\n\nclass Add(Task):\n    def run_step(self, x: int, y: int) -&gt; int:\n        return x + y\n\nclass Multiply(Task):\n    add = Add()\n    def run_step(self, value: Computed[int] = Depends(add)) -&gt; int:\n        return value * 2\n\nmul = Multiply()\nwf = Workflow(outputs=[mul])\nprint(wf.run({\"x\": 2, \"y\": 3}))  # prints 10\n\n\n\nUse AsyncTask and AsyncWorkflow to execute steps asynchronously.\nimport asyncio\nfrom fuseline import AsyncTask, AsyncWorkflow\n\nclass AsyncHello(AsyncTask):\n    async def run_step_async(self, _setup_res):\n        await asyncio.sleep(0.1)\n        print(\"hello\")\n\nasync def main():\n    step = AsyncHello()\n    wf = AsyncWorkflow(outputs=[step])\n    await wf.run_async()\n\nasyncio.run(main())\n\n\n\nRun independent branches in parallel using an execution engine such as ProcessEngine.\nfrom fuseline import ProcessEngine\n\nwf.run({\"a\": 1, \"b\": 2}, execution_engine=ProcessEngine(2))\n\n\n\nWorkflows can be exported to YAML with Workflow.export() and execution traces can be recorded using the trace parameter. Both features rely on pluggable exporters and tracers so alternative formats or backends can be added easily.\nwf.export(\"workflow.yaml\")\nwf = Workflow(outputs=[step], trace=\"trace.log\")\nwf.run({})\nSee the example scripts in the examples/ directory for more inspiration."
+  },
+  {
+    "objectID": "usage.html#building-steps",
+    "href": "usage.html#building-steps",
+    "title": "Usage Guide",
+    "section": "",
+    "text": "Steps subclass Task and implement run_step to perform work. Steps can be connected using the &gt;&gt; operator.\nfrom fuseline import Task, Workflow\n\nclass Hello(Task):\n    def run_step(self, _setup_res):\n        print(\"hello\")\n\nclass World(Task):\n    def run_step(self, _setup_res):\n        print(\"world\")\n\nhello = Hello()\nworld = World()\nhello &gt;&gt; world\nflow = Workflow(outputs=[world])\nflow.run()"
+  },
+  {
+    "objectID": "usage.html#typed-dependencies",
+    "href": "usage.html#typed-dependencies",
+    "title": "Usage Guide",
+    "section": "",
+    "text": "Steps can depend on the output of other steps using Depends and Computed.\nfrom fuseline import Computed, Depends, Task, Workflow\n\nclass Add(Task):\n    def run_step(self, x: int, y: int) -&gt; int:\n        return x + y\n\nclass Multiply(Task):\n    add = Add()\n    def run_step(self, value: Computed[int] = Depends(add)) -&gt; int:\n        return value * 2\n\nmul = Multiply()\nwf = Workflow(outputs=[mul])\nprint(wf.run({\"x\": 2, \"y\": 3}))  # prints 10"
+  },
+  {
+    "objectID": "usage.html#asynchronous-workflows",
+    "href": "usage.html#asynchronous-workflows",
+    "title": "Usage Guide",
+    "section": "",
+    "text": "Use AsyncTask and AsyncWorkflow to execute steps asynchronously.\nimport asyncio\nfrom fuseline import AsyncTask, AsyncWorkflow\n\nclass AsyncHello(AsyncTask):\n    async def run_step_async(self, _setup_res):\n        await asyncio.sleep(0.1)\n        print(\"hello\")\n\nasync def main():\n    step = AsyncHello()\n    wf = AsyncWorkflow(outputs=[step])\n    await wf.run_async()\n\nasyncio.run(main())"
+  },
+  {
+    "objectID": "usage.html#parallel-execution",
+    "href": "usage.html#parallel-execution",
+    "title": "Usage Guide",
+    "section": "",
+    "text": "Run independent branches in parallel using an execution engine such as ProcessEngine.\nfrom fuseline import ProcessEngine\n\nwf.run({\"a\": 1, \"b\": 2}, execution_engine=ProcessEngine(2))"
+  },
+  {
+    "objectID": "usage.html#exporting-and-tracing",
+    "href": "usage.html#exporting-and-tracing",
+    "title": "Usage Guide",
+    "section": "",
+    "text": "Workflows can be exported to YAML with Workflow.export() and execution traces can be recorded using the trace parameter. Both features rely on pluggable exporters and tracers so alternative formats or backends can be added easily.\nwf.export(\"workflow.yaml\")\nwf = Workflow(outputs=[step], trace=\"trace.log\")\nwf.run({})\nSee the example scripts in the examples/ directory for more inspiration."
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "Fuseline",
+    "section": "",
+    "text": "fuseline is a lightweight framework for building small workflow pipelines in Python. It provides primitives for connecting tasks together and executing them synchronously or asynchronously.\n\n\npip install fuseline\n\n\n\nThe following example wires two steps and runs them:\nfrom fuseline import Task, Workflow\n\nclass Hello(Task):\n    def run_step(self, _setup_res):\n        print(\"hello\")\n\nclass World(Task):\n    def run_step(self, _setup_res):\n        print(\"world\")\n\nhello = Hello()\nworld = World()\nhello &gt;&gt; world\nWorkflow(outputs=[world]).run()\nHead over to the Usage Guide for more details."
+  },
+  {
+    "objectID": "index.html#installation",
+    "href": "index.html#installation",
+    "title": "Fuseline",
+    "section": "",
+    "text": "pip install fuseline"
+  },
+  {
+    "objectID": "index.html#quick-start",
+    "href": "index.html#quick-start",
+    "title": "Fuseline",
+    "section": "",
+    "text": "The following example wires two steps and runs them:\nfrom fuseline import Task, Workflow\n\nclass Hello(Task):\n    def run_step(self, _setup_res):\n        print(\"hello\")\n\nclass World(Task):\n    def run_step(self, _setup_res):\n        print(\"world\")\n\nhello = Hello()\nworld = World()\nhello &gt;&gt; world\nWorkflow(outputs=[world]).run()\nHead over to the Usage Guide for more details."
+  }
+]
