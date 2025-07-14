@@ -9,6 +9,8 @@ website:
     left:
       - href: index.qmd
         text: Home
+      - href: features/index.qmd
+        text: Features
       - href: usage.qmd
         text: Usage Guide
       - href: api.qmd
