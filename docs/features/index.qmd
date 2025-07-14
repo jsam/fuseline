@@ -1,8 +1,8 @@
 ---
 title: "Features & Concepts"
+sidebar: features
 ---
 
-# Features & Concepts
 
 The pages in this section describe Fuseline's major capabilities with short examples.
 

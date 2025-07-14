@@ -1,8 +1,8 @@
 ---
 title: "Writing Your First Agent"
+sidebar: getting-started
 ---
 
-# Writing Your First Agent
 
 This tutorial walks through the basics of building an agent using Fuseline.
 

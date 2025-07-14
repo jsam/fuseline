@@ -9,40 +9,52 @@ website:
     left:
       - href: getting-started/index.qmd
         text: Getting Started
+        sidebar: getting-started
       - href: features/index.qmd
         text: Features & Concepts
+        sidebar: features
       - href: api.qmd
         text: API Reference
+        sidebar: api
   sidebar:
-    style: docked
-    search: true
-    contents:
-      - section: "Getting Started"
-        contents:
-          - getting-started/index.qmd
-          - getting-started/installation.qmd
-          - getting-started/concepts.qmd
-          - getting-started/first-agent.qmd
-      - section: "Features & Concepts"
-        contents:
-          - features/index.qmd
-          - features/steps-tasks.qmd
-          - features/workflow-orchestration.qmd
-          - features/typed-dependencies.qmd
-          - features/asynchronous-tasks.qmd
-          - features/batch-workflows.qmd
-          - features/parallel-execution.qmd
-          - features/conditional-dependencies.qmd
-          - features/retries-with-backoff.qmd
-          - features/workflow-export.qmd
-          - features/tracing.qmd
-          - features/function-workflows.qmd
-          - features/branching-actions.qmd
-          - features/fail-fast-policy.qmd
-          - features/and-or-joins.qmd
-      - section: "API Reference"
-        contents:
-          - api.qmd
+    - id: getting-started
+      style: docked
+      search: true
+      contents:
+        - section: "Getting Started"
+          contents:
+            - getting-started/index.qmd
+            - getting-started/installation.qmd
+            - getting-started/concepts.qmd
+            - getting-started/first-agent.qmd
+    - id: features
+      style: docked
+      search: true
+      contents:
+        - section: "Features & Concepts"
+          contents:
+            - features/index.qmd
+            - features/steps-tasks.qmd
+            - features/workflow-orchestration.qmd
+            - features/typed-dependencies.qmd
+            - features/asynchronous-tasks.qmd
+            - features/batch-workflows.qmd
+            - features/parallel-execution.qmd
+            - features/conditional-dependencies.qmd
+            - features/retries-with-backoff.qmd
+            - features/workflow-export.qmd
+            - features/tracing.qmd
+            - features/function-workflows.qmd
+            - features/branching-actions.qmd
+            - features/fail-fast-policy.qmd
+            - features/and-or-joins.qmd
+    - id: api
+      style: docked
+      search: true
+      contents:
+        - section: "API Reference"
+          contents:
+            - api.qmd
 
 format:
   html:
