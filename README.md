@@ -20,3 +20,21 @@ quarto preview docs
 
 to start a local preview server. The GitHub Pages workflow automatically builds
 the docs and publishes them from the `gh-pages` branch.
+## Features
+
+| Feature | Description |
+|---------|-------------|
+| **Tasks and Steps** | Build units of work by subclassing `Task` or `Step` with lifecycle hooks |
+| **Workflow orchestration** | Chain steps using `>>` or dependency injection and run them with `Workflow` |
+| **Typed dependencies** | Pass values between tasks using `Depends` and `Computed` |
+| **Asynchronous tasks** | Use `AsyncTask` and `AsyncWorkflow` for async execution |
+| **Batch workflows** | `BatchTask` and `BatchWorkflow` run tasks for multiple parameter sets |
+| **Parallel execution** | `ProcessEngine` executes independent branches concurrently |
+| **Conditional dependencies** | Attach `Condition` functions to `Depends` for branch logic |
+| **Retries with backoff** | Tasks accept `max_retries` and `wait` to retry on failure |
+| **Workflow export** | Serialize graphs to YAML with `Workflow.export` and `YamlExporter` |
+| **Tracing** | Record execution events using `FileTracer` |
+| **Function workflows** | Wrap callables with `FunctionTask` or use `workflow_from_functions` |
+| **Branching actions** | Steps can return action names to select successor steps |
+
+
