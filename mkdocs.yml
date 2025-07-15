@@ -57,3 +57,5 @@ markdown_extensions:
       permalink: true
 extra_css:
   - styles.css
+extra:
+  generator: "Fuseline Documentation"
