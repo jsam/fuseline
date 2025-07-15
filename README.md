@@ -23,9 +23,9 @@ mkdocs serve
 
 Launches a local preview server. GitHub Pages builds the docs from the
 `gh-pages` branch automatically. The Material theme provides a search box,
-workspace tabs for **Getting Started**, **Concepts & Features** and
-**API Reference**, GitHub-style Python syntax highlighting and a
-light/dark switch.
+workspace tabs for **Getting Started**, **Concepts & Features**, and
+**API Reference**. Code blocks are highlighted using Pygments in the
+GitHub style and a light/dark palette toggle.
 ## Features
 
 | Feature | Description |
