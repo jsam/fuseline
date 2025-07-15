@@ -1,9 +1,12 @@
 from __future__ import annotations
 
-import json
-import os
 from abc import ABC, abstractmethod
 from typing import Iterable, Optional, TYPE_CHECKING
+
+try:  # pragma: no cover - optional dependency
+    import psycopg
+except Exception:  # pragma: no cover - missing optional dep
+    psycopg = None
 
 if TYPE_CHECKING:  # pragma: no cover - import for typing only
     from .workflow import Status
@@ -53,26 +56,49 @@ class RuntimeStorage(ABC):
         """Mark the run as finished."""
 
 
-class FileRuntimeStorage(RuntimeStorage):
-    """Store workflow runtime state in JSON files."""
+class PostgresRuntimeStorage(RuntimeStorage):
+    """Store runtime state in a PostgreSQL database."""
 
-    def __init__(self, directory: str) -> None:
-        self.directory = directory
-        os.makedirs(directory, exist_ok=True)
+    def __init__(self, dsn: str) -> None:
+        if psycopg is None:
+            raise RuntimeError("psycopg package is required for PostgresRuntimeStorage")
+        self.conn = psycopg.connect(dsn)
+        self._ensure_tables()
 
-    def _path(self, workflow_id: str, instance_id: str) -> str:
-        return os.path.join(self.directory, f"{workflow_id}_{instance_id}.json")
-
-    def _load(self, workflow_id: str, instance_id: str) -> dict:
-        path = self._path(workflow_id, instance_id)
-        if not os.path.exists(path):
-            return {"queue": [], "states": {}}
-        with open(path, "r", encoding="utf-8") as fh:
-            return json.load(fh)
-
-    def _save(self, workflow_id: str, instance_id: str, data: dict) -> None:
-        with open(self._path(workflow_id, instance_id), "w", encoding="utf-8") as fh:
-            json.dump(data, fh)
+    def _ensure_tables(self) -> None:
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS workflow_runs (
+                    workflow_id TEXT,
+                    instance_id TEXT,
+                    finished BOOLEAN DEFAULT FALSE,
+                    PRIMARY KEY (workflow_id, instance_id)
+                )
+                """
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS step_states (
+                    workflow_id TEXT,
+                    instance_id TEXT,
+                    step_name TEXT,
+                    state TEXT,
+                    PRIMARY KEY (workflow_id, instance_id, step_name)
+                )
+                """
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS step_queue (
+                    id BIGSERIAL PRIMARY KEY,
+                    workflow_id TEXT,
+                    instance_id TEXT,
+                    step_name TEXT
+                )
+                """
+            )
+        self.conn.commit()
 
     def create_run(
         self,
@@ -82,24 +108,38 @@ class FileRuntimeStorage(RuntimeStorage):
     ) -> None:
         from .workflow import Status
 
-        data = {"queue": list(steps), "states": {s: Status.PENDING.value for s in steps}}
-        self._save(workflow_id, instance_id, data)
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO workflow_runs (workflow_id, instance_id) VALUES (%s, %s)",
+                (workflow_id, instance_id),
+            )
+            for step in steps:
+                cur.execute(
+                    "INSERT INTO step_states (workflow_id, instance_id, step_name, state) VALUES (%s, %s, %s, %s)",
+                    (workflow_id, instance_id, step, Status.PENDING.value),
+                )
+        self.conn.commit()
 
     def enqueue(self, workflow_id: str, instance_id: str, step_name: str) -> None:
-        from .workflow import Status
-
-        data = self._load(workflow_id, instance_id)
-        data.setdefault("queue", []).append(step_name)
-        data.setdefault("states", {}).setdefault(step_name, Status.PENDING.value)
-        self._save(workflow_id, instance_id, data)
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO step_queue (workflow_id, instance_id, step_name) VALUES (%s, %s, %s)",
+                (workflow_id, instance_id, step_name),
+            )
+        self.conn.commit()
 
     def fetch_next(self, workflow_id: str, instance_id: str) -> Optional[str]:
-        data = self._load(workflow_id, instance_id)
-        if not data.get("queue"):
-            return None
-        step = data["queue"].pop(0)
-        self._save(workflow_id, instance_id, data)
-        return step
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, step_name FROM step_queue WHERE workflow_id=%s AND instance_id=%s ORDER BY id LIMIT 1",
+                (workflow_id, instance_id),
+            )
+            row = cur.fetchone()
+            if not row:
+                return None
+            cur.execute("DELETE FROM step_queue WHERE id=%s", (row[0],))
+        self.conn.commit()
+        return row[1]
 
     def set_state(
         self,
@@ -108,24 +148,30 @@ class FileRuntimeStorage(RuntimeStorage):
         step_name: str,
         state: "Status",
     ) -> None:
-        from .workflow import Status
-
-        data = self._load(workflow_id, instance_id)
-        data.setdefault("states", {})[step_name] = state.value
-        self._save(workflow_id, instance_id, data)
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "UPDATE step_states SET state=%s WHERE workflow_id=%s AND instance_id=%s AND step_name=%s",
+                (state.value, workflow_id, instance_id, step_name),
+            )
+        self.conn.commit()
 
     def get_state(
         self, workflow_id: str, instance_id: str, step_name: str
     ) -> "Status | None":
         from .workflow import Status
 
-        data = self._load(workflow_id, instance_id)
-        val = data.get("states", {}).get(step_name)
-        return Status(val) if val is not None else None
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "SELECT state FROM step_states WHERE workflow_id=%s AND instance_id=%s AND step_name=%s",
+                (workflow_id, instance_id, step_name),
+            )
+            row = cur.fetchone()
+        return Status(row[0]) if row else None
 
     def finalize_run(self, workflow_id: str, instance_id: str) -> None:
-        path = self._path(workflow_id, instance_id)
-        if os.path.exists(path):
-            data = self._load(workflow_id, instance_id)
-            data["finished"] = True
-            self._save(workflow_id, instance_id, data)
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "UPDATE workflow_runs SET finished=TRUE WHERE workflow_id=%s AND instance_id=%s",
+                (workflow_id, instance_id),
+            )
+        self.conn.commit()

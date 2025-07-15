@@ -1,9 +1,12 @@
-import json
 from pathlib import Path
 
 from fuseline import Workflow
-from fuseline.storage import FileRuntimeStorage
-from fuseline.workflow import Task
+import os
+
+import pytest
+
+from fuseline.storage import PostgresRuntimeStorage
+from fuseline.workflow import Task, Status
 
 
 class SimpleTask(Task):
@@ -16,16 +19,19 @@ class SimpleTask(Task):
         return None
 
 
-def test_file_runtime_storage(tmp_path: Path) -> None:
+def test_postgres_runtime_storage(tmp_path: Path) -> None:
+    dsn = os.environ.get("FUSELINE_PG_DSN")
+    if not dsn:
+        pytest.skip("PostgreSQL not available")
     s1 = SimpleTask("a")
     s2 = SimpleTask("b")
     s1 >> s2
-    store = FileRuntimeStorage(tmp_path.as_posix())
+    store = PostgresRuntimeStorage(dsn)
     wf = Workflow(outputs=[s2])
     wf.run(runtime_store=store)
-    files = list(tmp_path.iterdir())
-    assert files
-    data = json.loads(files[0].read_text())
-    assert data["finished"] is True
-    assert len(data["states"]) == 2
-    assert set(data["states"].values()) == {"SUCCEEDED"}
+    # fetch states from DB
+    assert (
+        store.get_state(wf.workflow_id, wf.workflow_instance_id, "a")
+        == store.get_state(wf.workflow_id, wf.workflow_instance_id, "b")
+        == Status.SUCCEEDED
+    )

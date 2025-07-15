@@ -2,14 +2,14 @@
 title: "Runtime storage"
 ---
 
-Persist workflow state using `FileRuntimeStorage` so runs can be resumed or executed by multiple workers.
+Persist workflow state using `PostgresRuntimeStorage` so runs can be resumed or executed by multiple workers.
 
 You can run a workflow in a single process while persisting state, or dispatch tasks to a storage backend and have separate workers process them.
 
 ```python
-from fuseline import Workflow, FileRuntimeStorage, ProcessEngine
+from fuseline import Workflow, PostgresRuntimeStorage, ProcessEngine
 
-store = FileRuntimeStorage("runs")
+store = PostgresRuntimeStorage("postgresql://user:pass@localhost/db")
 wf = Workflow(outputs=[...])
 
 # enqueue starting steps and store state

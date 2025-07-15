@@ -48,7 +48,7 @@ class RuntimeStorage(ABC):
     def finalize_run(self, workflow_id: str, instance_id: str) -> None: ...
 ```
 
-`FileRuntimeStorage` stores this information in JSON files but any data
+`PostgresRuntimeStorage` stores this information in a PostgreSQL database but any data
 store can be used.  When writing a custom backend, keep these
 responsibilities in mind:
 
