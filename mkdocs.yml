@@ -27,6 +27,7 @@ nav:
       - for-developers/execution-flow.md
       - for-developers/state-management.md
       - for-developers/policies.md
+      - for-developers/process-engine-tests.md
   - API Reference: api.md
 theme:
   name: material
