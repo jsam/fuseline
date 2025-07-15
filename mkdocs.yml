@@ -25,7 +25,6 @@ nav:
   - API Reference: api.md
 theme:
   name: material
-  highlightjs: true
   features:
     - content.code.copy
     - navigation.tabs
@@ -49,10 +48,10 @@ markdown_extensions:
   - admonition
   - pymdownx.highlight:
       anchor_linenums: true
+      linenums: true
       use_pygments: true
       pygments_style: github
   - pymdownx.superfences
-  - codehilite
   - pymdownx.inlinehilite
   - toc:
       permalink: true

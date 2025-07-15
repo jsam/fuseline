@@ -53,6 +53,7 @@ ruff = ">=0.0.263"
 tox = ">=4.12.1"
 pytest-mock = "^3.14.0"
 mkdocs-material = "^9.5.15"
+pymdown-extensions = "^10.4"
 "mkdocstrings[python]" = "^0.24.0"
 
 

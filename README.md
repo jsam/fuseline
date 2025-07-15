@@ -22,6 +22,9 @@ First install the development extras:
 pip install -e .[dev]
 ```
 
+This will install `mkdocs-material`, `mkdocstrings[python]` and
+`pymdown-extensions` which provides syntax highlighting for code blocks.
+
 Then start the preview server:
 
 ```bash
