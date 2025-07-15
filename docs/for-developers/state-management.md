@@ -31,3 +31,36 @@ are placed in the shared dictionary keyed by the step object so other
 steps can access them. When using a runtime store, states—not data—are
 persisted. Developers can persist additional artifacts in custom step
 logic if needed.
+
+### RuntimeStorage interface
+
+Workflow state is stored via a pluggable backend.  A storage backend
+implements the `RuntimeStorage` abstract base class.  The key methods
+look like this:
+
+```python
+class RuntimeStorage(ABC):
+    def create_run(self, workflow_id: str, instance_id: str, steps: Iterable[str]) -> None: ...
+    def enqueue(self, workflow_id: str, instance_id: str, step_name: str) -> None: ...
+    def fetch_next(self, workflow_id: str, instance_id: str) -> str | None: ...
+    def set_state(self, workflow_id: str, instance_id: str, step_name: str, state: Status) -> None: ...
+    def get_state(self, workflow_id: str, instance_id: str, step_name: str) -> Status | None: ...
+    def finalize_run(self, workflow_id: str, instance_id: str) -> None: ...
+```
+
+`FileRuntimeStorage` stores this information in JSON files but any data
+store can be used.  When writing a custom backend, keep these
+responsibilities in mind:
+
+1. **Create runs** – called once to initialise the queue and set all
+   steps to `PENDING`.
+2. **Enqueue/fetch steps** – provide a simple FIFO queue so workers can
+   coordinate.
+3. **Persist state** – update step status after execution and expose it
+   via `get_state`.
+4. **Finalize** – mark the run complete so other tools know the
+   workflow finished.
+
+Only statuses are stored.  Step results remain in memory and should be
+persisted separately if desired.  For advanced storage backends you may
+choose to store results or metadata alongside the status values.
