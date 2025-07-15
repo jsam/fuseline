@@ -46,12 +46,11 @@ plugins:
             - "import sys; sys.path.append('.')"
 markdown_extensions:
   - admonition
-  - fenced_code
   - pymdownx.highlight:
       anchor_linenums: true
       linenums: true
-      use_pygments: true
       pygments_style: github
+      pygments_dark_style: github-dark
   - pymdownx.superfences
   - pymdownx.inlinehilite
   - toc:

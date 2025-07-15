@@ -49,14 +49,14 @@ ci-coverage:
 
 
 gh-pages:
-        @echo "Updating gh-pages branch"
-        @git checkout gh-pages || git checkout -b gh-pages
-        @mkdocs build
-        @cp -r site/* .
-        @rm -rf site
-        @git add .
-        @git commit -m "Update documentation"
-        @git push origin gh-pages
-        @git checkout -
-        @echo "gh-pages branch updated successfully"
+	@echo "Updating gh-pages branch"
+	@git checkout gh-pages || git checkout -b gh-pages
+	@mkdocs build
+	@cp -r site/* .
+	@rm -rf site
+	@git add .
+	@git commit -m "Update documentation"
+	@git push origin gh-pages
+	@git checkout -
+	@echo "gh-pages branch updated successfully"
 
