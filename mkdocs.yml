@@ -22,6 +22,11 @@ nav:
       - features/branching-actions.md
       - features/fail-fast-policy.md
       - features/and-or-joins.md
+  - For Developers:
+      - for-developers/index.md
+      - for-developers/execution-flow.md
+      - for-developers/state-management.md
+      - for-developers/policies.md
   - API Reference: api.md
 theme:
   name: material
