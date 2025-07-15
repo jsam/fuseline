@@ -10,3 +10,4 @@ from fuseline import Workflow
 wf = Workflow(outputs=[...], trace="trace.log")
 wf.run({})
 ```
+

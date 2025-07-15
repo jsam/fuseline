@@ -20,3 +20,4 @@ world = World()
 hello >> world
 Workflow(outputs=[world]).run()
 ```
+

@@ -284,3 +284,4 @@ poetry.lock
 .ruff_cache
 
 *.png
+*.trace

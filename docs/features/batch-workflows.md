@@ -14,3 +14,4 @@ class Echo(BatchTask):
 batch = BatchWorkflow(task=Echo())
 print(batch.run([{"word": "hi"}, {"word": "bye"}]))
 ```
+

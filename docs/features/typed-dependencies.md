@@ -19,3 +19,4 @@ class Multiply(Task):
 wf = Workflow(outputs=[Multiply()])
 print(wf.run({"x": 2, "y": 3}))
 ```
+

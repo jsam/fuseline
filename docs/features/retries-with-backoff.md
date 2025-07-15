@@ -13,3 +13,4 @@ class SometimesFails(Task):
 
 step = SometimesFails(max_retries=3, wait=1)
 ```
+
