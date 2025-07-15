@@ -23,6 +23,10 @@ quarto preview docs
 
 to start a local preview server. The GitHub Pages workflow automatically builds
 the docs and publishes them from the `gh-pages` branch.
+
+The documentation supports light and dark themes. Use the toggle next to the
+search box to switch modes. Code blocks are highlighted with GitHub's light and
+dark styles to match the selected appearance.
 ## Features
 
 | Feature | Description |
