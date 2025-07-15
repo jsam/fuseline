@@ -59,9 +59,7 @@ format:
     theme:
       light: lux
       dark: darkly
-    highlight-style:
-      light: github
-      dark: github-dark
+    highlight-style: default
     toc: true
     toc-location: right
     css: styles.css
