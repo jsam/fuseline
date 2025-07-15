@@ -4,6 +4,7 @@ title: "Asynchronous tasks"
 
 Use `AsyncTask` and `AsyncWorkflow` to execute steps asynchronously.
 
+
 ```python
 import asyncio
 from fuseline import AsyncTask, AsyncWorkflow
@@ -20,4 +21,5 @@ async def main():
 
 asyncio.run(main())
 ```
+
 
