@@ -16,16 +16,23 @@ what Django is for web developers, but for building intelligent agents.
 ## Documentation
 
 The project documentation uses [MkDocs Material](https://squidfunk.github.io/mkdocs-material/).
+First install the development extras:
+
+```bash
+pip install -e .[dev]
+```
+
+Then start the preview server:
 
 ```bash
 mkdocs serve
 ```
 
-Launches a local preview server. GitHub Pages builds the docs from the
-`gh-pages` branch automatically. The Material theme provides a search box,
-workspace tabs for **Getting Started**, **Concepts & Features**, and
-**API Reference**. Code blocks are highlighted using Pygments in the
-GitHub style and a light/dark palette toggle.
+GitHub Pages builds the docs from the `gh-pages` branch automatically.
+The Material theme provides a search box, workspace tabs for
+**Getting Started**, **Concepts & Features**, and **API Reference**.
+Code blocks are highlighted using Pygments in the GitHub style and a
+light/dark palette toggle.
 ## Features
 
 | Feature | Description |
