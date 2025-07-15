@@ -46,6 +46,7 @@ plugins:
             - "import sys; sys.path.append('.')"
 markdown_extensions:
   - admonition
+  - fenced_code
   - pymdownx.highlight:
       anchor_linenums: true
       linenums: true
