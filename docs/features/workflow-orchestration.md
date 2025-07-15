@@ -4,6 +4,7 @@ title: "Workflow orchestration"
 
 Chain tasks with `>>` or dependency injection and run them with `Workflow`.
 
+
 ```python
 from fuseline import Task, Workflow
 
@@ -20,3 +21,5 @@ world = World()
 hello >> world
 Workflow(outputs=[world]).run()
 ```
+
+

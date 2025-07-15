@@ -4,6 +4,7 @@ title: "Typed dependencies"
 
 Pass values between tasks using `Depends` and `Computed`.
 
+
 ```python
 from fuseline import Computed, Depends, Task, Workflow
 
@@ -19,3 +20,5 @@ class Multiply(Task):
 wf = Workflow(outputs=[Multiply()])
 print(wf.run({"x": 2, "y": 3}))
 ```
+
+

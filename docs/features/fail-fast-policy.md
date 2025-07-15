@@ -4,6 +4,7 @@ title: "Fail-fast policy"
 
 Downstream steps are cancelled when a dependency fails.
 
+
 ```python
 from fuseline import Task, Workflow
 
@@ -20,3 +21,5 @@ d = Dep()
 f >> d
 Workflow(outputs=[d]).run()
 ```
+
+
