@@ -15,18 +15,15 @@ what Django is for web developers, but for building intelligent agents.
 
 ## Documentation
 
-The project documentation is written using [Quarto](https://quarto.org). Run
+The project documentation uses [MkDocs Material](https://squidfunk.github.io/mkdocs-material/).
 
 ```bash
-quarto preview docs
+mkdocs serve
 ```
 
-to start a local preview server. The GitHub Pages workflow automatically builds
-the docs and publishes them from the `gh-pages` branch.
-
-The documentation supports light and dark themes. Use the toggle next to the
-search box to switch modes. Code blocks are highlighted with GitHub's light and
-dark styles to match the selected appearance.
+Launches a local preview server. GitHub Pages builds the docs from the
+`gh-pages` branch automatically. The Material theme provides a search box and
+a built-in light/dark switch with GitHub-style code highlighting.
 ## Features
 
 | Feature | Description |

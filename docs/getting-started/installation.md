@@ -1,6 +1,5 @@
 ---
 title: "Installation"
-sidebar: getting-started
 ---
 
 

@@ -1,6 +1,5 @@
 ---
 title: "Writing Your First Agent"
-sidebar: getting-started
 ---
 
 

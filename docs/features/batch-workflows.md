@@ -1,6 +1,5 @@
 ---
 title: "Batch workflows"
-sidebar: features
 ---
 
 `BatchTask` and `BatchWorkflow` run tasks for multiple parameter sets.

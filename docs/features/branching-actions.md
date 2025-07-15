@@ -1,6 +1,5 @@
 ---
 title: "Branching actions"
-sidebar: features
 ---
 
 Steps can return action names to select successor steps.

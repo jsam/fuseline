@@ -1,6 +1,5 @@
 ---
 title: "AND/OR joins"
-sidebar: features
 ---
 
 Join branches after all or any parent steps finish.

@@ -1,6 +1,5 @@
 ---
 title: "Retries with backoff"
-sidebar: features
 ---
 
 Tasks accept `max_retries` and `wait` parameters to retry on failure.

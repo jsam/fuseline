@@ -1,6 +1,5 @@
 ---
 title: "Asynchronous tasks"
-sidebar: features
 ---
 
 Use `AsyncTask` and `AsyncWorkflow` to execute steps asynchronously.

@@ -1,6 +1,5 @@
 ---
 title: "Welcome to Fuseline"
-sidebar: getting-started
 ---
 
 Fuseline is a batteries-included framework for building AI agents. Use the sections on the left to start exploring the library.

@@ -1,6 +1,5 @@
 ---
 title: "Tracing"
-sidebar: features
 ---
 
 Record execution events using `FileTracer`.

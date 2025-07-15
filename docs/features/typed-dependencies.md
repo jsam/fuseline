@@ -1,6 +1,5 @@
 ---
 title: "Typed dependencies"
-sidebar: features
 ---
 
 Pass values between tasks using `Depends` and `Computed`.

@@ -1,6 +1,5 @@
 ---
 title: "API Reference"
-sidebar: api
 ---
 
 ::: fuseline

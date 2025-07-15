@@ -1,6 +1,5 @@
 ---
 title: "Workflow export"
-sidebar: features
 ---
 
 Serialize graphs to YAML using `Workflow.export` and `YamlExporter`.

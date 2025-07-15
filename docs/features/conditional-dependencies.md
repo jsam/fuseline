@@ -1,6 +1,5 @@
 ---
 title: "Conditional dependencies"
-sidebar: features
 ---
 
 Attach a `Condition` to `Depends` for branch logic.

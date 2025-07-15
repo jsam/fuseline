@@ -1,6 +1,5 @@
 ---
 title: "Steps and Tasks"
-sidebar: features
 ---
 
 A **Step** defines the basic lifecycle for a unit of work while a **Task** adds typed dependencies and retry support.

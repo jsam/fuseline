@@ -1,6 +1,5 @@
 ---
 title: "Fail-fast policy"
-sidebar: features
 ---
 
 Downstream steps are cancelled when a dependency fails.

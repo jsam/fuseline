@@ -1,6 +1,5 @@
 ---
 title: "Function workflows"
-sidebar: features
 ---
 
 Wrap callables with `FunctionTask` or use `workflow_from_functions`.

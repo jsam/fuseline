@@ -1,6 +1,5 @@
 ---
 title: "Workflow orchestration"
-sidebar: features
 ---
 
 Chain tasks with `>>` or dependency injection and run them with `Workflow`.

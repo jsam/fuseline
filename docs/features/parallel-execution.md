@@ -1,6 +1,5 @@
 ---
 title: "Parallel execution"
-sidebar: features
 ---
 
 Run independent branches concurrently using an execution engine.
