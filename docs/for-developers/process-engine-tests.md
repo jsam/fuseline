@@ -14,5 +14,8 @@ The `ProcessEngine` executes tasks stored in a `RuntimeStorage` backend. The tab
 | Unknown step | Queue contains a name not in workflow | Step ignored; processing continues |
 | Empty queue | No more tasks available | Worker finalizes run without error |
 | Multiple workers | Two workers share same store | Each step executed exactly once |
+| Resume run | Steps remain in queue across worker restarts | Pending tasks are picked up and completed |
+| Cancel successors | Dependency fails after retries | Downstream steps marked `CANCELLED` |
+| Duplicate entries | Step name appears multiple times in queue | Step executes only once |
 
 These cases ensure the engine handles normal operation as well as unusual situations like invalid queue entries or simultaneous workers.
