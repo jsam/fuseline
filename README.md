@@ -52,6 +52,7 @@ light/dark palette toggle.
 | **Retries with backoff** | Tasks accept `max_retries` and `wait` to retry on failure |
 | **Workflow export** | Serialize graphs to YAML with `Workflow.export` and `YamlExporter` |
 | **Tracing** | Record execution events using `FileTracer` |
+| **Runtime storage** | Persist workflow state so multiple workers can resume runs |
 | **Function workflows** | Wrap callables with `FunctionTask` or use `workflow_from_functions` |
 | **Branching actions** | Steps can return action names to select successor steps |
 | **Fail-fast policy** | Downstream steps are cancelled when a dependency fails |

@@ -529,14 +529,6 @@ class Workflow(Step):
                     step_names[step],
                     Status.PENDING,
                 )
-        if runtime_store and step_names:
-            for step in nodes:
-                runtime_store.set_state(
-                    self.workflow_id,
-                    self.workflow_instance_id,
-                    step_names[step],
-                    Status.PENDING,
-                )
         for succ in nodes:
             group_preds: set[Step] = set()
             if isinstance(succ, Task):
@@ -551,12 +543,6 @@ class Workflow(Step):
         ready = [n for n, d in indegree.items() if d == 0]
         for step in ready:
             step._log_event("step_enqueued")
-            if runtime_store and step_names:
-                runtime_store.enqueue(
-                    self.workflow_id,
-                    self.workflow_instance_id,
-                    step_names[step],
-                )
             if runtime_store and step_names:
                 runtime_store.enqueue(
                     self.workflow_id,
