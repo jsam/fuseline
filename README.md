@@ -24,8 +24,8 @@ pip install -e .[dev]
 
 This will install `mkdocs-material`, `mkdocstrings[python]` and
 `pymdown-extensions`. The docs use `pymdownx.highlight` with the
-GitHub and GitHub Dark Pygments styles so Python snippets are rendered
-with proper syntax highlighting.
+GitHub Pygments style so Python snippets are rendered
+with proper syntax highlighting in both light and dark mode.
 
 Then start the preview server:
 
