@@ -52,13 +52,14 @@ pytest-xdist = ">=3.0.2"
 ruff = ">=0.0.263"
 tox = ">=4.12.1"
 pytest-mock = "^3.14.0"
+mkdocs-material = "^9.5.15"
+pymdown-extensions = "^10.4"
 
 
 ############################
 ### Tools configuration  ###
 ############################
-quarto = "^0.1.0"
-quarto-cli = "^1.7.32"
+mkdocstrings = "^0.29.1"
 
 
 [tool.coverage.run]

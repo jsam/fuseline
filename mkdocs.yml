@@ -1,0 +1,58 @@
+site_name: Fuseline
+repo_url: https://github.com/jsam/fuseline
+nav:
+  - Getting Started:
+      - index.md
+      - getting-started/installation.md
+      - getting-started/concepts.md
+      - getting-started/first-agent.md
+  - Features & Concepts:
+      - features/index.md
+      - features/steps-tasks.md
+      - features/workflow-orchestration.md
+      - features/typed-dependencies.md
+      - features/asynchronous-tasks.md
+      - features/batch-workflows.md
+      - features/parallel-execution.md
+      - features/conditional-dependencies.md
+      - features/retries-with-backoff.md
+      - features/workflow-export.md
+      - features/tracing.md
+      - features/function-workflows.md
+      - features/branching-actions.md
+      - features/fail-fast-policy.md
+      - features/and-or-joins.md
+  - API Reference: api.md
+theme:
+  name: material
+  features:
+    - content.code.copy
+    - navigation.tabs
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          setup_commands:
+            - "import sys; sys.path.append('.')"
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight:
+      anchor_linenums: true
+      linenums: true
+      pygments_style: github
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - toc:
+      permalink: true
+extra_css:
+  - styles.css

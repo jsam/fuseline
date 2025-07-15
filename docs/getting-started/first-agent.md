@@ -1,15 +1,13 @@
 ---
-title: "Usage Guide"
+title: "Writing Your First Agent"
 ---
 
-# Usage Guide
 
-This page gives a brief overview of how to build workflows with **fuseline**.
+This tutorial walks through the basics of building an agent using Fuseline.
 
 ## Building Steps
 
-Steps subclass `Task` and implement `run_step` to perform work. Steps can be
-connected using the `>>` operator.
+Steps subclass `Task` and implement `run_step` to perform work. Steps can be chained using the `>>` operator.
 
 ```python
 from fuseline import Task, Workflow
@@ -31,8 +29,7 @@ flow.run()
 
 ## Typed Dependencies
 
-Steps can depend on the output of other steps using `Depends` and
-`Computed`.
+Steps can depend on the output of other steps using `Depends` and `Computed`.
 
 ```python
 from fuseline import Computed, Depends, Task, Workflow
@@ -74,8 +71,7 @@ asyncio.run(main())
 
 ## Parallel Execution
 
-Run independent branches in parallel using an execution engine such as
-`ProcessEngine`.
+Run independent branches in parallel using an execution engine such as `ProcessEngine`.
 
 ```python
 from fuseline import ProcessEngine
@@ -85,15 +81,10 @@ wf.run({"a": 1, "b": 2}, execution_engine=ProcessEngine(2))
 
 ## Exporting and Tracing
 
-Workflows can be exported to YAML with `Workflow.export()` and execution
-traces can be recorded using the `trace` parameter.  Both features rely on
-pluggable exporters and tracers so alternative formats or backends can be
-added easily.
+Workflows can be exported to YAML with `Workflow.export()` and execution traces can be recorded using the `trace` parameter.
 
 ```python
 wf.export("workflow.yaml")
 wf = Workflow(outputs=[step], trace="trace.log")
 wf.run({})
 ```
-
-See the example scripts in the `examples/` directory for more inspiration.

@@ -2,6 +2,4 @@
 title: "API Reference"
 ---
 
-# API Reference
-
 ::: fuseline
