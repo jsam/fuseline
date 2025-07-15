@@ -47,7 +47,7 @@ light/dark palette toggle.
 | **Typed dependencies** | Pass values between tasks using `Depends` and `Computed` |
 | **Asynchronous tasks** | Use `AsyncTask` and `AsyncWorkflow` for async execution |
 | **Batch workflows** | `BatchTask` and `BatchWorkflow` run tasks for multiple parameter sets |
-| **Parallel execution** | `ProcessEngine` executes independent branches concurrently |
+| **Parallel execution** | `PoolEngine` executes independent branches concurrently |
 | **Conditional dependencies** | Attach `Condition` functions to `Depends` for branch logic |
 | **Retries with backoff** | Tasks accept `max_retries` and `wait` to retry on failure |
 | **Workflow export** | Serialize graphs to YAML with `Workflow.export` and `YamlExporter` |

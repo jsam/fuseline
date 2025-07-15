@@ -17,7 +17,7 @@ import warnings
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Sequence
 
-from .engines import ProcessEngine
+from .engines import PoolEngine
 from .interfaces import ExecutionEngine, Exporter, Tracer
 from .storage import RuntimeStorage
 
@@ -333,6 +333,46 @@ class Workflow(Step):
         exporter = exporter or YamlExporter()
         exporter.export(self, path)
 
+    def dispatch(
+        self,
+        runtime_store: "RuntimeStorage",
+        inputs: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        """Queue the initial steps of this workflow in *runtime_store*.
+
+        Returns the created workflow instance ID.
+        """
+
+        self.params = inputs or {}
+        self.workflow_instance_id = uuid.uuid4().hex
+        step_names = self._step_name_map()
+        runtime_store.create_run(
+            self.workflow_id,
+            self.workflow_instance_id,
+            step_names.values(),
+        )
+        nodes = self._collect_steps()
+        indegree: Dict[Step, int] = {n: 0 for n in nodes}
+        for succ in nodes:
+            group_preds: set[Step] = set()
+            if isinstance(succ, Task):
+                succ.or_remaining = {k: True for k in succ.or_groups}
+                for group in succ.or_groups.values():
+                    indegree[succ] += 1
+                    group_preds.update(group)
+            for pred in succ.predecessors:
+                if pred not in group_preds:
+                    indegree[succ] += 1
+
+        ready = [n for n, d in indegree.items() if d == 0]
+        for step in ready:
+            runtime_store.enqueue(
+                self.workflow_id,
+                self.workflow_instance_id,
+                step_names[step],
+            )
+        return self.workflow_instance_id
+
     def run(
         self,
         inputs: Optional[Dict[str, Any]] = None,
@@ -353,7 +393,7 @@ class Workflow(Step):
         """
         self.params = inputs or {}
         shared: Dict[Any, Any] = {}
-        engine = execution_engine or self.execution_engine or ProcessEngine()
+        engine = execution_engine or self.execution_engine or PoolEngine()
         self.workflow_instance_id = uuid.uuid4().hex
         step_names = None
         if runtime_store:
@@ -606,7 +646,7 @@ class BatchWorkflow(Workflow):
     ) -> Any:
         self.params = inputs or {}
         shared: Dict[Any, Any] = {}
-        engine = execution_engine or self.execution_engine or ProcessEngine()
+        engine = execution_engine or self.execution_engine or PoolEngine()
         self.before_all(shared)
         param_sets = self.setup(shared) or []
         for bp in param_sets:
@@ -835,7 +875,7 @@ class AsyncWorkflow(Workflow, AsyncTask):
         """
         self.params = inputs or {}
         shared: Dict[Any, Any] = {}
-        engine = execution_engine or self.execution_engine or ProcessEngine()
+        engine = execution_engine or self.execution_engine or PoolEngine()
         self.workflow_instance_id = uuid.uuid4().hex
         step_names = None
         if runtime_store:

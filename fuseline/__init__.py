@@ -23,7 +23,7 @@
 
 __version__ = "0.1.2"
 __version_tuple__ = (0, 1, 2)
-from .engines import ProcessEngine
+from .engines import PoolEngine, ProcessEngine
 from .exporters import YamlExporter
 from .interfaces import ExecutionEngine, Exporter, Tracer
 from .tracing import FileTracer

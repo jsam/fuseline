@@ -40,6 +40,15 @@ class RuntimeStorage(ABC):
         """Persist the state of *step_name* for this run."""
 
     @abstractmethod
+    def get_state(
+        self,
+        workflow_id: str,
+        instance_id: str,
+        step_name: str,
+    ) -> "Status | None":
+        """Return the stored state for *step_name* if any."""
+
+    @abstractmethod
     def finalize_run(self, workflow_id: str, instance_id: str) -> None:
         """Mark the run as finished."""
 
@@ -104,6 +113,15 @@ class FileRuntimeStorage(RuntimeStorage):
         data = self._load(workflow_id, instance_id)
         data.setdefault("states", {})[step_name] = state.value
         self._save(workflow_id, instance_id, data)
+
+    def get_state(
+        self, workflow_id: str, instance_id: str, step_name: str
+    ) -> "Status | None":
+        from .workflow import Status
+
+        data = self._load(workflow_id, instance_id)
+        val = data.get("states", {}).get(step_name)
+        return Status(val) if val is not None else None
 
     def finalize_run(self, workflow_id: str, instance_id: str) -> None:
         path = self._path(workflow_id, instance_id)

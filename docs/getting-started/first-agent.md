@@ -81,13 +81,13 @@ asyncio.run(main())
 
 ## Parallel Execution
 
-Run independent branches in parallel using an execution engine such as `ProcessEngine`.
+Run independent branches in parallel using an execution engine such as `PoolEngine`.
 
 
 ```python
-from fuseline import ProcessEngine
+from fuseline import PoolEngine
 
-wf.run({"a": 1, "b": 2}, execution_engine=ProcessEngine(2))
+wf.run({"a": 1, "b": 2}, execution_engine=PoolEngine(2))
 
 ```
 

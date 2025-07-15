@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-from fuseline import Computed, Depends, ProcessEngine
+from fuseline import Computed, Depends, PoolEngine
 from fuseline.workflow import (
     AsyncTask,
     AsyncWorkflow,
@@ -391,7 +391,7 @@ def test_execution_groups_order() -> None:
     s2 = Rec("s2")
     s2 >> s1
     wf = Workflow(outputs=[s1])
-    wf.run(execution_engine=ProcessEngine())
+    wf.run(execution_engine=PoolEngine())
 
     assert log == ["s2", "s1"]
 
@@ -423,7 +423,7 @@ def test_linear_chain_execution_time() -> None:
     wf = Workflow(outputs=[c])
 
     start = time.perf_counter()
-    result = wf.run(execution_engine=ProcessEngine())
+    result = wf.run(execution_engine=PoolEngine())
     elapsed = time.perf_counter() - start
 
     assert result == "SUCCESS"
@@ -496,7 +496,7 @@ def test_parallel_fan_out_join_execution_time(tmp_path) -> None:
     wf = Workflow(outputs=[join], trace=str(trace_path))
 
     start_time = time.perf_counter()
-    result = wf.run(execution_engine=ProcessEngine(2))
+    result = wf.run(execution_engine=PoolEngine(2))
     elapsed = time.perf_counter() - start_time
 
     assert result == ["op1", "op2"]
@@ -592,7 +592,7 @@ def test_multi_target_outputs(tmp_path) -> None:
     trace_path = tmp_path / "trace.log"
     wf = Workflow(outputs=[d, e], trace=str(trace_path))
 
-    result = wf.run(execution_engine=ProcessEngine(2))
+    result = wf.run(execution_engine=PoolEngine(2))
 
     assert result == ["B\N{MULTIPLICATION X}", "C\N{MULTIPLICATION X}"]
     assert b.seen is c.seen
@@ -951,7 +951,7 @@ def test_three_parent_and_join(tmp_path) -> None:
     wf = Workflow(outputs=[join], trace=str(trace_path))
 
     start_time = time.perf_counter()
-    result = wf.run(execution_engine=ProcessEngine(3))
+    result = wf.run(execution_engine=PoolEngine(3))
     elapsed = time.perf_counter() - start_time
 
     assert result == {"fromA": 1, "fromB": 2, "fromC": 3}
@@ -1042,7 +1042,7 @@ def test_or_join_first_completer(tmp_path) -> None:
     trace_path = tmp_path / "trace.log"
     wf = Workflow(outputs=[winner], trace=str(trace_path))
 
-    result = wf.run(execution_engine=ProcessEngine(2))
+    result = wf.run(execution_engine=PoolEngine(2))
 
     assert winner.triggers == 1
     assert result["payload"]["source"] in {"Producer1", "Producer2"}
@@ -1109,7 +1109,7 @@ def test_or_join_first_completer_rshift(tmp_path) -> None:
     trace_path = tmp_path / "trace.log"
     wf = Workflow(outputs=[winner], trace=str(trace_path))
 
-    wf.run(execution_engine=ProcessEngine(2))
+    wf.run(execution_engine=PoolEngine(2))
 
     assert winner.triggers == 1
 
@@ -1182,7 +1182,7 @@ def test_or_join_condition_source(tmp_path) -> None:
     winner = RaceWinner()
 
     wf = Workflow(outputs=[winner])
-    result = wf.run(execution_engine=ProcessEngine(2))
+    result = wf.run(execution_engine=PoolEngine(2))
 
     assert cond.source is p1
     assert result["payload"]["source"] == "Producer1"

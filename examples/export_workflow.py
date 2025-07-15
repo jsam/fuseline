@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from fuseline import Computed, Depends, ProcessEngine, Task, Workflow
+from fuseline import Computed, Depends, PoolEngine, Task, Workflow
 
 
 class AddTask(Task):
@@ -38,7 +38,7 @@ class JoinTask(Task):
 if __name__ == "__main__":
     join = JoinTask()
     wf = Workflow(outputs=[join])
-    wf.run({"a": 1, "b": 2}, execution_engine=ProcessEngine(2))
+    wf.run({"a": 1, "b": 2}, execution_engine=PoolEngine(2))
     path = Path(__file__).with_suffix(".yaml")
     wf.export(str(path))
     print(f"exported to {path}")

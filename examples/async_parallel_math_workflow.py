@@ -1,7 +1,7 @@
 import asyncio
 from pathlib import Path
 
-from fuseline import AsyncTask, AsyncWorkflow, Computed, Depends, ProcessEngine
+from fuseline import AsyncTask, AsyncWorkflow, Computed, Depends, PoolEngine
 
 
 class AsyncAddTask(AsyncTask):
@@ -41,7 +41,7 @@ class AsyncJoinTask(AsyncTask):
 async def main() -> None:
     join = AsyncJoinTask()
     wf = AsyncWorkflow(outputs=[join])
-    await wf.run_async({"a": 1, "b": 2}, execution_engine=ProcessEngine(2))
+    await wf.run_async({"a": 1, "b": 2}, execution_engine=PoolEngine(2))
     path = Path(__file__).with_suffix(".yaml")
     wf.export(str(path))
     print(f"exported to {path}")
