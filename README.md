@@ -22,8 +22,9 @@ mkdocs serve
 ```
 
 Launches a local preview server. GitHub Pages builds the docs from the
-`gh-pages` branch automatically. The Material theme provides a search box and
-a built-in light/dark switch with GitHub-style code highlighting.
+`gh-pages` branch automatically. The Material theme provides a search box,
+workspace tabs for **Getting Started**, **Concepts & Features** and
+**API Reference**, Python syntax highlighting and a light/dark switch.
 ## Features
 
 | Feature | Description |
