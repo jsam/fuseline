@@ -7,20 +7,21 @@ Persist workflow state using a `RuntimeStorage` backend so runs can be resumed o
 You can run a workflow in a single process while persisting state, or dispatch tasks to a storage backend and have separate workers process them.
 
 ```python
-from fuseline import Workflow, MemoryRuntimeStorage, ProcessEngine
+from fuseline import Workflow
+from fuseline.broker import MemoryBroker
+from fuseline.engines import ProcessEngine
 
-store = MemoryRuntimeStorage()
+broker = MemoryBroker()
 wf = Workflow(outputs=[...])
 
 # enqueue starting steps and store state
-instance = wf.dispatch(runtime_store=store)
+instance = broker.dispatch_workflow(wf)
 
 # workers consume queued steps
-worker = ProcessEngine(wf, store)
-worker.work(instance)
+worker = ProcessEngine(broker, [wf])
+worker.work()
 ```
 
 The store keeps track of workflow inputs and each step's output so any
-worker can pick up where another left off. The broker itself does not
-need to know the workflow structure; workers enqueue their successors
-when reporting step completion.
+worker can pick up where another left off. The broker determines which
+steps become ready based on the stored workflow definition.

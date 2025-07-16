@@ -2,8 +2,8 @@
 title: "Broker API"
 ---
 
-The broker acts as the persistence layer for running workflows. Workers
-communicate with it over HTTP (or another transport) using four
+The broker stores workflow definitions and tracks running instances.
+Workers communicate with it over HTTP (or another transport) using four
 endpoints.
 
 ### Worker registration
@@ -12,8 +12,10 @@ endpoints.
 POST /worker/register
 ```
 
-A worker sends a list of workflow IDs it can execute and receives a
-unique worker ID in response.
+A worker sends the full workflow schemas it can execute.  Each schema has
+a name and a version.  If the broker already knows a workflow under the
+same name and version but the definition differs, the registration is
+rejected.  A successful call returns a unique worker ID.
 
 ### Fetching work
 
@@ -21,9 +23,10 @@ unique worker ID in response.
 GET /workflow/step
 ```
 
-The broker returns the next step for the worker as a tuple of workflow
-ID, instance ID and step name. If no step is available the response is
-empty.
+The broker returns the next step for the worker including the workflow
+inputs and the results of any dependencies.  The response contains the
+workflow ID, instance ID, step name and a dictionary of parameters.  If
+no step is available the response is empty.
 
 ### Reporting progress
 
@@ -32,9 +35,8 @@ POST /workflow/step
 ```
 
 Workers report step completion, failure or progress by posting the step
-state back to the broker.  The payload may include a list of
-`next_steps` to enqueue.  This allows the worker to control progression
-without the broker needing the workflow definition.
+state and result back to the broker.  The broker then determines which
+successor steps become ready based on the stored workflow definition.
 
 ### Keep alive
 

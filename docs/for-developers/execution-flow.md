@@ -38,28 +38,28 @@ the successor keys to choose the next edge.
 
 ### Executing tasks
 
-Workers load tasks from the store and run them using either
+Workers load tasks from the broker and run them using either
 `ProcessEngine` or another execution engine.  Task results are written
-back to the store so later workers can access their dependencies.
+back so the broker can decide which successors to enqueue.
 
-`ProcessEngine` drives this loop by repeatedly calling
-`fetch_next()` on the store, running the returned step and then storing
-its final state and output.  Successors are checked after each execution
-and, if ready, are enqueued for future workers.  The synchronous
-`PoolEngine` behaves similarly but operates entirely in‑memory without
-persistent state.
+`ProcessEngine` drives this loop by repeatedly asking the broker for the
+next step, executing it and reporting the result.  The broker examines
+the workflow definition to determine which successors become ready.  The
+synchronous `PoolEngine` behaves similarly but operates entirely
+in‑memory without persistent state.
 
 ```python
-from fuseline import Workflow, MemoryRuntimeStorage
+from fuseline import Workflow
+from fuseline.broker import MemoryBroker
 from fuseline.engines import ProcessEngine
 
-store = MemoryRuntimeStorage()
-instance = workflow.dispatch(runtime_store=store)
+broker = MemoryBroker()
+instance = broker.dispatch_workflow(workflow)
 
-worker = ProcessEngine(workflow, store)
-worker.work(instance)
+worker = ProcessEngine(broker, [workflow])
+worker.work()
 ```
 
 Multiple processes can create their own `ProcessEngine` instances
-pointing at the same store to distribute work.  Each worker grabs the
-next available step and pushes any newly‑ready steps back to the queue.
+pointing at the same broker to distribute work.  Each worker grabs the
+next available step and the broker handles queuing of successors.
