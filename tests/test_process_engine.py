@@ -34,6 +34,8 @@ def test_process_engine_runs_tasks(tmp_path: Path) -> None:
     assert store.get_state(wf.workflow_id, instance, names[s1]) == store.get_state(
         wf.workflow_id, instance, names[s2]
     )
+    assert store.get_result(wf.workflow_id, instance, names[s1]) is None
+    assert store.get_result(wf.workflow_id, instance, names[s2]) is None
 
 
 class FailingTask(Task):
@@ -61,6 +63,7 @@ def test_process_engine_retry_success(tmp_path: Path) -> None:
     engine.work(instance)
 
     assert store.get_state(wf.workflow_id, instance, names[s2]) == Status.SUCCEEDED
+    assert store.get_result(wf.workflow_id, instance, names[s2]) is None
 
 
 def test_process_engine_ignores_unknown_step(tmp_path: Path) -> None:

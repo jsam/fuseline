@@ -28,9 +28,9 @@ The engine writes workflow status after execution and calls
 
 Each task receives parameters from the workflow's input mapping. Results
 are placed in the shared dictionary keyed by the step object so other
-steps can access them. When using a runtime store, states—not data—are
-persisted. Developers can persist additional artifacts in custom step
-logic if needed.
+steps can access them. When a `RuntimeStorage` backend is configured,
+the engine stores the workflow inputs and each step's result so other
+workers can resume processing after a crash or restart.
 
 ### RuntimeStorage interface
 
@@ -45,6 +45,10 @@ class RuntimeStorage(ABC):
     def fetch_next(self, workflow_id: str, instance_id: str) -> str | None: ...
     def set_state(self, workflow_id: str, instance_id: str, step_name: str, state: Status) -> None: ...
     def get_state(self, workflow_id: str, instance_id: str, step_name: str) -> Status | None: ...
+    def set_inputs(self, workflow_id: str, instance_id: str, inputs: dict[str, Any]) -> None: ...
+    def get_inputs(self, workflow_id: str, instance_id: str) -> dict[str, Any]: ...
+    def set_result(self, workflow_id: str, instance_id: str, step_name: str, result: Any) -> None: ...
+    def get_result(self, workflow_id: str, instance_id: str, step_name: str) -> Any | None: ...
     def finalize_run(self, workflow_id: str, instance_id: str) -> None: ...
 ```
 
@@ -61,6 +65,7 @@ responsibilities in mind:
 4. **Finalize** – mark the run complete so other tools know the
    workflow finished.
 
-Only statuses are stored.  Step results remain in memory and should be
-persisted separately if desired.  For advanced storage backends you may
-choose to store results or metadata alongside the status values.
+The provided in-memory backend stores both step states and their
+results along with the workflow inputs.  More advanced backends can
+persist these values in databases or message queues so multiple workers
+can cooperate on the same run.

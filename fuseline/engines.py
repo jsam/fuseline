@@ -58,6 +58,7 @@ class ProcessEngine:
         from .workflow import Status
 
         shared: dict[Any, Any] = {}
+        self.workflow.params.update(self.store.get_inputs(self.workflow.workflow_id, instance_id))
         while True:
             step_name = self.store.fetch_next(
                 self.workflow.workflow_id, instance_id
@@ -67,6 +68,19 @@ class ProcessEngine:
             step = self._step_map.get(step_name)
             if step is None:
                 continue
+            if self.store.get_state(
+                self.workflow.workflow_id, instance_id, step_name
+            ) != Status.PENDING:
+                continue
+            for pred in step.predecessors:
+                if pred not in shared:
+                    res = self.store.get_result(
+                        self.workflow.workflow_id,
+                        instance_id,
+                        self.step_names[pred],
+                    )
+                    if res is not None:
+                        shared[pred] = res
             self.store.set_state(
                 self.workflow.workflow_id, instance_id, step_name, Status.RUNNING
             )
@@ -74,20 +88,48 @@ class ProcessEngine:
             self.store.set_state(
                 self.workflow.workflow_id, instance_id, step_name, step.state
             )
+            self.store.set_result(
+                self.workflow.workflow_id, instance_id, step_name, result
+            )
             action = result if isinstance(result, str) else None
             for succ in self.workflow.get_next_steps(step, action):
-                if all(
-                    self.store.get_state(
-                        self.workflow.workflow_id,
-                        instance_id,
-                        self.step_names[pred],
-                    )
-                    in {Status.SUCCEEDED, Status.SKIPPED}
-                    for pred in succ.predecessors
-                ):
+                if self._ready(succ, instance_id):
                     self.store.enqueue(
                         self.workflow.workflow_id,
                         instance_id,
                         self.step_names[succ],
                     )
         self.store.finalize_run(self.workflow.workflow_id, instance_id)
+
+    def _ready(self, step: "Step", instance_id: str) -> bool:
+        from .workflow import Status
+
+        finished = {Status.SUCCEEDED, Status.SKIPPED}
+        groups = {p for g in getattr(step, "or_groups", {}).values() for p in g}
+        for group in getattr(step, "or_groups", {}).values():
+            if not any(
+                self.store.get_state(
+                    self.workflow.workflow_id,
+                    instance_id,
+                    self.step_names[p],
+                )
+                in finished
+                for p in group
+            ):
+                return False
+        for pred in step.predecessors:
+            if pred in groups:
+                continue
+            if (
+                self.store.get_state(
+                    self.workflow.workflow_id,
+                    instance_id,
+                    self.step_names[pred],
+                )
+                not in finished
+            ):
+                return False
+        state = self.store.get_state(
+            self.workflow.workflow_id, instance_id, self.step_names[step]
+        )
+        return state == Status.PENDING

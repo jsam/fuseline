@@ -19,3 +19,8 @@ instance = wf.dispatch(runtime_store=store)
 worker = ProcessEngine(wf, store)
 worker.work(instance)
 ```
+
+The store keeps track of workflow inputs and each step's output so any
+worker can pick up where another left off. The broker itself does not
+need to know the workflow structure; workers enqueue their successors
+when reporting step completion.

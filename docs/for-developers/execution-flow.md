@@ -39,13 +39,13 @@ the successor keys to choose the next edge.
 ### Executing tasks
 
 Workers load tasks from the store and run them using either
-`ProcessEngine` or another execution engine.  Task results are kept
-in a shared dictionary so later steps can access their dependencies.
+`ProcessEngine` or another execution engine.  Task results are written
+back to the store so later workers can access their dependencies.
 
 `ProcessEngine` drives this loop by repeatedly calling
 `fetch_next()` on the store, running the returned step and then storing
-its final state.  Successors are checked after each execution and, if
-ready, are enqueued for future workers.  The synchronous
+its final state and output.  Successors are checked after each execution
+and, if ready, are enqueued for future workers.  The synchronous
 `PoolEngine` behaves similarly but operates entirely in‑memory without
 persistent state.
 

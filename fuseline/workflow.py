@@ -351,6 +351,9 @@ class Workflow(Step):
             self.workflow_instance_id,
             step_names.values(),
         )
+        runtime_store.set_inputs(
+            self.workflow_id, self.workflow_instance_id, self.params
+        )
         nodes = self._collect_steps()
         indegree: Dict[Step, int] = {n: 0 for n in nodes}
         for succ in nodes:
@@ -402,6 +405,12 @@ class Workflow(Step):
                 self.workflow_id,
                 self.workflow_instance_id,
                 step_names.values(),
+            )
+            runtime_store.set_inputs(
+                self.workflow_id, self.workflow_instance_id, self.params
+            )
+            runtime_store.set_inputs(
+                self.workflow_id, self.workflow_instance_id, self.params
             )
         if self.tracer:
             from .tracing import BoundTracer

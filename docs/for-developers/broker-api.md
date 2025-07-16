@@ -32,7 +32,9 @@ POST /workflow/step
 ```
 
 Workers report step completion, failure or progress by posting the step
-state back to the broker.
+state back to the broker.  The payload may include a list of
+`next_steps` to enqueue.  This allows the worker to control progression
+without the broker needing the workflow definition.
 
 ### Keep alive
 
