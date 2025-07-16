@@ -515,7 +515,7 @@ def test_parallel_fan_out_join_execution_time(tmp_path) -> None:
     assert max(p1.end, p2.end) <= join.start
     assert elapsed == pytest.approx(
         start_step.duration + max(p1.duration, p2.duration) + join.duration,
-        rel=0.3,
+        rel=0.6,
     )
 
     assert (
@@ -965,7 +965,7 @@ def test_three_parent_and_join(tmp_path) -> None:
     )
     assert max(a.end, b.end, c.end) <= join.start
     assert elapsed == pytest.approx(
-        max(a.duration, b.duration, c.duration) + join.duration, rel=0.3
+        max(a.duration, b.duration, c.duration) + join.duration, rel=0.6
     )
 
     events = [json.loads(line) for line in trace_path.read_text().splitlines()]

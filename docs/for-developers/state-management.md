@@ -48,8 +48,8 @@ class RuntimeStorage(ABC):
     def finalize_run(self, workflow_id: str, instance_id: str) -> None: ...
 ```
 
-`PostgresRuntimeStorage` stores this information in a PostgreSQL database but any data
-store can be used.  When writing a custom backend, keep these
+Any backend that implements this interface can be used to persist state.
+When writing a custom backend, keep these
 responsibilities in mind:
 
 1. **Create runs** – called once to initialise the queue and set all

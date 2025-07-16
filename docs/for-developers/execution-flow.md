@@ -16,8 +16,8 @@ Steps are identified by name and enqueued in dependency order.  The
 methods so workers can retrieve ready steps.
 
 The queue itself lives inside the configured `RuntimeStorage`
-implementation.  For `PostgresRuntimeStorage` this is a table-backed queue
-containing a list of step names.  When dispatching, the workflow
+implementation.  The storage backend keeps a list of step names and
+their states.  When dispatching, the workflow
 creates an entry for each step and immediately enqueues those without
 predecessors.  The remaining steps wait until their dependencies have
 finished.
@@ -50,10 +50,10 @@ ready, are enqueued for future workers.  The synchronous
 persistent state.
 
 ```python
-from fuseline import Workflow, PostgresRuntimeStorage
+from fuseline import Workflow, MemoryRuntimeStorage
 from fuseline.engines import ProcessEngine
 
-store = PostgresRuntimeStorage("postgresql://user:pass@localhost/db")
+store = MemoryRuntimeStorage()
 instance = workflow.dispatch(runtime_store=store)
 
 worker = ProcessEngine(workflow, store)

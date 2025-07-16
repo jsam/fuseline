@@ -1,12 +1,11 @@
 import json
-import os
 from pathlib import Path
 
 import pytest
 
 from fuseline import Workflow
 from fuseline.engines import ProcessEngine
-from fuseline.storage import PostgresRuntimeStorage
+from fuseline.storage import MemoryRuntimeStorage
 from fuseline.workflow import Task, Status
 
 
@@ -21,21 +20,19 @@ class SimpleTask(Task):
 
 
 def test_process_engine_runs_tasks(tmp_path: Path) -> None:
-    dsn = os.environ.get("FUSELINE_PG_DSN")
-    if not dsn:
-        pytest.skip("PostgreSQL not available")
     s1 = SimpleTask("a")
     s2 = SimpleTask("b")
     s1 >> s2
     wf = Workflow(outputs=[s2])
-    store = PostgresRuntimeStorage(dsn)
+    store = MemoryRuntimeStorage()
     instance = wf.dispatch(runtime_store=store)
+    names = wf._step_name_map()
 
     engine = ProcessEngine(wf, store)
     engine.work(instance)
 
-    assert store.get_state(wf.workflow_id, instance, "a") == store.get_state(
-        wf.workflow_id, instance, "b"
+    assert store.get_state(wf.workflow_id, instance, names[s1]) == store.get_state(
+        wf.workflow_id, instance, names[s2]
     )
 
 
@@ -52,40 +49,33 @@ class FailingTask(Task):
 
 
 def test_process_engine_retry_success(tmp_path: Path) -> None:
-    dsn = os.environ.get("FUSELINE_PG_DSN")
-    if not dsn:
-        pytest.skip("PostgreSQL not available")
     s1 = FailingTask()
     s2 = SimpleTask("done")
     s1 >> s2
     wf = Workflow(outputs=[s2])
-    store = PostgresRuntimeStorage(dsn)
+    store = MemoryRuntimeStorage()
     instance = wf.dispatch(runtime_store=store)
+    names = wf._step_name_map()
 
     engine = ProcessEngine(wf, store)
     engine.work(instance)
 
-    assert store.get_state(wf.workflow_id, instance, "done") == Status.SUCCEEDED
+    assert store.get_state(wf.workflow_id, instance, names[s2]) == Status.SUCCEEDED
 
 
 def test_process_engine_ignores_unknown_step(tmp_path: Path) -> None:
-    dsn = os.environ.get("FUSELINE_PG_DSN")
-    if not dsn:
-        pytest.skip("PostgreSQL not available")
     s = SimpleTask("only")
     wf = Workflow(outputs=[s])
-    store = PostgresRuntimeStorage(dsn)
+    store = MemoryRuntimeStorage()
     instance = wf.dispatch(runtime_store=store)
 
-    with store.conn.cursor() as cur:
-        cur.execute(
-            "INSERT INTO step_queue (workflow_id, instance_id, step_name) VALUES (%s, %s, %s)",
-            (wf.workflow_id, instance, "ghost"),
-        )
-    store.conn.commit()
+    names = wf._step_name_map()
+
+    # insert bogus step into queue
+    store.enqueue(wf.workflow_id, instance, "ghost")
 
     engine = ProcessEngine(wf, store)
     engine.work(instance)
 
-    assert store.get_state(wf.workflow_id, instance, "only") == Status.SUCCEEDED
+    assert store.get_state(wf.workflow_id, instance, names[s]) == Status.SUCCEEDED
 
