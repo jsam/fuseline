@@ -37,9 +37,10 @@ If no step is available the response is empty.
 POST /workflow/step
 ```
 
-Workers report step completion, failure or progress by posting the step
-state and result back to the broker.  The broker then determines which
-successor steps become ready based on the stored workflow definition.
+Workers send a ``StepReport`` object containing the step state and any
+returned value. The broker stores this output so it can become the input
+for downstream steps and then decides which successors are ready to run
+next.
 
 ### Keep alive
 

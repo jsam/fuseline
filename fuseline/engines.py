@@ -7,7 +7,7 @@ import warnings
 from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, Iterable, List
 
-from .broker import Broker
+from .broker import Broker, StepReport
 from .interfaces import ExecutionEngine
 
 if TYPE_CHECKING:  # pragma: no cover - for typing only
@@ -81,9 +81,11 @@ class ProcessEngine:
             result = workflow._execute_step(step, shared)
             self.broker.report_step(
                 self.worker_id,
-                wf_id,
-                instance_id,
-                step_name,
-                step.state,
-                result,
+                StepReport(
+                    workflow_id=wf_id,
+                    instance_id=instance_id,
+                    step_name=step_name,
+                    state=step.state,
+                    result=result,
+                ),
             )

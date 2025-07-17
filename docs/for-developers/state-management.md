@@ -52,6 +52,11 @@ class RuntimeStorage(ABC):
     def finalize_run(self, workflow_id: str, instance_id: str) -> None: ...
 ```
 
+The broker exposes these methods through HTTP endpoints. Workers
+receive a ``StepAssignment`` when fetching work and must reply with a
+``StepReport`` containing the updated state and any result so the broker
+can store it for downstream tasks.
+
 Any backend that implements this interface can be used to persist state.
 When writing a custom backend, keep these
 responsibilities in mind:

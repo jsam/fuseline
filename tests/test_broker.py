@@ -1,4 +1,4 @@
-from fuseline.broker import MemoryBroker, StepAssignment
+from fuseline.broker import MemoryBroker, StepAssignment, StepReport
 from fuseline.workflow import Status, Task, Workflow
 
 
@@ -23,11 +23,13 @@ def test_assignment_lifecycle():
 
     broker.report_step(
         worker,
-        assignment.workflow_id,
-        assignment.instance_id,
-        assignment.step_name,
-        Status.SUCCEEDED,
-        None,
+        StepReport(
+            workflow_id=assignment.workflow_id,
+            instance_id=assignment.instance_id,
+            step_name=assignment.step_name,
+            state=Status.SUCCEEDED,
+            result=None,
+        ),
     )
     assert (
         broker._store.get_assignment(wf.workflow_id, instance, assignment.step_name)

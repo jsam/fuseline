@@ -22,6 +22,17 @@ class StepAssignment:
     expires_at: float
 
 
+@dataclass
+class StepReport:
+    """Information sent to :meth:`Broker.report_step`."""
+
+    workflow_id: str
+    instance_id: str
+    step_name: str
+    state: Status
+    result: Any
+
+
 class Broker(ABC):
     """Interface implemented by the workflow broker."""
 
@@ -43,13 +54,9 @@ class Broker(ABC):
     def report_step(
         self,
         worker_id: str,
-        workflow_id: str,
-        instance_id: str,
-        step_name: str,
-        state: Status,
-        result: Any,
+        report: StepReport,
     ) -> None:
-        """Persist *step_name* completion and release the assignment."""
+        """Store step output and mark it completed."""
 
     @abstractmethod
     def keep_alive(self, worker_id: str) -> None:
@@ -171,12 +178,14 @@ class MemoryBroker(Broker):
     def report_step(
         self,
         worker_id: str,
-        workflow_id: str,
-        instance_id: str,
-        step_name: str,
-        state: Status,
-        result: Any,
+        report: StepReport,
     ) -> None:
+        workflow_id = report.workflow_id
+        instance_id = report.instance_id
+        step_name = report.step_name
+        state = report.state
+        result = report.result
+
         version = self._instance_version[(workflow_id, instance_id)]
         key = (workflow_id, version)
         workflow = self._wf_defs[key]
