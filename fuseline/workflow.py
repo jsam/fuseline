@@ -14,13 +14,12 @@ import inspect
 import time
 import uuid
 import warnings
-from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Sequence
 from dataclasses import dataclass, field
+from enum import Enum
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence
 
 from .interfaces import ExecutionEngine, Exporter, Tracer
 from .storage import RuntimeStorage
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover - for type hints only
     from .broker import Broker
@@ -272,6 +271,47 @@ class WorkflowSchema:
     steps: dict[str, StepSchema]
     outputs: list[str]
 
+    def to_yaml(self) -> str:
+        """Serialize this schema to a YAML string."""
+
+        data = {
+            "workflow_id": self.workflow_id,
+            "version": self.version,
+            "steps": {
+                name: {
+                    "successors": step.successors,
+                    "predecessors": step.predecessors,
+                    "or_groups": step.or_groups,
+                }
+                for name, step in self.steps.items()
+            },
+            "outputs": list(self.outputs),
+        }
+
+        def _dump_yaml(obj: Any, indent: int = 0) -> str:
+            pad = "  " * indent
+            if isinstance(obj, dict):
+                lines = []
+                for k, v in obj.items():
+                    if isinstance(v, (dict, list)):
+                        lines.append(f"{pad}{k}:")
+                        lines.append(_dump_yaml(v, indent + 1))
+                    else:
+                        lines.append(f"{pad}{k}: {v}")
+                return "\n".join(lines)
+            if isinstance(obj, list):
+                lines = []
+                for item in obj:
+                    if isinstance(item, (dict, list)):
+                        lines.append(f"{pad}-")
+                        lines.append(_dump_yaml(item, indent + 1))
+                    else:
+                        lines.append(f"{pad}- {item}")
+                return "\n".join(lines)
+            return f"{pad}{obj}"
+
+        return _dump_yaml(data)
+
     def to_workflow(
         self,
         tasks: dict[str, Step],
@@ -285,8 +325,12 @@ class WorkflowSchema:
                 for succ_name in succs:
                     step.next(tasks[succ_name], succ_action)
         outputs = [tasks[name] for name in self.outputs]
-        wf = Workflow(outputs=outputs, execution_engine=execution_engine,
-                      workflow_id=self.workflow_id, version=self.version)
+        wf = Workflow(
+            outputs=outputs,
+            execution_engine=execution_engine,
+            workflow_id=self.workflow_id,
+            version=self.version,
+        )
         return wf
 
 
@@ -552,7 +596,9 @@ class Workflow(Step):
         try:
             result = step._run(shared)
             step.state = (
-                Status.SKIPPED if getattr(step, "was_skipped", False) else Status.SUCCEEDED
+                Status.SKIPPED
+                if getattr(step, "was_skipped", False)
+                else Status.SUCCEEDED
             )
             step._log_event(
                 "step_finished",
@@ -633,7 +679,7 @@ class Workflow(Step):
                         )
                     return result
                 except Exception as e:  # pragma: no cover - bubble up
-                    exc['err'] = e
+                    exc["err"] = e
                     if runtime_store and step_names:
                         runtime_store.set_state(
                             self.workflow_id,
@@ -646,7 +692,7 @@ class Workflow(Step):
             results = engine.run_steps([lambda s=s: run_step(s) for s in batch])
 
             if exc:
-                raise exc['err']
+                raise exc["err"]
 
             for step, res in zip(batch, results):
                 last_result = res
@@ -690,6 +736,7 @@ class BatchWorkflow(Workflow):
         self.params = inputs or {}
         shared: Dict[Any, Any] = {}
         from .engines import PoolEngine
+
         engine = execution_engine or self.execution_engine or PoolEngine()
         self.before_all(shared)
         param_sets = self.setup(shared) or []
@@ -882,7 +929,9 @@ class AsyncWorkflow(Workflow, AsyncTask):
             try:
                 result = await step._run_async(shared)
                 step.state = (
-                    Status.SKIPPED if getattr(step, "was_skipped", False) else Status.SUCCEEDED
+                    Status.SKIPPED
+                    if getattr(step, "was_skipped", False)
+                    else Status.SUCCEEDED
                 )
                 step._log_event(
                     "step_finished",
@@ -920,6 +969,7 @@ class AsyncWorkflow(Workflow, AsyncTask):
         self.params = inputs or {}
         shared: Dict[Any, Any] = {}
         from .engines import PoolEngine
+
         engine = execution_engine or self.execution_engine or PoolEngine()
         self.workflow_instance_id = uuid.uuid4().hex
         step_names = None
@@ -1022,7 +1072,7 @@ class AsyncWorkflow(Workflow, AsyncTask):
                         )
                     return result
                 except Exception as e:  # pragma: no cover - bubble up
-                    exc['err'] = e
+                    exc["err"] = e
                     if runtime_store and step_names:
                         runtime_store.set_state(
                             self.workflow_id,
@@ -1037,7 +1087,7 @@ class AsyncWorkflow(Workflow, AsyncTask):
             )
 
             if exc:
-                raise exc['err']
+                raise exc["err"]
 
             for step, res in zip(batch, results):
                 last_result = res
@@ -1120,7 +1170,11 @@ class Depends:
             else:
                 self.obj = obj
         else:
-            self.obj = [o for obj in objs for o in (obj if isinstance(obj, (list, tuple)) else [obj])]
+            self.obj = [
+                o
+                for obj in objs
+                for o in (obj if isinstance(obj, (list, tuple)) else [obj])
+            ]
         if isinstance(condition, type) and issubclass(condition, Condition):
             self.condition = condition()
         else:

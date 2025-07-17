@@ -265,6 +265,31 @@ def test_export_with_condition(tmp_path):
     assert "expected: 2" in text
 
 
+def test_workflow_schema_to_yaml() -> None:
+    class A(Task):
+        def run_step(self) -> None:
+            pass
+
+    class B(Task):
+        def run_step(self) -> None:
+            pass
+
+    a = A()
+    b = B()
+    a >> b
+    wf = Workflow(outputs=[b], workflow_id="wf-schema")
+    schema = wf.to_schema()
+    yaml_text = schema.to_yaml()
+
+    lines = yaml_text.splitlines()
+    assert any(line.startswith("workflow_id:") for line in lines)
+    assert any(line.startswith("version:") for line in lines)
+    assert any(line.startswith("steps:") for line in lines)
+    for name in schema.steps:
+        assert any(line.strip().startswith(f"{name}:") for line in lines)
+    assert any(line.startswith("outputs:") for line in lines)
+
+
 def test_workflow_trace(tmp_path):
     class A(Task):
         def run_step(self) -> int:
@@ -1257,9 +1282,7 @@ def test_fail_fast_policy_depends(tmp_path) -> None:
     events = [json.loads(line) for line in trace_path.read_text().splitlines()]
     started = [e["step"] for e in events if e["event"] == "step_started"]
     assert started == ["Critical"]
-    assert any(
-        e["event"] == "step_failed" and e["step"] == "Critical" for e in events
-    )
+    assert any(e["event"] == "step_failed" and e["step"] == "Critical" for e in events)
     cancelled = [e["step"] for e in events if e["event"] == "step_cancelled"]
     assert set(cancelled) == {"Down1", "Down2"}
 
@@ -1471,4 +1494,3 @@ def test_retry_exhaustion_depends(tmp_path) -> None:
     assert any(e["event"] == "step_failed" and e["step"] == "FlakyTask" for e in events)
     cancelled = [e["step"] for e in events if e["event"] == "step_cancelled"]
     assert cancelled == ["Consumer"]
-
