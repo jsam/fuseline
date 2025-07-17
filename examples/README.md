@@ -74,3 +74,7 @@ has one path forward the action name defaults to ``"default"``.
 
 Runs a simple workflow while recording the order of executed steps to
 ``trace_workflow.trace`` using the ``trace`` argument on ``Workflow``.
+
+## policy_workflow.py
+
+Demonstrates attaching a ``RetryPolicy`` to a step.

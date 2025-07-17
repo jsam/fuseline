@@ -19,4 +19,5 @@ The pages in this section describe Fuseline's major capabilities with short exam
 - [Function workflows](function-workflows.md)
 - [Branching actions](branching-actions.md)
 - [Fail-fast policy](fail-fast-policy.md)
+- [Policies](../for-developers/policies.md)
 - [AND/OR joins](and-or-joins.md)
