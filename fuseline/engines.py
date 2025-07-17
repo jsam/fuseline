@@ -5,11 +5,13 @@ from __future__ import annotations
 import asyncio
 import warnings
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Awaitable, Callable, Iterable, List
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Iterable, List
 
 from .broker import Broker
-
 from .interfaces import ExecutionEngine
+
+if TYPE_CHECKING:  # pragma: no cover - for typing only
+    from .workflow import Step, Workflow
 
 
 class PoolEngine(ExecutionEngine):
@@ -62,10 +64,13 @@ class ProcessEngine:
 
     def work(self) -> None:
         while True:
-            item = self.broker.get_step(self.worker_id)
-            if item is None:
+            assignment = self.broker.get_step(self.worker_id)
+            if assignment is None:
                 break
-            wf_id, instance_id, step_name, payload = item
+            wf_id = assignment.workflow_id
+            instance_id = assignment.instance_id
+            step_name = assignment.step_name
+            payload = assignment.payload
             workflow = self.workflows[wf_id]
             step = self._rev_names[wf_id][step_name]
             shared = {
@@ -82,4 +87,3 @@ class ProcessEngine:
                 step.state,
                 result,
             )
-

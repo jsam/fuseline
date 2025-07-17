@@ -4,7 +4,9 @@ title: "Broker API"
 
 The broker stores workflow definitions and tracks running instances.
 Workers communicate with it over HTTP (or another transport) using four
-endpoints.
+endpoints.  Each step handed to a worker is represented by a
+`StepAssignment` object containing the workflow identifiers, the payload
+needed to run the task and a timeout deadline.
 
 ### Worker registration
 
@@ -24,9 +26,10 @@ GET /workflow/step
 ```
 
 The broker returns the next step for the worker including the workflow
-inputs and the results of any dependencies.  The response contains the
-workflow ID, instance ID, step name and a dictionary of parameters.  If
-no step is available the response is empty.
+inputs and dependency results.  It also records when the task was
+handed out and when it should expire.  The response contains the
+workflow ID, instance ID, step name, parameters and timeout metadata.
+If no step is available the response is empty.
 
 ### Reporting progress
 

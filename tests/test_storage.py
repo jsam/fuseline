@@ -1,10 +1,9 @@
 from pathlib import Path
 
 from fuseline import Workflow
-from fuseline.engines import ProcessEngine
-
 from fuseline.broker import MemoryBroker
-from fuseline.workflow import Task, Status
+from fuseline.engines import ProcessEngine
+from fuseline.workflow import Status, Task
 
 
 class SimpleTask(Task):
@@ -23,7 +22,7 @@ def test_memory_runtime_storage(tmp_path: Path) -> None:
     (s1 - "a") >> s2
     broker = MemoryBroker()
     wf = Workflow(outputs=[s2], workflow_id="wf-store")
-    instance = wf.dispatch(broker)
+    wf.dispatch(broker)
     engine = ProcessEngine(broker, [wf])
     engine.work()
     names = wf._step_name_map()

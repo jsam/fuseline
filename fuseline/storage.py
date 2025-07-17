@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections import defaultdict, deque
-from typing import Any, Iterable, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Iterable, Optional
 
 if TYPE_CHECKING:  # pragma: no cover - for type hints only
     from .workflow import Status
@@ -27,6 +27,29 @@ class RuntimeStorage(ABC):
     @abstractmethod
     def fetch_next(self, workflow_id: str, instance_id: str) -> Optional[str]:
         """Return the next ready step or ``None``."""
+
+    @abstractmethod
+    def assign_step(
+        self,
+        workflow_id: str,
+        instance_id: str,
+        step_name: str,
+        worker_id: str,
+        expires_at: float,
+    ) -> None:
+        """Record that *worker_id* is processing *step_name*."""
+
+    @abstractmethod
+    def clear_assignment(
+        self, workflow_id: str, instance_id: str, step_name: str
+    ) -> None:
+        """Remove assignment for *step_name*."""
+
+    @abstractmethod
+    def get_assignment(
+        self, workflow_id: str, instance_id: str, step_name: str
+    ) -> tuple[str, float] | None:
+        """Return ``(worker_id, expires_at)`` for assigned *step_name*."""
 
     @abstractmethod
     def set_state(
@@ -94,21 +117,20 @@ class MemoryRuntimeStorage(RuntimeStorage):
         self._results: dict[tuple[str, str, str], Any] = {}
         self._inputs: dict[tuple[str, str], dict[str, Any]] = {}
         self._finished: set[tuple[str, str]] = set()
+        self._assignments: dict[tuple[str, str, str], tuple[str, float]] = {}
 
     def create_run(
         self, workflow_id: str, instance_id: str, steps: Iterable[str]
     ) -> None:
         from .workflow import Status
+
         for step in steps:
             self._states[(workflow_id, instance_id, step)] = Status.PENDING
         key = (workflow_id, instance_id)
         self._queues[key].clear()
         self._queued[key].clear()
-        self._results = {
-            k: v
-            for k, v in self._results.items()
-            if k[:2] != key
-        }
+        self._assignments = {k: v for k, v in self._assignments.items() if k[:2] != key}
+        self._results = {k: v for k, v in self._results.items() if k[:2] != key}
         self._inputs.pop(key, None)
 
     def enqueue(self, workflow_id: str, instance_id: str, step_name: str) -> None:
@@ -126,6 +148,29 @@ class MemoryRuntimeStorage(RuntimeStorage):
         self._queued[(workflow_id, instance_id)].discard(step)
         return step
 
+    def assign_step(
+        self,
+        workflow_id: str,
+        instance_id: str,
+        step_name: str,
+        worker_id: str,
+        expires_at: float,
+    ) -> None:
+        self._assignments[(workflow_id, instance_id, step_name)] = (
+            worker_id,
+            expires_at,
+        )
+
+    def clear_assignment(
+        self, workflow_id: str, instance_id: str, step_name: str
+    ) -> None:
+        self._assignments.pop((workflow_id, instance_id, step_name), None)
+
+    def get_assignment(
+        self, workflow_id: str, instance_id: str, step_name: str
+    ) -> tuple[str, float] | None:
+        return self._assignments.get((workflow_id, instance_id, step_name))
+
     def set_state(
         self,
         workflow_id: str,
@@ -142,6 +187,11 @@ class MemoryRuntimeStorage(RuntimeStorage):
 
     def finalize_run(self, workflow_id: str, instance_id: str) -> None:
         self._finished.add((workflow_id, instance_id))
+        self._assignments = {
+            k: v
+            for k, v in self._assignments.items()
+            if k[:2] != (workflow_id, instance_id)
+        }
 
     # RuntimeStorage extras
     def set_inputs(
