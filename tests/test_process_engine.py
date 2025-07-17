@@ -1,9 +1,9 @@
 from pathlib import Path
 
 from fuseline import Workflow
-from fuseline.engines import ProcessEngine
 from fuseline.broker import MemoryBroker
-from fuseline.workflow import Task, Status
+from fuseline.engines import ProcessEngine
+from fuseline.workflow import Status, Task
 
 
 class SimpleTask(Task):
