@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from fuseline import Depends, Task, Workflow
+from fuseline import Depends, Step, Workflow
 
 
 class Equals:
@@ -15,7 +15,7 @@ class Equals:
         return value == self.expected
 
 
-class DecideTask(Task):
+class DecideTask(Step):
     def run_step(self, flag: bool) -> bool:
         print("deciding")
         return flag
@@ -24,12 +24,12 @@ class DecideTask(Task):
 decider = DecideTask()
 
 
-class DefaultTask(Task):
+class DefaultTask(Step):
     def run_step(self, _flag: bool = Depends(decider, condition=Equals(False))) -> None:
         print("default branch")
 
 
-class SkipTask(Task):
+class SkipTask(Step):
     def run_step(self, _flag: bool = Depends(decider, condition=Equals(True))) -> None:
         print("skip branch")
 

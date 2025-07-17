@@ -2,17 +2,17 @@
 title: "Typed dependencies"
 ---
 
-Pass values between tasks using `Depends` and `Computed`.
+Pass values between steps using `Depends` and `Computed`.
 
 
 ```python
-from fuseline import Computed, Depends, Task, Workflow
+from fuseline import Computed, Depends, Step, Workflow
 
-class Add(Task):
+class Add(Step):
     def run_step(self, x: int, y: int) -> int:
         return x + y
 
-class Multiply(Task):
+class Multiply(Step):
     add = Add()
     def run_step(self, value: Computed[int] = Depends(add)) -> int:
         return value * 2

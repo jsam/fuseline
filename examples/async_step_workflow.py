@@ -1,9 +1,9 @@
 import asyncio
 
-from fuseline import AsyncTask, AsyncWorkflow
+from fuseline import AsyncStep, AsyncWorkflow
 
 
-class AsyncPrintStep(AsyncTask):
+class AsyncPrintStep(AsyncStep):
     def __init__(self, message: str, action: str | None = None) -> None:
         super().__init__()
         self.message = message

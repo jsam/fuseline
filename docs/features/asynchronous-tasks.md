@@ -1,15 +1,15 @@
 ---
-title: "Asynchronous tasks"
+title: "Asynchronous steps"
 ---
 
-Use `AsyncTask` and `AsyncWorkflow` to execute steps asynchronously.
+Use `AsyncStep` and `AsyncWorkflow` to execute steps asynchronously.
 
 
 ```python
 import asyncio
-from fuseline import AsyncTask, AsyncWorkflow
+from fuseline import AsyncStep, AsyncWorkflow
 
-class AsyncHello(AsyncTask):
+class AsyncHello(AsyncStep):
     async def run_step_async(self, _setup_res):
         await asyncio.sleep(0.1)
         print("hello")

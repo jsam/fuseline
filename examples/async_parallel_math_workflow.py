@@ -1,10 +1,10 @@
 import asyncio
 from pathlib import Path
 
-from fuseline import AsyncTask, AsyncWorkflow, Computed, Depends, PoolEngine
+from fuseline import AsyncStep, AsyncWorkflow, Computed, Depends, PoolEngine
 
 
-class AsyncAddTask(AsyncTask):
+class AsyncAddTask(AsyncStep):
     async def run_step_async(self, a: int, b: int) -> int:
         await asyncio.sleep(0.1)
         return a + b
@@ -13,19 +13,19 @@ class AsyncAddTask(AsyncTask):
 add = AsyncAddTask()
 
 
-class AsyncMultiplyBy2(AsyncTask):
+class AsyncMultiplyBy2(AsyncStep):
     async def run_step_async(self, value: Computed[int] = Depends(add)) -> int:
         await asyncio.sleep(0.1)
         return value * 2
 
 
-class AsyncMultiplyBy3(AsyncTask):
+class AsyncMultiplyBy3(AsyncStep):
     async def run_step_async(self, value: Computed[int] = Depends(add)) -> int:
         await asyncio.sleep(0.1)
         return value * 3
 
 
-class AsyncJoinTask(AsyncTask):
+class AsyncJoinTask(AsyncStep):
     mul2 = AsyncMultiplyBy2()
     mul3 = AsyncMultiplyBy3()
 

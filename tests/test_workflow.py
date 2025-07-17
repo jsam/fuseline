@@ -7,7 +7,7 @@ import pytest
 
 from fuseline import Computed, Depends, PoolEngine
 from fuseline.workflow import (
-    AsyncTask,
+    AsyncStep,
     AsyncWorkflow,
     Condition,
     Status,
@@ -102,7 +102,7 @@ def test_workflow_conditional_transition():
     ]
 
 
-class AsyncRecorderStep(AsyncTask):
+class AsyncRecorderStep(AsyncStep):
     def __init__(self, log, label="ast", action=None):
         super().__init__()
         self.log = log

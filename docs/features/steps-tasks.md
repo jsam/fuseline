@@ -1,31 +1,30 @@
 ---
-title: "Steps and Tasks"
+title: "Steps"
 ---
 
 Fuseline builds workflows out of **steps**. A `Step` defines the minimal
 lifecycle for a unit of work with `setup`, `run_step` and `teardown`
 hooks. Steps can be chained together to form a `Workflow`.
 
-A **Task** is a more convenient `Step` that understands typed
-dependencies and includes a simple retry policy. Parameters annotated
-with `Depends` are automatically wired from previous steps. The
-`max_retries` and `wait` arguments configure the default
-`RetryPolicy` attached to the task.
+Steps support typed dependencies and a pluggable policy system. Parameters
+annotated with `Depends` are automatically wired from previous steps. The
+`max_retries` and `wait` arguments configure the default `RetryPolicy`
+attached to the step.
 
-### AsyncTask
+### AsyncStep
 
-`AsyncTask` mirrors `Task` but uses async lifecycle methods such as
+`AsyncStep` mirrors `Step` but uses async lifecycle methods such as
 `run_step_async`. Use it when a step needs to `await` other work.
 
-### BatchTask
+### BatchStep
 
-`BatchTask` executes its step for each item in an iterable input. This
+`BatchStep` executes its step for each item in an iterable input. This
 is useful when the same logic should run over multiple parameter sets.
 
 ```python
-from fuseline import Task
+from fuseline import Step
 
-class Hello(Task):
+class Hello(Step):
     def run_step(self, _setup_res):
         print("hello")
 ```

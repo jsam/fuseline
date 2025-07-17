@@ -1,8 +1,8 @@
-from fuseline import Task, Workflow
+from fuseline import Step, Workflow
 from fuseline.policies import RetryPolicy
 
 
-class SometimesFails(Task):
+class SometimesFails(Step):
     def __init__(self) -> None:
         super().__init__(max_retries=1)
         self.attempts = 0

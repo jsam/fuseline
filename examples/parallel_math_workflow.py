@@ -1,9 +1,9 @@
 from pathlib import Path
 
-from fuseline import Computed, Depends, PoolEngine, Task, Workflow
+from fuseline import Computed, Depends, PoolEngine, Step, Workflow
 
 
-class AddTask(Task):
+class AddTask(Step):
     def run_step(self, a: int, b: int) -> int:
         return a + b
 
@@ -11,17 +11,17 @@ class AddTask(Task):
 add = AddTask()
 
 
-class MultiplyBy2(Task):
+class MultiplyBy2(Step):
     def run_step(self, value: Computed[int] = Depends(add)) -> int:
         return value * 2
 
 
-class MultiplyBy3(Task):
+class MultiplyBy3(Step):
     def run_step(self, value: Computed[int] = Depends(add)) -> int:
         return value * 3
 
 
-class JoinTask(Task):
+class JoinTask(Step):
     mul2 = MultiplyBy2()
     mul3 = MultiplyBy3()
 

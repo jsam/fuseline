@@ -5,7 +5,7 @@ title: "Features & Concepts"
 
 The pages in this section describe Fuseline's major capabilities with short examples.
 
-- [Steps and Tasks](steps-tasks.md)
+- [Steps](steps-tasks.md)
 - [Workflow orchestration](workflow-orchestration.md)
 - [Typed dependencies](typed-dependencies.md)
 - [Asynchronous tasks](asynchronous-tasks.md)

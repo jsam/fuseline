@@ -7,18 +7,18 @@ This tutorial walks through the basics of building an agent using Fuseline.
 
 ## Building Steps
 
-Steps subclass `Task` and implement `run_step` to perform work. Steps can be chained using the `>>` operator.
+Steps subclass `Step` and implement `run_step` to perform work. Steps can be chained using the `>>` operator.
 
 
 
 ```python
-from fuseline import Task, Workflow
+from fuseline import Step, Workflow
 
-class Hello(Task):
+class Hello(Step):
     def run_step(self, _setup_res):
         print("hello")
 
-class World(Task):
+class World(Step):
     def run_step(self, _setup_res):
         print("world")
 
@@ -37,13 +37,13 @@ Steps can depend on the output of other steps using `Depends` and `Computed`.
 
 
 ```python
-from fuseline import Computed, Depends, Task, Workflow
+from fuseline import Computed, Depends, Step, Workflow
 
-class Add(Task):
+class Add(Step):
     def run_step(self, x: int, y: int) -> int:
         return x + y
 
-class Multiply(Task):
+class Multiply(Step):
     add = Add()
     def run_step(self, value: Computed[int] = Depends(add)) -> int:
         return value * 2
@@ -57,14 +57,14 @@ print(wf.run({"x": 2, "y": 3}))  # prints 10
 
 ## Asynchronous Workflows
 
-Use `AsyncTask` and `AsyncWorkflow` to execute steps asynchronously.
+Use `AsyncStep` and `AsyncWorkflow` to execute steps asynchronously.
 
 
 ```python
 import asyncio
-from fuseline import AsyncTask, AsyncWorkflow
+from fuseline import AsyncStep, AsyncWorkflow
 
-class AsyncHello(AsyncTask):
+class AsyncHello(AsyncStep):
     async def run_step_async(self, _setup_res):
         await asyncio.sleep(0.1)
         print("hello")

@@ -6,13 +6,13 @@ Downstream steps are cancelled when a dependency fails.
 
 
 ```python
-from fuseline import Task, Workflow
+from fuseline import Step, Workflow
 
-class Fails(Task):
+class Fails(Step):
     def run_step(self):
         raise RuntimeError()
 
-class Dep(Task):
+class Dep(Step):
     def run_step(self):
         print("will not run")
 

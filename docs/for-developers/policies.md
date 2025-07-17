@@ -7,15 +7,15 @@ workflows and modify how they run.
 
 ### Retries and backoff
 
-`RetryPolicy` controls how many times a step is retried. `Task` and
-`AsyncTask` automatically include a policy configured via the
+`RetryPolicy` controls how many times a step is retried. `Step` and
+`AsyncStep` automatically include a policy configured via the
 `max_retries` and `wait` arguments.
 
 ```python
-from fuseline import Task, Workflow
+from fuseline import Step, Workflow
 from fuseline.policies import RetryPolicy
 
-class Flaky(Task):
+class Flaky(Step):
     def run_step(self) -> None:
         raise RuntimeError("boom")
 

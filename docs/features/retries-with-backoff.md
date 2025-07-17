@@ -2,13 +2,13 @@
 title: "Retries with backoff"
 ---
 
-Tasks accept `max_retries` and `wait` parameters to retry on failure.
+Steps accept `max_retries` and `wait` parameters to retry on failure.
 
 
 ```python
-from fuseline import Task
+from fuseline import Step
 
-class SometimesFails(Task):
+class SometimesFails(Step):
     def run_step(self):
         raise RuntimeError("oops")
 

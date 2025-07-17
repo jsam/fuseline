@@ -11,20 +11,20 @@ python step_workflow.py
 
 ## step_workflow.py
 
-Builds a two step workflow using ``Task`` and ``Workflow`` where each step just
+Builds a two step workflow using ``Step`` and ``Workflow`` where each step just
 prints a message.
 
 ## async_step_workflow.py
 
-Demonstrates the asynchronous workflow API using ``AsyncTask`` and ``AsyncWorkflow``.
+Demonstrates the asynchronous workflow API using ``AsyncStep`` and ``AsyncWorkflow``.
 
 ## typed_task_workflow.py
 
-Shows how tasks can declare dependencies on each other using ``Depends`` and ``Computed``.
+Shows how steps can declare dependencies on each other using ``Depends`` and ``Computed``.
 
 ## async_typed_task_workflow.py
 
-Asynchronous variant of the typed workflow example using ``AsyncTask`` and ``AsyncWorkflow``.
+Asynchronous variant of the typed workflow example using ``AsyncStep`` and ``AsyncWorkflow``.
 
 ## combined_workflow.py
 
@@ -39,7 +39,7 @@ prints the outcome.
 ## async_math_workflow.py
 
 Asynchronous version of ``math_workflow.py`` showing the same logic executed with
-``AsyncTask`` and ``AsyncWorkflow``.
+``AsyncStep`` and ``AsyncWorkflow``.
 
 
 ## parallel_math_workflow.py
@@ -50,7 +50,7 @@ workflow is executed with ``PoolEngine(2)`` to run the branches in parallel.
 
 ## async_parallel_math_workflow.py
 
-Asynchronous version of ``parallel_math_workflow.py`` using ``AsyncTask`` and
+Asynchronous version of ``parallel_math_workflow.py`` using ``AsyncStep`` and
 ``AsyncWorkflow``.
 
 ## conditional_workflow.py
