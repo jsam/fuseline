@@ -16,6 +16,7 @@ import uuid
 import warnings
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Sequence
+from dataclasses import dataclass, field
 
 from .interfaces import ExecutionEngine, Exporter, Tracer
 from .storage import RuntimeStorage
@@ -252,6 +253,43 @@ class BatchTask(Task):
         return [super(BatchTask, self)._exec(i) for i in (items or [])]
 
 
+@dataclass
+class StepSchema:
+    """Lightweight representation of a workflow step."""
+
+    name: str
+    successors: dict[str, list[str]] = field(default_factory=dict)
+    predecessors: list[str] = field(default_factory=list)
+    or_groups: dict[str, list[str]] = field(default_factory=dict)
+
+
+@dataclass
+class WorkflowSchema:
+    """Serializable workflow structure used by the broker."""
+
+    workflow_id: str
+    version: str
+    steps: dict[str, StepSchema]
+    outputs: list[str]
+
+    def to_workflow(
+        self,
+        tasks: dict[str, Step],
+        execution_engine: "ExecutionEngine | None" = None,
+    ) -> "Workflow":
+        """Reconstruct a :class:`Workflow` from this schema."""
+
+        for step_name, schema in self.steps.items():
+            step = tasks[step_name]
+            for succ_action, succs in schema.successors.items():
+                for succ_name in succs:
+                    step.next(tasks[succ_name], succ_action)
+        outputs = [tasks[name] for name in self.outputs]
+        wf = Workflow(outputs=outputs, execution_engine=execution_engine,
+                      workflow_id=self.workflow_id, version=self.version)
+        return wf
+
+
 class Workflow(Step):
     """A sequence of :class:`Step` objects executed via an engine."""
 
@@ -339,6 +377,39 @@ class Workflow(Step):
         exporter = exporter or YamlExporter()
         exporter.export(self, path)
 
+    def to_schema(self) -> WorkflowSchema:
+        """Return a :class:`WorkflowSchema` for this workflow."""
+
+        steps = self._collect_steps()
+        name_map = self._step_name_map()
+        schema_steps: dict[str, StepSchema] = {}
+        for step in steps:
+            succs = {
+                act: [name_map[s] for s in tgts]
+                for act, tgts in step.successors.items()
+            }
+            or_groups = (
+                {
+                    k: [name_map[s] for s in grp]
+                    for k, grp in getattr(step, "or_groups", {}).items()
+                }
+                if isinstance(step, Task)
+                else {}
+            )
+            preds = [name_map[p] for p in step.predecessors]
+            schema_steps[name_map[step]] = StepSchema(
+                name=name_map[step],
+                successors=succs,
+                predecessors=preds,
+                or_groups=or_groups,
+            )
+        return WorkflowSchema(
+            workflow_id=self.workflow_id,
+            version=self.workflow_version,
+            steps=schema_steps,
+            outputs=[name_map[o] for o in self.outputs],
+        )
+
     def dispatch(
         self,
         broker: "Broker",
@@ -347,7 +418,8 @@ class Workflow(Step):
         """Register a workflow run with *broker* and enqueue starting steps."""
 
         self.params = inputs or {}
-        self.workflow_instance_id = broker.dispatch_workflow(self, self.params)
+        schema = self.to_schema()
+        self.workflow_instance_id = broker.dispatch_workflow(schema, self.params)
         return self.workflow_instance_id
 
     def run(

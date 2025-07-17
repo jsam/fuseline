@@ -23,7 +23,7 @@ def test_memory_runtime_storage(tmp_path: Path) -> None:
     (s1 - "a") >> s2
     broker = MemoryBroker()
     wf = Workflow(outputs=[s2], workflow_id="wf-store")
-    instance = broker.dispatch_workflow(wf)
+    instance = wf.dispatch(broker)
     engine = ProcessEngine(broker, [wf])
     engine.work()
     names = wf._step_name_map()

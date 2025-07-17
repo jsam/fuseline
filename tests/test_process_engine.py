@@ -25,7 +25,7 @@ def test_process_engine_runs_tasks(tmp_path: Path) -> None:
     s1 >> s2
     wf = Workflow(outputs=[s2], workflow_id="wf1")
     broker = MemoryBroker()
-    instance = broker.dispatch_workflow(wf)
+    instance = broker.dispatch_workflow(wf.to_schema())
     names = wf._step_name_map()
 
     engine = ProcessEngine(broker, [wf])
@@ -57,7 +57,7 @@ def test_process_engine_retry_success(tmp_path: Path) -> None:
     s1 >> s2
     wf = Workflow(outputs=[s2], workflow_id="wf2")
     broker = MemoryBroker()
-    instance = broker.dispatch_workflow(wf)
+    instance = broker.dispatch_workflow(wf.to_schema())
     names = wf._step_name_map()
 
     engine = ProcessEngine(broker, [wf])
@@ -72,7 +72,7 @@ def test_process_engine_ignores_unknown_step(tmp_path: Path) -> None:
     s = SimpleTask("only")
     wf = Workflow(outputs=[s], workflow_id="wf3")
     broker = MemoryBroker()
-    instance = broker.dispatch_workflow(wf)
+    instance = broker.dispatch_workflow(wf.to_schema())
 
     names = wf._step_name_map()
 

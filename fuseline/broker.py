@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 import uuid
 from typing import Any, Iterable, Optional
 
-from .workflow import Status, Workflow, Step, Task
+from .workflow import Status, WorkflowSchema, StepSchema
 from .storage import MemoryRuntimeStorage
 
 
@@ -12,12 +12,12 @@ class Broker(ABC):
     """Interface implemented by the workflow broker."""
 
     @abstractmethod
-    def register_worker(self, workflows: Iterable[Workflow]) -> str:
+    def register_worker(self, workflows: Iterable[WorkflowSchema]) -> str:
         """Register a worker and return a worker ID."""
 
     @abstractmethod
     def dispatch_workflow(
-        self, workflow: Workflow, inputs: Optional[dict[str, Any]] = None
+        self, workflow: WorkflowSchema, inputs: Optional[dict[str, Any]] = None
     ) -> str:
         """Create a workflow run and queue initial steps."""
 
@@ -47,72 +47,55 @@ class MemoryBroker(Broker):
 
     def __init__(self) -> None:
         self._workers: dict[str, set[tuple[str, str]]] = {}
-        self._wf_defs: dict[tuple[str, str], Workflow] = {}
-        self._step_names: dict[tuple[str, str], dict[Step, str]] = {}
-        self._rev_names: dict[tuple[str, str], dict[str, Step]] = {}
+        self._wf_defs: dict[tuple[str, str], WorkflowSchema] = {}
+        self._steps: dict[tuple[str, str], dict[str, StepSchema]] = {}
         self._instances: list[tuple[str, str, str]] = []
         self._instance_version: dict[tuple[str, str], str] = {}
         self._store = MemoryRuntimeStorage()
         self._wid = 0
         self._heartbeat: set[str] = set()
 
-    def register_worker(self, workflows: Iterable[Workflow]) -> str:
+    def register_worker(self, workflows: Iterable[WorkflowSchema]) -> str:
         self._wid += 1
         wid = str(self._wid)
         wf_keys: set[tuple[str, str]] = set()
         for wf in workflows:
-            key = (wf.workflow_id, wf.workflow_version)
+            key = (wf.workflow_id, wf.version)
             existing = self._wf_defs.get(key)
-            if existing and existing is not wf:
+            if existing and existing != wf:
                 raise ValueError("workflow schema mismatch")
             self._wf_defs.setdefault(key, wf)
-            if key not in self._step_names:
-                mapping = wf._step_name_map()
-                self._step_names[key] = mapping
-                self._rev_names[key] = {n: s for s, n in mapping.items()}
+            if key not in self._steps:
+                self._steps[key] = wf.steps
             wf_keys.add(key)
         self._workers[wid] = wf_keys
         return wid
 
     def dispatch_workflow(
-        self, workflow: Workflow, inputs: Optional[dict[str, Any]] = None
+        self, workflow: WorkflowSchema, inputs: Optional[dict[str, Any]] = None
     ) -> str:
         instance = uuid.uuid4().hex
-        key = (workflow.workflow_id, workflow.workflow_version)
+        key = (workflow.workflow_id, workflow.version)
         if key not in self._wf_defs:
             self.register_worker([workflow])
         self._wf_defs[key] = workflow
-        mapping = self._step_names[key]
-        self._store.create_run(workflow.workflow_id, instance, mapping.values())
+        self._steps.setdefault(key, workflow.steps)
+        self._store.create_run(workflow.workflow_id, instance, workflow.steps.keys())
         self._store.set_inputs(workflow.workflow_id, instance, inputs or {})
-        self._instances.append((workflow.workflow_id, workflow.workflow_version, instance))
-        self._instance_version[(workflow.workflow_id, instance)] = workflow.workflow_version
-        nodes = workflow._collect_steps()
-        indegree: dict[Step, int] = {n: 0 for n in nodes}
-        for succ in nodes:
-            group_preds: set[Step] = set()
-            if isinstance(succ, Task):
-                succ.or_remaining = {k: True for k in succ.or_groups}
-                for group in succ.or_groups.values():
-                    indegree[succ] += 1
-                    group_preds.update(group)
-            for pred in succ.predecessors:
-                if pred not in group_preds:
-                    indegree[succ] += 1
-        ready = [n for n, d in indegree.items() if d == 0]
-        for step in ready:
-            self._store.enqueue(workflow.workflow_id, instance, mapping[step])
-        workflow.workflow_instance_id = instance
+        self._instances.append((workflow.workflow_id, workflow.version, instance))
+        self._instance_version[(workflow.workflow_id, instance)] = workflow.version
+        for step_name, step in workflow.steps.items():
+            if not step.predecessors:
+                self._store.enqueue(workflow.workflow_id, instance, step_name)
         return instance
 
-    def _ready(self, workflow: Workflow, step: Step, instance_id: str) -> bool:
-        key = (workflow.workflow_id, workflow.workflow_version)
-        mapping = self._step_names[key]
+    def _ready(self, workflow: WorkflowSchema, step: StepSchema, instance_id: str) -> bool:
+        key = (workflow.workflow_id, workflow.version)
         finished = {Status.SUCCEEDED, Status.SKIPPED}
-        groups = {p for g in getattr(step, "or_groups", {}).values() for p in g}
-        for group in getattr(step, "or_groups", {}).values():
+        groups = {p for g in step.or_groups.values() for p in g}
+        for group in step.or_groups.values():
             if not any(
-                self._store.get_state(workflow.workflow_id, instance_id, mapping[p])
+                self._store.get_state(workflow.workflow_id, instance_id, p)
                 in finished
                 for p in group
             ):
@@ -121,18 +104,16 @@ class MemoryBroker(Broker):
             if pred in groups:
                 continue
             if (
-                self._store.get_state(workflow.workflow_id, instance_id, mapping[pred])
+                self._store.get_state(workflow.workflow_id, instance_id, pred)
                 not in finished
             ):
                 return False
-        state = self._store.get_state(workflow.workflow_id, instance_id, mapping[step])
+        state = self._store.get_state(workflow.workflow_id, instance_id, step.name)
         return state == Status.PENDING
 
-    def _build_inputs(self, workflow: Workflow, instance_id: str, step: Step) -> dict[str, Any]:
-        key = (workflow.workflow_id, workflow.workflow_version)
-        mapping = self._step_names[key]
+    def _build_inputs(self, workflow: WorkflowSchema, instance_id: str, step: StepSchema) -> dict[str, Any]:
         deps = {
-            mapping[p]: self._store.get_result(workflow.workflow_id, instance_id, mapping[p])
+            p: self._store.get_result(workflow.workflow_id, instance_id, p)
             for p in step.predecessors
         }
         return {
@@ -149,7 +130,7 @@ class MemoryBroker(Broker):
             if step_name:
                 key = (wf_id, version)
                 workflow = self._wf_defs[key]
-                step = self._rev_names[key].get(step_name)
+                step = workflow.steps.get(step_name)
                 if step is None:
                     # ignore unknown entries
                     continue
@@ -169,15 +150,20 @@ class MemoryBroker(Broker):
         version = self._instance_version[(workflow_id, instance_id)]
         key = (workflow_id, version)
         workflow = self._wf_defs[key]
-        mapping = self._step_names[key]
-        step = self._rev_names[key][step_name]
+        step = workflow.steps[step_name]
         self._store.set_state(workflow_id, instance_id, step_name, state)
         self._store.set_result(workflow_id, instance_id, step_name, result)
         if state in {Status.SUCCEEDED, Status.SKIPPED}:
             action = result if isinstance(result, str) else None
-            for succ in workflow.get_next_steps(step, action):
-                if self._ready(workflow, succ, instance_id):
-                    self._store.enqueue(workflow_id, instance_id, mapping[succ])
+            succ_names = []
+            if action and action in step.successors:
+                succ_names.extend(step.successors[action])
+            else:
+                succ_names.extend(step.successors.get("default", []))
+            for succ in succ_names:
+                succ_schema = workflow.steps[succ]
+                if self._ready(workflow, succ_schema, instance_id):
+                    self._store.enqueue(workflow_id, instance_id, succ)
         # finalize when no more tasks remain
         if not self._store._queues[(workflow_id, instance_id)]:
             self._store.finalize_run(workflow_id, instance_id)

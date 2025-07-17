@@ -57,7 +57,8 @@ class ProcessEngine:
             mapping = wf._step_name_map()
             self._step_names[wf.workflow_id] = mapping
             self._rev_names[wf.workflow_id] = {n: s for s, n in mapping.items()}
-        self.worker_id = broker.register_worker(workflows)
+        schemas = [wf.to_schema() for wf in workflows]
+        self.worker_id = broker.register_worker(schemas)
 
     def work(self) -> None:
         while True:

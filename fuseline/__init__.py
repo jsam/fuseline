@@ -46,6 +46,7 @@ from .workflow import (
     Task,
     TypedTask,
     Workflow,
+    WorkflowSchema,
     workflow_from_functions,
 )
 
