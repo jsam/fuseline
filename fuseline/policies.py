@@ -15,7 +15,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, Type
 
 if TYPE_CHECKING:  # pragma: no cover - for type hints only
-    from .workflow import Step, Workflow
+    from .workflow import Step, StepSchema, Workflow, WorkflowSchema
 
 
 # registry for serializable policies
@@ -107,6 +107,45 @@ class RetryPolicy(StepPolicy):
         return FailureDecision(FailureAction.FAIL)
 
 
+class StepTimeoutPolicy(StepPolicy):
+    """Specify the processing timeout for a step."""
+
+    name = "timeout"
+
+    def __init__(self, seconds: float) -> None:
+        self.seconds = seconds
+
+    def to_config(self) -> Dict[str, Any]:
+        return {"seconds": self.seconds}
+
+
+class WorkerPolicy(Policy):
+    """Policy consulted by the broker when assigning work to a worker."""
+
+    def step_timeout(
+        self, wf: "WorkflowSchema", step: "StepSchema"
+    ) -> float | None:  # pragma: no cover - default no-op
+        return None
+
+
+class StepTimeoutWorkerPolicy(WorkerPolicy):
+    """Read :class:`StepTimeoutPolicy` from the step definition."""
+
+    name = "worker_timeout"
+
+    def __init__(self, default: float = 60.0) -> None:
+        self.default = default
+
+    def step_timeout(
+        self, wf: "WorkflowSchema", step: "StepSchema"
+    ) -> float | None:
+        for pol in step.policies:
+            if pol.get("name") == StepTimeoutPolicy.name:
+                cfg = pol.get("config", {})
+                return float(cfg.get("seconds", self.default))
+        return self.default
+
+
 __all__ = [
     "_POLICY_REGISTRY",
     "FailureAction",
@@ -114,5 +153,8 @@ __all__ = [
     "Policy",
     "RetryPolicy",
     "StepPolicy",
+    "StepTimeoutPolicy",
+    "StepTimeoutWorkerPolicy",
+    "WorkerPolicy",
     "WorkflowPolicy",
 ]

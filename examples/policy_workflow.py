@@ -1,5 +1,7 @@
 from fuseline import Step, Workflow
-from fuseline.policies import RetryPolicy
+from fuseline.broker import MemoryBroker
+from fuseline.engines import ProcessEngine
+from fuseline.policies import RetryPolicy, StepTimeoutPolicy, StepTimeoutWorkerPolicy
 
 
 class SometimesFails(Step):
@@ -14,8 +16,11 @@ class SometimesFails(Step):
 
 
 fail = SometimesFails()
-# attach a custom policy
+# attach policies
 fail.policies.append(RetryPolicy(max_retries=3, wait=0.5))
+fail.policies.append(StepTimeoutPolicy(5.0))
 
 wf = Workflow(outputs=[fail])
-wf.run()
+broker = MemoryBroker()
+engine = ProcessEngine(broker, [wf], worker_policies={wf.workflow_id: [StepTimeoutWorkerPolicy()]})
+engine.work()
