@@ -1,4 +1,4 @@
-from fuseline import Computed, Depends, ProcessEngine, Task, Workflow
+from fuseline import Computed, Depends, PoolEngine, Task, Workflow
 
 
 class Add(Task):
@@ -16,5 +16,5 @@ add >> mul
 
 if __name__ == "__main__":
     wf = Workflow(outputs=[mul], trace=str(__file__).replace('.py', '.trace'))
-    wf.run({"x": 1, "y": 2}, execution_engine=ProcessEngine())
+    wf.run({"x": 1, "y": 2}, execution_engine=PoolEngine())
     print("workflow traced")

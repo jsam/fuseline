@@ -46,7 +46,7 @@ Asynchronous version of ``math_workflow.py`` showing the same logic executed wit
 
 Expands the math example by sending the sum into two separate multiply tasks
 that multiply by ``2`` and ``3``. A final task prints both results. The
-workflow is executed with ``ProcessEngine(2)`` to run the branches in parallel.
+workflow is executed with ``PoolEngine(2)`` to run the branches in parallel.
 
 ## async_parallel_math_workflow.py
 

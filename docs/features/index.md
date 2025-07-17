@@ -15,6 +15,7 @@ The pages in this section describe Fuseline's major capabilities with short exam
 - [Retries with backoff](retries-with-backoff.md)
 - [Workflow export](workflow-export.md)
 - [Tracing](tracing.md)
+- [Runtime storage](runtime-storage.md)
 - [Function workflows](function-workflows.md)
 - [Branching actions](branching-actions.md)
 - [Fail-fast policy](fail-fast-policy.md)

@@ -14,11 +14,15 @@ import inspect
 import time
 import uuid
 import warnings
+from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence
 
-from .engines import ProcessEngine
 from .interfaces import ExecutionEngine, Exporter, Tracer
+from .storage import RuntimeStorage
+
+if TYPE_CHECKING:  # pragma: no cover - for type hints only
+    from .broker import Broker
 
 
 class Status(str, Enum):
@@ -248,6 +252,88 @@ class BatchTask(Task):
         return [super(BatchTask, self)._exec(i) for i in (items or [])]
 
 
+@dataclass
+class StepSchema:
+    """Lightweight representation of a workflow step."""
+
+    name: str
+    successors: dict[str, list[str]] = field(default_factory=dict)
+    predecessors: list[str] = field(default_factory=list)
+    or_groups: dict[str, list[str]] = field(default_factory=dict)
+
+
+@dataclass
+class WorkflowSchema:
+    """Serializable workflow structure used by the broker."""
+
+    workflow_id: str
+    version: str
+    steps: dict[str, StepSchema]
+    outputs: list[str]
+
+    def to_yaml(self) -> str:
+        """Serialize this schema to a YAML string."""
+
+        data = {
+            "workflow_id": self.workflow_id,
+            "version": self.version,
+            "steps": {
+                name: {
+                    "successors": step.successors,
+                    "predecessors": step.predecessors,
+                    "or_groups": step.or_groups,
+                }
+                for name, step in self.steps.items()
+            },
+            "outputs": list(self.outputs),
+        }
+
+        def _dump_yaml(obj: Any, indent: int = 0) -> str:
+            pad = "  " * indent
+            if isinstance(obj, dict):
+                lines = []
+                for k, v in obj.items():
+                    if isinstance(v, (dict, list)):
+                        lines.append(f"{pad}{k}:")
+                        lines.append(_dump_yaml(v, indent + 1))
+                    else:
+                        lines.append(f"{pad}{k}: {v}")
+                return "\n".join(lines)
+            if isinstance(obj, list):
+                lines = []
+                for item in obj:
+                    if isinstance(item, (dict, list)):
+                        lines.append(f"{pad}-")
+                        lines.append(_dump_yaml(item, indent + 1))
+                    else:
+                        lines.append(f"{pad}- {item}")
+                return "\n".join(lines)
+            return f"{pad}{obj}"
+
+        return _dump_yaml(data)
+
+    def to_workflow(
+        self,
+        tasks: dict[str, Step],
+        execution_engine: "ExecutionEngine | None" = None,
+    ) -> "Workflow":
+        """Reconstruct a :class:`Workflow` from this schema."""
+
+        for step_name, schema in self.steps.items():
+            step = tasks[step_name]
+            for succ_action, succs in schema.successors.items():
+                for succ_name in succs:
+                    step.next(tasks[succ_name], succ_action)
+        outputs = [tasks[name] for name in self.outputs]
+        wf = Workflow(
+            outputs=outputs,
+            execution_engine=execution_engine,
+            workflow_id=self.workflow_id,
+            version=self.version,
+        )
+        return wf
+
+
 class Workflow(Step):
     """A sequence of :class:`Step` objects executed via an engine."""
 
@@ -257,6 +343,8 @@ class Workflow(Step):
         execution_engine: "ExecutionEngine | None" = None,
         *,
         trace: str | Tracer | None = None,
+        workflow_id: str | None = None,
+        version: str = "1",
     ) -> None:
         super().__init__()
         self.outputs = outputs
@@ -271,7 +359,8 @@ class Workflow(Step):
             self.trace_path = None
         self.roots = self._find_roots(outputs)
         self.start_step = self.roots[0] if self.roots else None
-        self.workflow_id = uuid.uuid4().hex
+        self.workflow_id = workflow_id or uuid.uuid4().hex
+        self.workflow_version = version
         self.workflow_instance_id: str | None = None
         self.state: Status = Status.PENDING
         self._assign_execution_groups()
@@ -332,7 +421,57 @@ class Workflow(Step):
         exporter = exporter or YamlExporter()
         exporter.export(self, path)
 
-    def run(self, inputs: Optional[Dict[str, Any]] = None, execution_engine: "ExecutionEngine | None" = None) -> Any:  # type: ignore[override]
+    def to_schema(self) -> WorkflowSchema:
+        """Return a :class:`WorkflowSchema` for this workflow."""
+
+        steps = self._collect_steps()
+        name_map = self._step_name_map()
+        schema_steps: dict[str, StepSchema] = {}
+        for step in steps:
+            succs = {
+                act: [name_map[s] for s in tgts]
+                for act, tgts in step.successors.items()
+            }
+            or_groups = (
+                {
+                    k: [name_map[s] for s in grp]
+                    for k, grp in getattr(step, "or_groups", {}).items()
+                }
+                if isinstance(step, Task)
+                else {}
+            )
+            preds = [name_map[p] for p in step.predecessors]
+            schema_steps[name_map[step]] = StepSchema(
+                name=name_map[step],
+                successors=succs,
+                predecessors=preds,
+                or_groups=or_groups,
+            )
+        return WorkflowSchema(
+            workflow_id=self.workflow_id,
+            version=self.workflow_version,
+            steps=schema_steps,
+            outputs=[name_map[o] for o in self.outputs],
+        )
+
+    def dispatch(
+        self,
+        broker: "Broker",
+        inputs: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        """Register a workflow run with *broker* and enqueue starting steps."""
+
+        self.params = inputs or {}
+        schema = self.to_schema()
+        self.workflow_instance_id = broker.dispatch_workflow(schema, self.params)
+        return self.workflow_instance_id
+
+    def run(
+        self,
+        inputs: Optional[Dict[str, Any]] = None,
+        execution_engine: "ExecutionEngine | None" = None,
+        runtime_store: "RuntimeStorage | None" = None,
+    ) -> Any:  # type: ignore[override]
         """Execute the workflow.
 
         Parameters
@@ -340,11 +479,31 @@ class Workflow(Step):
         inputs:
             Parameters passed to the starting steps.  They are distributed to
             tasks based on parameter names.
+        runtime_store:
+            Optional :class:`RuntimeStorage` used to persist step state.  When
+            provided, step statuses are written to the store as the workflow
+            runs.
         """
         self.params = inputs or {}
         shared: Dict[Any, Any] = {}
-        engine = execution_engine or self.execution_engine or ProcessEngine()
+        from .engines import PoolEngine
+
+        engine = execution_engine or self.execution_engine or PoolEngine()
         self.workflow_instance_id = uuid.uuid4().hex
+        step_names = None
+        if runtime_store:
+            step_names = self._step_name_map()
+            runtime_store.create_run(
+                self.workflow_id,
+                self.workflow_instance_id,
+                step_names.values(),
+            )
+            runtime_store.set_inputs(
+                self.workflow_id, self.workflow_instance_id, self.params
+            )
+            runtime_store.set_inputs(
+                self.workflow_id, self.workflow_instance_id, self.params
+            )
         if self.tracer:
             from .tracing import BoundTracer
 
@@ -358,7 +517,7 @@ class Workflow(Step):
         try:
             self.before_all(shared)
             setup_res = self.setup(shared)
-            result = self._run_engine(shared, engine)
+            result = self._run_engine(shared, engine, runtime_store, step_names)
             result = self.teardown(shared, setup_res, result)
             self.state = Status.SUCCEEDED
         except Exception:
@@ -382,6 +541,8 @@ class Workflow(Step):
             BoundTracer(
                 self.tracer, self.workflow_id, self.workflow_instance_id
             ).record({"event": "workflow_finished"})
+        if runtime_store:
+            runtime_store.finalize_run(self.workflow_id, self.workflow_instance_id)
         if self.outputs:
             if len(self.outputs) == 1:
                 return shared.get(self.outputs[0], result)
@@ -422,6 +583,11 @@ class Workflow(Step):
             walk(out)
         return seen
 
+    def _step_name_map(self) -> dict[Step, str]:
+        """Return a stable name mapping for steps."""
+        steps = self._collect_steps()
+        return {step: f"step{idx}" for idx, step in enumerate(steps)}
+
     def _execute_step(self, step: Step, shared: Dict[Any, Any]) -> Any:
         step.set_params({**self.params, **step.params})
         step.before_all(shared)
@@ -430,7 +596,9 @@ class Workflow(Step):
         try:
             result = step._run(shared)
             step.state = (
-                Status.SKIPPED if getattr(step, "was_skipped", False) else Status.SUCCEEDED
+                Status.SKIPPED
+                if getattr(step, "was_skipped", False)
+                else Status.SUCCEEDED
             )
             step._log_event(
                 "step_finished",
@@ -447,9 +615,23 @@ class Workflow(Step):
             step.after_all(shared)
             raise
 
-    def _run_engine(self, shared: Any, engine: ExecutionEngine) -> Any:
+    def _run_engine(
+        self,
+        shared: Any,
+        engine: ExecutionEngine,
+        runtime_store: "RuntimeStorage | None" = None,
+        step_names: dict[Step, str] | None = None,
+    ) -> Any:
         nodes = self._collect_steps()
         indegree: Dict[Step, int] = {n: 0 for n in nodes}
+        if runtime_store and step_names:
+            for step in nodes:
+                runtime_store.set_state(
+                    self.workflow_id,
+                    self.workflow_instance_id,
+                    step_names[step],
+                    Status.PENDING,
+                )
         for succ in nodes:
             group_preds: set[Step] = set()
             if isinstance(succ, Task):
@@ -464,6 +646,12 @@ class Workflow(Step):
         ready = [n for n, d in indegree.items() if d == 0]
         for step in ready:
             step._log_event("step_enqueued")
+            if runtime_store and step_names:
+                runtime_store.enqueue(
+                    self.workflow_id,
+                    self.workflow_instance_id,
+                    step_names[step],
+                )
         last_result: Any = None
         while ready:
             current_group = min(s.execution_group for s in ready)
@@ -473,16 +661,38 @@ class Workflow(Step):
             exc: dict[str, Exception] = {}
 
             def run_step(s: Step = None) -> Any:
+                if runtime_store and step_names:
+                    runtime_store.set_state(
+                        self.workflow_id,
+                        self.workflow_instance_id,
+                        step_names[s],
+                        Status.RUNNING,
+                    )
                 try:
-                    return self._execute_step(s, shared)
+                    result = self._execute_step(s, shared)
+                    if runtime_store and step_names:
+                        runtime_store.set_state(
+                            self.workflow_id,
+                            self.workflow_instance_id,
+                            step_names[s],
+                            s.state,
+                        )
+                    return result
                 except Exception as e:  # pragma: no cover - bubble up
-                    exc['err'] = e
+                    exc["err"] = e
+                    if runtime_store and step_names:
+                        runtime_store.set_state(
+                            self.workflow_id,
+                            self.workflow_instance_id,
+                            step_names[s],
+                            Status.FAILED,
+                        )
                     return None
 
             results = engine.run_steps([lambda s=s: run_step(s) for s in batch])
 
             if exc:
-                raise exc['err']
+                raise exc["err"]
 
             for step, res in zip(batch, results):
                 last_result = res
@@ -501,6 +711,12 @@ class Workflow(Step):
                         indegree[succ] -= 1
                     if indegree[succ] == 0:
                         succ._log_event("step_enqueued")
+                        if runtime_store and step_names:
+                            runtime_store.enqueue(
+                                self.workflow_id,
+                                self.workflow_instance_id,
+                                step_names[succ],
+                            )
                         ready.append(succ)
 
         return last_result
@@ -519,7 +735,9 @@ class BatchWorkflow(Workflow):
     ) -> Any:
         self.params = inputs or {}
         shared: Dict[Any, Any] = {}
-        engine = execution_engine or self.execution_engine or ProcessEngine()
+        from .engines import PoolEngine
+
+        engine = execution_engine or self.execution_engine or PoolEngine()
         self.before_all(shared)
         param_sets = self.setup(shared) or []
         for bp in param_sets:
@@ -711,7 +929,9 @@ class AsyncWorkflow(Workflow, AsyncTask):
             try:
                 result = await step._run_async(shared)
                 step.state = (
-                    Status.SKIPPED if getattr(step, "was_skipped", False) else Status.SUCCEEDED
+                    Status.SKIPPED
+                    if getattr(step, "was_skipped", False)
+                    else Status.SUCCEEDED
                 )
                 step._log_event(
                     "step_finished",
@@ -734,11 +954,32 @@ class AsyncWorkflow(Workflow, AsyncTask):
         self,
         inputs: Optional[Dict[str, Any]] = None,
         execution_engine: "ExecutionEngine | None" = None,
+        runtime_store: "RuntimeStorage | None" = None,
     ) -> Any:
+        """Execute the workflow asynchronously.
+
+        Parameters
+        ----------
+        inputs:
+            Parameters passed to the starting steps.
+        runtime_store:
+            Optional :class:`RuntimeStorage` used to persist step state during
+            execution.
+        """
         self.params = inputs or {}
         shared: Dict[Any, Any] = {}
-        engine = execution_engine or self.execution_engine or ProcessEngine()
+        from .engines import PoolEngine
+
+        engine = execution_engine or self.execution_engine or PoolEngine()
         self.workflow_instance_id = uuid.uuid4().hex
+        step_names = None
+        if runtime_store:
+            step_names = self._step_name_map()
+            runtime_store.create_run(
+                self.workflow_id,
+                self.workflow_instance_id,
+                step_names.values(),
+            )
         if self.tracer:
             from .tracing import BoundTracer
 
@@ -751,7 +992,7 @@ class AsyncWorkflow(Workflow, AsyncTask):
         self.state = Status.RUNNING
         try:
             await self.before_all_async(shared)
-            result = await self._run_async(shared, engine)
+            result = await self._run_async(shared, engine, runtime_store, step_names)
             await self.after_all_async(shared)
             self.state = Status.SUCCEEDED
         except Exception:
@@ -773,13 +1014,21 @@ class AsyncWorkflow(Workflow, AsyncTask):
             BoundTracer(
                 self.tracer, self.workflow_id, self.workflow_instance_id
             ).record({"event": "workflow_finished"})
+        if runtime_store:
+            runtime_store.finalize_run(self.workflow_id, self.workflow_instance_id)
         if self.outputs:
             if len(self.outputs) == 1:
                 return shared.get(self.outputs[0], result)
             return [shared.get(o) for o in self.outputs]
         return result
 
-    async def _run_engine_async(self, shared: Any, engine: ExecutionEngine) -> Any:
+    async def _run_engine_async(
+        self,
+        shared: Any,
+        engine: ExecutionEngine,
+        runtime_store: "RuntimeStorage | None" = None,
+        step_names: dict[Step, str] | None = None,
+    ) -> Any:
         nodes = self._collect_steps()
         indegree: Dict[Step, int] = {n: 0 for n in nodes}
         for succ in nodes:
@@ -805,10 +1054,32 @@ class AsyncWorkflow(Workflow, AsyncTask):
             exc: dict[str, Exception] = {}
 
             async def run_step(s: Step) -> Any:
+                if runtime_store and step_names:
+                    runtime_store.set_state(
+                        self.workflow_id,
+                        self.workflow_instance_id,
+                        step_names[s],
+                        Status.RUNNING,
+                    )
                 try:
-                    return await self._execute_step_async(s, shared, engine)
+                    result = await self._execute_step_async(s, shared, engine)
+                    if runtime_store and step_names:
+                        runtime_store.set_state(
+                            self.workflow_id,
+                            self.workflow_instance_id,
+                            step_names[s],
+                            s.state,
+                        )
+                    return result
                 except Exception as e:  # pragma: no cover - bubble up
-                    exc['err'] = e
+                    exc["err"] = e
+                    if runtime_store and step_names:
+                        runtime_store.set_state(
+                            self.workflow_id,
+                            self.workflow_instance_id,
+                            step_names[s],
+                            Status.FAILED,
+                        )
                     return None
 
             results = await engine.run_async_steps(
@@ -816,7 +1087,7 @@ class AsyncWorkflow(Workflow, AsyncTask):
             )
 
             if exc:
-                raise exc['err']
+                raise exc["err"]
 
             for step, res in zip(batch, results):
                 last_result = res
@@ -835,13 +1106,25 @@ class AsyncWorkflow(Workflow, AsyncTask):
                         indegree[succ] -= 1
                     if indegree[succ] == 0:
                         succ._log_event("step_enqueued")
+                        if runtime_store and step_names:
+                            runtime_store.enqueue(
+                                self.workflow_id,
+                                self.workflow_instance_id,
+                                step_names[succ],
+                            )
                         ready.append(succ)
 
         return last_result
 
-    async def _run_async(self, shared: Any, engine: ExecutionEngine) -> Any:
+    async def _run_async(
+        self,
+        shared: Any,
+        engine: ExecutionEngine,
+        runtime_store: "RuntimeStorage | None" = None,
+        step_names: dict[Step, str] | None = None,
+    ) -> Any:
         p = await self.setup_async(shared)
-        o = await self._run_engine_async(shared, engine)
+        o = await self._run_engine_async(shared, engine, runtime_store, step_names)
         return await self.teardown_async(shared, p, o)
 
     async def teardown_async(self, shared: Any, setup_res: Any, exec_res: Any) -> Any:
@@ -887,7 +1170,11 @@ class Depends:
             else:
                 self.obj = obj
         else:
-            self.obj = [o for obj in objs for o in (obj if isinstance(obj, (list, tuple)) else [obj])]
+            self.obj = [
+                o
+                for obj in objs
+                for o in (obj if isinstance(obj, (list, tuple)) else [obj])
+            ]
         if isinstance(condition, type) and issubclass(condition, Condition):
             self.condition = condition()
         else:
