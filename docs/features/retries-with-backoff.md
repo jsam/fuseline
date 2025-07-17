@@ -2,7 +2,7 @@
 title: "Retries with backoff"
 ---
 
-Steps accept `max_retries` and `wait` parameters to retry on failure.
+Use `RetryPolicy` to retry a step after failure.
 
 
 ```python
@@ -12,7 +12,8 @@ class SometimesFails(Step):
     def run_step(self):
         raise RuntimeError("oops")
 
-step = SometimesFails(max_retries=3, wait=1)
+step = SometimesFails()
+step.policies.append(RetryPolicy(max_retries=3, wait=1))
 ```
 
 

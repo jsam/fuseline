@@ -4,7 +4,7 @@ from fuseline.policies import RetryPolicy
 
 class SometimesFails(Step):
     def __init__(self) -> None:
-        super().__init__(max_retries=1)
+        super().__init__()
         self.attempts = 0
 
     def run_step(self) -> None:

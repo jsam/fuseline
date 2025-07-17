@@ -15,7 +15,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, Type
 
 if TYPE_CHECKING:  # pragma: no cover - for type hints only
-    from .workflow import Step
+    from .workflow import Step, Workflow
 
 
 # registry for serializable policies
@@ -70,6 +70,25 @@ class StepPolicy(Policy):
         return None
 
 
+class WorkflowPolicy(Policy):
+    """Policy applied to workflow execution."""
+
+    def on_workflow_start(self, wf: "Workflow") -> None:  # pragma: no cover - default no-op
+        pass
+
+    def on_workflow_finished(self, wf: "Workflow", result: Any) -> None:  # pragma: no cover - default no-op
+        pass
+
+    def on_step_start(self, wf: "Workflow", step: "Step") -> None:  # pragma: no cover - default no-op
+        pass
+
+    def on_step_success(self, wf: "Workflow", step: "Step", result: Any) -> None:  # pragma: no cover - default no-op
+        pass
+
+    def on_step_failure(self, wf: "Workflow", step: "Step", exc: Exception) -> None:  # pragma: no cover - default no-op
+        pass
+
+
 class RetryPolicy(StepPolicy):
     """Simple retry policy replicating ``Task`` behaviour."""
 
@@ -95,4 +114,5 @@ __all__ = [
     "Policy",
     "RetryPolicy",
     "StepPolicy",
+    "WorkflowPolicy",
 ]

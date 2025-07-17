@@ -16,6 +16,7 @@ from fuseline.workflow import (
     Workflow,
     workflow_from_functions,
 )
+from fuseline.policies import RetryPolicy
 
 
 class RecorderStep(Task):
@@ -1319,10 +1320,11 @@ def test_retry_with_backoff_rshift(tmp_path) -> None:
 
     class FlakyTask(Task):
         def __init__(self) -> None:
-            super().__init__(max_retries=3, wait=2)
+            super().__init__()
             self.attempts = 0
             self.times: list[float] = []
             self.retries: list[int] = []
+            self.policies.append(RetryPolicy(max_retries=3, wait=2))
 
         def run_step(self) -> None:
             assert self.cur_retry is not None
@@ -1370,10 +1372,11 @@ def test_retry_with_backoff_depends(tmp_path) -> None:
 
     class FlakyTask(Task):
         def __init__(self) -> None:
-            super().__init__(max_retries=3, wait=2)
+            super().__init__()
             self.attempts = 0
             self.times: list[float] = []
             self.retries: list[int] = []
+            self.policies.append(RetryPolicy(max_retries=3, wait=2))
 
         def run_step(self) -> dict:
             assert self.cur_retry is not None
@@ -1422,10 +1425,11 @@ def test_retry_exhaustion_rshift(tmp_path) -> None:
 
     class FlakyTask(Task):
         def __init__(self) -> None:
-            super().__init__(max_retries=3, wait=2)
+            super().__init__()
             self.attempts = 0
             self.times: list[float] = []
             self.retries: list[int] = []
+            self.policies.append(RetryPolicy(max_retries=3, wait=2))
 
         def run_step(self) -> None:
             assert self.cur_retry is not None
@@ -1474,10 +1478,11 @@ def test_retry_exhaustion_depends(tmp_path) -> None:
 
     class FlakyTask(Task):
         def __init__(self) -> None:
-            super().__init__(max_retries=3, wait=2)
+            super().__init__()
             self.attempts = 0
             self.times: list[float] = []
             self.retries: list[int] = []
+            self.policies.append(RetryPolicy(max_retries=3, wait=2))
 
         def run_step(self) -> dict:
             assert self.cur_retry is not None

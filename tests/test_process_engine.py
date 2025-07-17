@@ -4,6 +4,7 @@ from fuseline import Workflow
 from fuseline.broker import MemoryBroker
 from fuseline.engines import ProcessEngine
 from fuseline.workflow import Status, Task
+from fuseline.policies import RetryPolicy
 
 
 class SimpleTask(Task):
@@ -38,8 +39,9 @@ def test_process_engine_runs_tasks(tmp_path: Path) -> None:
 
 class FailingTask(Task):
     def __init__(self) -> None:
-        super().__init__(max_retries=2)
+        super().__init__()
         self.calls = 0
+        self.policies.append(RetryPolicy(max_retries=2))
 
     def run_step(self, setup_res):
         self.calls += 1

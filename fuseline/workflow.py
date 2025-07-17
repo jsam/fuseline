@@ -24,8 +24,8 @@ from .policies import (
     FailureAction,
     FailureDecision,
     Policy,
-    RetryPolicy,
     StepPolicy,
+    WorkflowPolicy,
 )
 from .storage import RuntimeStorage
 
@@ -53,14 +53,14 @@ class BaseStep:
     :py:meth:`teardown` and :py:meth:`after_all` to customise behaviour.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, *, policies: Optional[Sequence[Policy]] = None) -> None:
         self.params: Dict[str, Any] = {}
         self.successors: Dict[str, List["BaseStep"]] = {}
         self.predecessors: List["BaseStep"] = []
         self.tracer: Tracer | None = None
         self.execution_group = 0
         self.state: Status = Status.PENDING
-        self.policies: List[Policy] = []
+        self.policies: List[Policy] = list(policies or [])
 
     def _log_event(self, event: str, **data: Any) -> None:
         if self.tracer:
@@ -117,9 +117,14 @@ class BaseStep:
                     continue
                 raise
 
-    def _run(self, shared: Any, policies: Sequence[StepPolicy]) -> Any:
+    def _run(self, shared: Any, policies: Sequence[Policy]) -> Any:
+        step_policies = [p for p in policies if isinstance(p, StepPolicy)]
+        for pol in step_policies:
+            pol.on_start(self)
         p = self.setup(shared)
-        e = self._exec(p, policies)
+        e = self._exec(p, step_policies)
+        for pol in step_policies:
+            pol.on_success(self, e)
         return self.teardown(shared, p, e)
 
     def run(self, shared: Any) -> Any:
@@ -154,12 +159,9 @@ class _ConditionalTransition:
 class Step(BaseStep):
     """Workflow step with typed dependencies and pluggable policies."""
 
-    def __init__(self, max_retries: int = 1, wait: float = 0) -> None:
-        super().__init__()
-        self.max_retries = max_retries
-        self.wait = wait
+    def __init__(self, *, policies: Optional[Sequence[Policy]] = None) -> None:
+        super().__init__(policies=policies)
         self.cur_retry: Optional[int] = None
-        self.policies.append(RetryPolicy(max_retries, wait))
         self.deps: Dict[str, Step | List[Step]] = {}
         self.dep_conditions: Dict[str, Callable[[Any], bool]] = {}
         self.or_groups: Dict[str, List[Step]] = {}
@@ -372,8 +374,9 @@ class Workflow(BaseStep):
         trace: str | Tracer | None = None,
         workflow_id: str | None = None,
         version: str = "1",
+        policies: Optional[Sequence[Policy]] = None,
     ) -> None:
-        super().__init__()
+        super().__init__(policies=policies)
         self.outputs = outputs
         self.execution_engine = execution_engine
         if isinstance(trace, str):
@@ -512,6 +515,7 @@ class Workflow(BaseStep):
         from .engines import PoolEngine
 
         engine = execution_engine or self.execution_engine or PoolEngine()
+        wf_policies = [p for p in self.policies if isinstance(p, WorkflowPolicy)]
         self.workflow_instance_id = uuid.uuid4().hex
         step_names = None
         if runtime_store:
@@ -531,6 +535,8 @@ class Workflow(BaseStep):
                 step.tracer = bound
             bound.record({"event": "workflow_started"})
         self.state = Status.RUNNING
+        for pol in wf_policies:
+            pol.on_workflow_start(self)
         try:
             self.before_all(shared)
             setup_res = self.setup(shared)
@@ -552,6 +558,8 @@ class Workflow(BaseStep):
             return None
         finally:
             self.after_all(shared)
+        for pol in wf_policies:
+            pol.on_workflow_finished(self, result if self.state == Status.SUCCEEDED else None)
         if self.tracer and self.state != Status.FAILED:
             from .tracing import BoundTracer
 
@@ -604,6 +612,9 @@ class Workflow(BaseStep):
     def _execute_step(self, step: Step, shared: Dict[Any, Any]) -> Any:
         step.set_params({**self.params, **step.params})
         policies = [*self.policies, *step.policies]
+        wf_policies = [p for p in policies if isinstance(p, WorkflowPolicy)]
+        for pol in wf_policies:
+            pol.on_step_start(self, step)
         step.before_all(shared)
         step._log_event("step_started")
         step.state = Status.RUNNING
@@ -618,11 +629,15 @@ class Workflow(BaseStep):
             if isinstance(shared, dict):
                 shared[step] = result
             step.after_all(shared)
+            for pol in wf_policies:
+                pol.on_step_success(self, step, result)
             return result
         except Exception as exc:
             step.state = Status.FAILED
             step._log_event("step_failed", error=str(exc))
             step.after_all(shared)
+            for pol in wf_policies:
+                pol.on_step_failure(self, step, exc)
             raise
 
     def _run_engine(
@@ -759,8 +774,8 @@ class BatchWorkflow(Workflow):
 
 
 class AsyncStep(Step):
-    def __init__(self, max_retries: int = 1, wait: float = 0) -> None:
-        super().__init__(max_retries, wait)
+    def __init__(self, *, policies: Optional[Sequence[Policy]] = None) -> None:
+        super().__init__(policies=policies)
         self.deps = {}
         self.dep_conditions: Dict[str, Callable[[Any], bool]] = {}
         self.or_groups: Dict[str, List[Step]] = {}
@@ -910,9 +925,12 @@ class AsyncWorkflow(Workflow, AsyncStep):
     async def _execute_step_async(self, step: Step, shared: Dict[Any, Any], engine: ExecutionEngine) -> Any:
         step.set_params({**self.params, **step.params})
         policies = [*self.policies, *step.policies]
+        wf_policies = [p for p in policies if isinstance(p, WorkflowPolicy)]
         if isinstance(step, AsyncWorkflow):
             result = await step._run_async(shared, engine)
         elif isinstance(step, AsyncStep):
+            for pol in wf_policies:
+                pol.on_step_start(self, step)
             await step.before_all_async(shared)
             step._log_event("step_started")
             step.state = Status.RUNNING
@@ -927,10 +945,14 @@ class AsyncWorkflow(Workflow, AsyncStep):
                 if isinstance(shared, dict):
                     shared[step] = result
                 await step.after_all_async(shared)
+                for pol in wf_policies:
+                    pol.on_step_success(self, step, result)
             except Exception as exc:
                 step.state = Status.FAILED
                 step._log_event("step_failed", error=str(exc))
                 await step.after_all_async(shared)
+                for pol in wf_policies:
+                    pol.on_step_failure(self, step, exc)
                 raise
         else:
             result = self._execute_step(step, shared)
@@ -957,6 +979,7 @@ class AsyncWorkflow(Workflow, AsyncStep):
         from .engines import PoolEngine
 
         engine = execution_engine or self.execution_engine or PoolEngine()
+        wf_policies = [p for p in self.policies if isinstance(p, WorkflowPolicy)]
         self.workflow_instance_id = uuid.uuid4().hex
         step_names = None
         if runtime_store:
@@ -974,6 +997,8 @@ class AsyncWorkflow(Workflow, AsyncStep):
                 step.tracer = bound
             bound.record({"event": "workflow_started"})
         self.state = Status.RUNNING
+        for pol in wf_policies:
+            pol.on_workflow_start(self)
         try:
             await self.before_all_async(shared)
             result = await self._run_async(shared, engine, runtime_store, step_names)
@@ -996,6 +1021,8 @@ class AsyncWorkflow(Workflow, AsyncStep):
             from .tracing import BoundTracer
 
             BoundTracer(self.tracer, self.workflow_id, self.workflow_instance_id).record({"event": "workflow_finished"})
+        for pol in wf_policies:
+            pol.on_workflow_finished(self, result if self.state == Status.SUCCEEDED else None)
         if runtime_store:
             runtime_store.finalize_run(self.workflow_id, self.workflow_instance_id)
         if self.outputs:
@@ -1158,8 +1185,8 @@ class Depends:
 class FunctionStep(Step):
     """Step wrapping a Python callable."""
 
-    def __init__(self, func: Callable[..., Any], max_retries: int = 1, wait: float = 0) -> None:
-        super().__init__(max_retries, wait)
+    def __init__(self, func: Callable[..., Any], *, policies: Optional[Sequence[Policy]] = None) -> None:
+        super().__init__(policies=policies)
         self.func = func
         self.deps: Dict[str, FunctionStep] = {}
         self.dep_conditions: Dict[str, Callable[[Any], bool]] = {}

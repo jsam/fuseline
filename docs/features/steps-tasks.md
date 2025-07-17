@@ -7,9 +7,9 @@ lifecycle for a unit of work with `setup`, `run_step` and `teardown`
 hooks. Steps can be chained together to form a `Workflow`.
 
 Steps support typed dependencies and a pluggable policy system. Parameters
-annotated with `Depends` are automatically wired from previous steps. The
-`max_retries` and `wait` arguments configure the default `RetryPolicy`
-attached to the step.
+annotated with `Depends` are automatically wired from previous steps.
+Attach policies such as `RetryPolicy` to control behaviour like retries and
+backoff.
 
 ### AsyncStep
 
