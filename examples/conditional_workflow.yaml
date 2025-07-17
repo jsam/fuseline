@@ -1,34 +1,29 @@
+workflow_id: b0a32b216cf4423cb40aff4dff2c68c3
+version: 1
 steps:
   step0:
-    class: DecideTask
     successors:
-      - step1
-      - step2
-    execution_group: 0
+      default:
+        - step1
+        - step2
+    predecessors:
+
+    or_groups:
+
   step1:
-    class: DefaultTask
     successors:
 
-    execution_group: 1
-    dependencies:
-      _flag:
-        step: step0
-        condition:
-          type: Equals
-          params:
-            expected: False
+    predecessors:
+      - step0
+    or_groups:
+
   step2:
-    class: SkipTask
     successors:
 
-    execution_group: 1
-    dependencies:
-      _flag:
-        step: step0
-        condition:
-          type: Equals
-          params:
-            expected: True
+    predecessors:
+      - step0
+    or_groups:
+
 outputs:
   - step1
   - step2

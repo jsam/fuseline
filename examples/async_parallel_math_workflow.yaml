@@ -1,35 +1,38 @@
+workflow_id: ca99903ba4b845c089424b7e0b85aaf9
+version: 1
 steps:
   step0:
-    class: AsyncAddTask
     successors:
-      - step1
-      - step2
-    execution_group: 0
+      default:
+        - step1
+        - step2
+    predecessors:
+
+    or_groups:
+
   step1:
-    class: AsyncMultiplyBy2
     successors:
-      - step3
-    execution_group: 1
-    dependencies:
-      value:
-        step: step0
+      default:
+        - step3
+    predecessors:
+      - step0
+    or_groups:
+
   step2:
-    class: AsyncMultiplyBy3
     successors:
-      - step3
-    execution_group: 1
-    dependencies:
-      value:
-        step: step0
+      default:
+        - step3
+    predecessors:
+      - step0
+    or_groups:
+
   step3:
-    class: AsyncJoinTask
     successors:
 
-    execution_group: 2
-    dependencies:
-      res2:
-        step: step1
-      res3:
-        step: step2
+    predecessors:
+      - step1
+      - step2
+    or_groups:
+
 outputs:
   - step3

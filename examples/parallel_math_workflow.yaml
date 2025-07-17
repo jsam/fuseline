@@ -1,35 +1,38 @@
+workflow_id: 3a45d84403ad4fafb2c4404d7b5c0b2b
+version: 1
 steps:
   step0:
-    class: AddTask
     successors:
-      - step1
-      - step2
-    execution_group: 0
+      default:
+        - step1
+        - step2
+    predecessors:
+
+    or_groups:
+
   step1:
-    class: MultiplyBy2
     successors:
-      - step3
-    execution_group: 1
-    dependencies:
-      value:
-        step: step0
+      default:
+        - step3
+    predecessors:
+      - step0
+    or_groups:
+
   step2:
-    class: MultiplyBy3
     successors:
-      - step3
-    execution_group: 1
-    dependencies:
-      value:
-        step: step0
+      default:
+        - step3
+    predecessors:
+      - step0
+    or_groups:
+
   step3:
-    class: JoinTask
     successors:
 
-    execution_group: 2
-    dependencies:
-      res2:
-        step: step1
-      res3:
-        step: step2
+    predecessors:
+      - step1
+      - step2
+    or_groups:
+
 outputs:
   - step3

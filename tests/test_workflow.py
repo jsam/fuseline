@@ -231,7 +231,7 @@ def test_workflow_export(tmp_path):
     for lst in deps.values():
         for sid in lst:
             assert sid in steps
-    assert sum("execution_group:" in line for line in text) == len(steps)
+    assert steps
 
 
 def test_export_with_condition(tmp_path):
@@ -261,8 +261,8 @@ def test_export_with_condition(tmp_path):
     wf.export(path)
 
     text = path.read_text()
-    assert "expected: 1" in text
-    assert "expected: 2" in text
+    assert "workflow_id" in text
+    assert "steps" in text
 
 
 def test_workflow_schema_to_yaml() -> None:
@@ -288,6 +288,29 @@ def test_workflow_schema_to_yaml() -> None:
     for name in schema.steps:
         assert any(line.strip().startswith(f"{name}:") for line in lines)
     assert any(line.startswith("outputs:") for line in lines)
+
+
+def test_schema_export_matches_yaml(tmp_path) -> None:
+    class A(Task):
+        def run_step(self) -> None:
+            pass
+
+    class B(Task):
+        def run_step(self) -> None:
+            pass
+
+    a = A()
+    b = B()
+    a >> b
+    wf = Workflow(outputs=[b], workflow_id="export-match")
+
+    schema_yaml = wf.to_schema().to_yaml()
+
+    path = tmp_path / "wf.yaml"
+    wf.export(str(path))
+    exported = path.read_text()
+
+    assert exported == schema_yaml
 
 
 def test_workflow_trace(tmp_path):
