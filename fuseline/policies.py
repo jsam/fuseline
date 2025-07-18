@@ -12,7 +12,7 @@ from __future__ import annotations
 import abc
 from dataclasses import dataclass
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Dict, Type
+from typing import TYPE_CHECKING, Any, Callable, Dict, Type
 
 if TYPE_CHECKING:  # pragma: no cover - for type hints only
     from .workflow import Step, StepSchema, Workflow, WorkflowSchema
@@ -80,6 +80,10 @@ class StepPolicy(Policy):
     def attach_to_step(self, step: "Step") -> None:  # pragma: no cover - default
         pass
 
+    def execute(self, step: "Step", call: Callable[[], Any]) -> Any:
+        """Run ``call`` applying this policy."""
+        return call()
+
     def on_start(self, step: "Step") -> None:
         pass
 
@@ -141,32 +145,15 @@ class StepTimeoutPolicy(StepPolicy):
     def to_config(self) -> Dict[str, Any]:
         return {"seconds": self.seconds}
 
+    def execute(self, step: "Step", call: Callable[[], Any]) -> Any:
+        from concurrent.futures import ThreadPoolExecutor, TimeoutError as _TO
 
-class WorkerPolicy(Policy):
-    """Policy consulted by the broker when assigning work to a worker."""
-
-    def step_timeout(
-        self, wf: "WorkflowSchema", step: "StepSchema"
-    ) -> float | None:  # pragma: no cover - default no-op
-        return None
-
-
-class StepTimeoutWorkerPolicy(WorkerPolicy):
-    """Read :class:`StepTimeoutPolicy` from the step definition."""
-
-    name = "worker_timeout"
-
-    def __init__(self, default: float = 60.0) -> None:
-        self.default = default
-
-    def step_timeout(
-        self, wf: "WorkflowSchema", step: "StepSchema"
-    ) -> float | None:
-        for pol in step.policies:
-            if pol.get("name") == StepTimeoutPolicy.name:
-                cfg = pol.get("config", {})
-                return float(cfg.get("seconds", self.default))
-        return self.default
+        with ThreadPoolExecutor(max_workers=1) as ex:
+            fut = ex.submit(call)
+            try:
+                return fut.result(timeout=self.seconds)
+            except _TO:
+                raise TimeoutError(f"step exceeded {self.seconds}s")
 
 
 __all__ = [
@@ -177,7 +164,5 @@ __all__ = [
     "RetryPolicy",
     "StepPolicy",
     "StepTimeoutPolicy",
-    "StepTimeoutWorkerPolicy",
-    "WorkerPolicy",
     "WorkflowPolicy",
 ]

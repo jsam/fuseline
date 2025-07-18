@@ -31,22 +31,17 @@ Workflow(outputs=[step]).run()
 Custom policies can subclass `StepPolicy` and override the hooks to
 implement additional behaviour.
 
-### Worker policies
+### Timeouts
 
-`WorkerPolicy` influences how a worker interacts with the broker. The
-provided `StepTimeoutWorkerPolicy` reads a `StepTimeoutPolicy` attached to
-a step and sets the assignment expiry accordingly.
+`StepTimeoutPolicy` aborts a step if it runs longer than the configured
+number of seconds.
 
 ```python
-from fuseline.policies import StepTimeoutPolicy, StepTimeoutWorkerPolicy
+from fuseline.policies import StepTimeoutPolicy
 
 step = Flaky()
-step.policies.append(StepTimeoutPolicy(30.0))
-engine = ProcessEngine(
-    broker,
-    [Workflow(outputs=[step])],
-    worker_policies={"workflow-id": [StepTimeoutWorkerPolicy()]},
-)
+step.policies.append(StepTimeoutPolicy(5.0))
+Workflow(outputs=[step]).run()
 ```
 
 ### Fail-fast

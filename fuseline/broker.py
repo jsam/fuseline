@@ -6,7 +6,6 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Iterable, Mapping, Optional, Sequence
 
-from .policies import WorkerPolicy
 from .storage import MemoryRuntimeStorage
 from .workflow import Status, StepSchema, WorkflowSchema
 
@@ -39,9 +38,7 @@ class Broker(ABC):
 
     @abstractmethod
     def register_worker(
-        self,
-        workflows: Iterable[WorkflowSchema],
-        policies: Mapping[str, Sequence[WorkerPolicy]] | None = None,
+        self, workflows: Iterable[WorkflowSchema]
     ) -> str:
         """Register a worker and return a worker ID."""
 
@@ -80,12 +77,9 @@ class MemoryBroker(Broker):
         self._store = MemoryRuntimeStorage()
         self._wid = 0
         self._heartbeat: set[str] = set()
-        self._worker_policies: dict[str, dict[str, list[WorkerPolicy]]] = {}
 
     def register_worker(
-        self,
-        workflows: Iterable[WorkflowSchema],
-        policies: Mapping[str, Sequence[WorkerPolicy]] | None = None,
+        self, workflows: Iterable[WorkflowSchema]
     ) -> str:
         self._wid += 1
         wid = str(self._wid)
@@ -99,9 +93,7 @@ class MemoryBroker(Broker):
             if key not in self._steps:
                 self._steps[key] = wf.steps
             wf_keys.add(key)
-            self._worker_policies.setdefault(wid, {})[wf.workflow_id] = list(
-                policies.get(wf.workflow_id, []) if policies else []
-            )
+
         self._workers[wid] = wf_keys
         return wid
 
@@ -174,13 +166,7 @@ class MemoryBroker(Broker):
                     continue
                 inputs = self._build_inputs(workflow, instance, step)
                 assigned_at = time.time()
-                timeout = 60.0
-                for pol in self._worker_policies.get(worker_id, {}).get(wf_id, []):
-                    t = pol.step_timeout(workflow, step)
-                    if t is not None:
-                        timeout = t
-                        break
-                expires_at = assigned_at + timeout
+                expires_at = assigned_at + 60.0
                 self._store.assign_step(
                     wf_id, instance, step_name, worker_id, expires_at
                 )

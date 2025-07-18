@@ -113,8 +113,16 @@ class BaseStep:
         attempt = 0
         while True:
             self.cur_retry = attempt  # type: ignore[attr-defined]
-            try:
+
+            def call() -> Any:
                 return self.run_step(setup_res)
+
+            wrapped = call
+            for pol in reversed(policies):
+                wrapped = (lambda w=wrapped, p=pol: p.execute(self, w))
+
+            try:
+                return wrapped()
             except Exception as exc:  # pragma: no cover - control via policy
                 decision: FailureDecision | None = None
                 for p in policies:
@@ -215,47 +223,53 @@ class Step(BaseStep):
         while True:
             self.cur_retry = attempt
             try:
-                if self.is_typed:
-                    kwargs = {}
-                    for name, dep in self.deps.items():
-                        if isinstance(dep, list):
-                            chosen = self.or_triggered.get(name) or dep[0]
-                            val = setup_res[chosen]
-                            cond = self.dep_conditions.get(name)
-                            if cond is not None:
-                                passed = bool(cond(val, chosen)) if isinstance(cond, Condition) else bool(cond(val))
-                                self._log_event(
-                                    "condition_check",
-                                    dependency=name,
-                                    value=val,
-                                    passed=passed,
-                                )
-                                if not passed:
-                                    self.was_skipped = True
-                                    return None
-                            kwargs[name] = val
-                        else:
-                            val = setup_res[dep]
-                            cond = self.dep_conditions.get(name)
-                            if cond is not None:
-                                passed = bool(cond(val, dep)) if isinstance(cond, Condition) else bool(cond(val))
-                                self._log_event(
-                                    "condition_check",
-                                    dependency=name,
-                                    value=val,
-                                    passed=passed,
-                                )
-                                if not passed:
-                                    self.was_skipped = True
-                                    return None
+                def call() -> Any:
+                    if self.is_typed:
+                        kwargs = {}
+                        for name, dep in self.deps.items():
+                            if isinstance(dep, list):
+                                chosen = self.or_triggered.get(name) or dep[0]
+                                val = setup_res[chosen]
+                                cond = self.dep_conditions.get(name)
+                                if cond is not None:
+                                    passed = bool(cond(val, chosen)) if isinstance(cond, Condition) else bool(cond(val))
+                                    self._log_event(
+                                        "condition_check",
+                                        dependency=name,
+                                        value=val,
+                                        passed=passed,
+                                    )
+                                    if not passed:
+                                        self.was_skipped = True
+                                        return None
+                                kwargs[name] = val
+                            else:
+                                val = setup_res[dep]
+                                cond = self.dep_conditions.get(name)
+                                if cond is not None:
+                                    passed = bool(cond(val, dep)) if isinstance(cond, Condition) else bool(cond(val))
+                                    self._log_event(
+                                        "condition_check",
+                                        dependency=name,
+                                        value=val,
+                                        passed=passed,
+                                    )
+                                    if not passed:
+                                        self.was_skipped = True
+                                        return None
 
-                            kwargs[name] = val
-                    kwargs.update({k: v for k, v in self.params.items() if k in self.param_names and k not in kwargs})
-                    result = type(self).run_step(self, **kwargs)
-                    if isinstance(setup_res, dict):
-                        setup_res[self] = result
-                    return result
-                return type(self).run_step(self, setup_res)
+                                kwargs[name] = val
+                        kwargs.update({k: v for k, v in self.params.items() if k in self.param_names and k not in kwargs})
+                        result = type(self).run_step(self, **kwargs)
+                        if isinstance(setup_res, dict):
+                            setup_res[self] = result
+                        return result
+                    return type(self).run_step(self, setup_res)
+
+                wrapped = call
+                for pol in reversed(policies):
+                    wrapped = (lambda w=wrapped, p=pol: p.execute(self, w))
+                return wrapped()
             except Exception as e:
                 decision: FailureDecision | None = None
                 for p in policies:
