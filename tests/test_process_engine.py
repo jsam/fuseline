@@ -3,8 +3,8 @@ from pathlib import Path
 from fuseline import Workflow
 from fuseline.broker import MemoryBroker
 from fuseline.engines import ProcessEngine
-from fuseline.workflow import Status, Task
 from fuseline.policies import RetryPolicy
+from fuseline.workflow import Status, Task
 
 
 class SimpleTask(Task):
