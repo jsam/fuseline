@@ -9,7 +9,7 @@ You can run a workflow in a single process while persisting state, or dispatch t
 ```python
 from fuseline import Workflow
 from fuseline.broker import MemoryBroker
-from fuseline.engines import ProcessEngine
+from fuseline.worker import ProcessEngine
 
 broker = MemoryBroker()
 wf = Workflow(outputs=[...])

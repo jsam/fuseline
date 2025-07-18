@@ -18,8 +18,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence
 
-from .interfaces import ExecutionEngine, Exporter, Tracer
-from .policies import (
+from ..interfaces import ExecutionEngine, Exporter, Tracer
+from ..policies import (
     _POLICY_REGISTRY,
     FailureAction,
     FailureDecision,
@@ -27,10 +27,10 @@ from .policies import (
     StepPolicy,
     WorkflowPolicy,
 )
-from .storage import RuntimeStorage
+from ..storage import RuntimeStorage
 
 if TYPE_CHECKING:  # pragma: no cover - for type hints only
-    from .broker import Broker
+    from ..broker import Broker
 
 
 class Status(str, Enum):
@@ -67,7 +67,7 @@ class BaseStep:
     def add_policy(self, policy: Policy) -> None:
         """Attach *policy* to this step."""
         self.policies.append(policy)
-        from .policies import WorkflowPolicy
+        from ..policies import WorkflowPolicy
 
         if isinstance(self, Workflow) and isinstance(policy, WorkflowPolicy):
             policy.attach_to_workflow(self)  # pragma: no cover - default no-op
@@ -406,7 +406,7 @@ class Workflow(BaseStep):
         self.outputs = outputs
         self.execution_engine = execution_engine
         if isinstance(trace, str):
-            from .tracing import FileTracer
+            from ..tracing import FileTracer
 
             self.tracer: Tracer | None = FileTracer(trace)
             self.trace_path = trace
@@ -472,7 +472,7 @@ class Workflow(BaseStep):
         By default the workflow is exported to YAML via :class:`YamlExporter`.
         """
 
-        from .exporters import YamlExporter
+        from ..exporters import YamlExporter
 
         exporter = exporter or YamlExporter()
         exporter.export(self, path)
@@ -538,7 +538,7 @@ class Workflow(BaseStep):
         """
         self.params = inputs or {}
         shared: Dict[Any, Any] = {}
-        from .engines import PoolEngine
+        from ..worker import PoolEngine
 
         engine = execution_engine or self.execution_engine or PoolEngine()
         wf_policies = [p for p in self.policies if isinstance(p, WorkflowPolicy)]
@@ -554,7 +554,7 @@ class Workflow(BaseStep):
             runtime_store.set_inputs(self.workflow_id, self.workflow_instance_id, self.params)
             runtime_store.set_inputs(self.workflow_id, self.workflow_instance_id, self.params)
         if self.tracer:
-            from .tracing import BoundTracer
+            from ..tracing import BoundTracer
 
             bound = BoundTracer(self.tracer, self.workflow_id, self.workflow_instance_id)
             for step in self._collect_steps():
@@ -576,7 +576,7 @@ class Workflow(BaseStep):
                     step.state = Status.CANCELLED
                     step._log_event("step_cancelled")
             if self.tracer:
-                from .tracing import BoundTracer
+                from ..tracing import BoundTracer
 
                 BoundTracer(self.tracer, self.workflow_id, self.workflow_instance_id).record(
                     {"event": "workflow_finished"}
@@ -587,7 +587,7 @@ class Workflow(BaseStep):
         for pol in wf_policies:
             pol.on_workflow_finished(self, result if self.state == Status.SUCCEEDED else None)
         if self.tracer and self.state != Status.FAILED:
-            from .tracing import BoundTracer
+            from ..tracing import BoundTracer
 
             BoundTracer(self.tracer, self.workflow_id, self.workflow_instance_id).record({"event": "workflow_finished"})
         if runtime_store:
@@ -786,7 +786,7 @@ class BatchWorkflow(Workflow):
     ) -> Any:
         self.params = inputs or {}
         shared: Dict[Any, Any] = {}
-        from .engines import PoolEngine
+        from ..worker import PoolEngine
 
         engine = execution_engine or self.execution_engine or PoolEngine()
         self.before_all(shared)
@@ -1014,7 +1014,7 @@ class AsyncWorkflow(Workflow, AsyncStep):
         """
         self.params = inputs or {}
         shared: Dict[Any, Any] = {}
-        from .engines import PoolEngine
+        from ..worker import PoolEngine
 
         engine = execution_engine or self.execution_engine or PoolEngine()
         wf_policies = [p for p in self.policies if isinstance(p, WorkflowPolicy)]
@@ -1028,7 +1028,7 @@ class AsyncWorkflow(Workflow, AsyncStep):
                 step_names.values(),
             )
         if self.tracer:
-            from .tracing import BoundTracer
+            from ..tracing import BoundTracer
 
             bound = BoundTracer(self.tracer, self.workflow_id, self.workflow_instance_id)
             for step in self._collect_steps():
@@ -1049,14 +1049,14 @@ class AsyncWorkflow(Workflow, AsyncStep):
                     step.state = Status.CANCELLED
                     step._log_event("step_cancelled")
             if self.tracer:
-                from .tracing import BoundTracer
+                from ..tracing import BoundTracer
 
                 BoundTracer(self.tracer, self.workflow_id, self.workflow_instance_id).record(
                     {"event": "workflow_finished"}
                 )
             return None
         if self.tracer:
-            from .tracing import BoundTracer
+            from ..tracing import BoundTracer
 
             BoundTracer(self.tracer, self.workflow_id, self.workflow_instance_id).record({"event": "workflow_finished"})
         for pol in wf_policies:

@@ -29,20 +29,18 @@ tests often use :class:`MemoryBroker` directly.
 ``MemoryBroker`` lives entirely in memory and is mostly useful for unit
 tests or single‑process demos.  A real deployment runs the broker as a
 server and exposes the API described in [Broker API](broker-api.md).  The
-snippet below sketches a small HTTP service using `Robyn` and a
-``PostgresRuntimeStorage`` backend so workers can connect over the network.
+snippet below sketches a small HTTP service using `Robyn` and the
+``PostgresBroker`` so workers can connect over the network.  The broker
+reads the database URL from the ``DATABASE_URL`` environment variable.
 
 ```python
 # broker_server.py (server process)
 from robyn import Robyn
 
-from fuseline.broker import MemoryBroker, StepReport
-from fuseline.storage import PostgresRuntimeStorage
+from fuseline.broker import PostgresBroker, StepReport
 from fuseline.workflow import WorkflowSchema
 
-store = PostgresRuntimeStorage("postgresql://fuseline:fuseline@localhost:5432/fuseline")
-broker = MemoryBroker()
-broker._store = store
+broker = PostgresBroker()
 
 app = Robyn(__file__)
 

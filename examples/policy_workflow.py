@@ -1,7 +1,7 @@
 from fuseline import Step, Workflow
 from fuseline.broker import MemoryBroker
-from fuseline.clients import LocalBrokerClient
-from fuseline.engines import ProcessEngine
+from fuseline.broker.clients import LocalBrokerClient
+from fuseline.worker import ProcessEngine
 from fuseline.policies import RetryPolicy, StepTimeoutPolicy
 
 

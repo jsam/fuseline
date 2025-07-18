@@ -6,7 +6,7 @@ import json
 from typing import TYPE_CHECKING, Any, Iterable, Optional
 
 if TYPE_CHECKING:  # pragma: no cover - for type hints only
-    from .workflow import Status
+    from ..workflow import Status
 
 
 class RuntimeStorage(ABC):
@@ -123,7 +123,7 @@ class MemoryRuntimeStorage(RuntimeStorage):
     def create_run(
         self, workflow_id: str, instance_id: str, steps: Iterable[str]
     ) -> None:
-        from .workflow import Status
+        from ..workflow import Status
 
         for step in steps:
             self._states[(workflow_id, instance_id, step)] = Status.PENDING
@@ -222,12 +222,49 @@ class MemoryRuntimeStorage(RuntimeStorage):
 
 
 class PostgresRuntimeStorage(RuntimeStorage):
-    """Store runtime state in a PostgreSQL database."""
+    """Store runtime state in a PostgreSQL database with migrations."""
 
-    def __init__(self, dsn: str) -> None:
-        self.dsn = dsn
+    LATEST_VERSION = 1
+
+    MIGRATIONS: dict[int, list[str]] = {
+        1: [
+            """
+            CREATE TABLE IF NOT EXISTS steps (
+                workflow_id TEXT,
+                instance_id TEXT,
+                step_name TEXT,
+                state TEXT,
+                result JSONB,
+                worker_id TEXT,
+                expires_at DOUBLE PRECISION,
+                PRIMARY KEY (workflow_id, instance_id, step_name)
+            );
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS queue (
+                workflow_id TEXT,
+                instance_id TEXT,
+                step_name TEXT,
+                PRIMARY KEY (workflow_id, instance_id, step_name)
+            );
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS inputs (
+                workflow_id TEXT,
+                instance_id TEXT,
+                payload JSONB,
+                PRIMARY KEY (workflow_id, instance_id)
+            );
+            """,
+        ]
+    }
+
+    def __init__(self, dsn: str | None = None) -> None:
+        import os
+
+        self.dsn = dsn or os.environ.get("DATABASE_URL", "postgresql://localhost/fuseline")
         self._connect()
-        self._ensure_tables()
+        self._migrate()
 
     def _connect(self) -> None:
         try:
@@ -236,48 +273,35 @@ class PostgresRuntimeStorage(RuntimeStorage):
             raise RuntimeError("psycopg package required for PostgresRuntimeStorage")
         self._conn = psycopg.connect(self.dsn, autocommit=True)
 
-    def _ensure_tables(self) -> None:
-        from .workflow import Status
-
+    def _get_version(self) -> int:
         with self._conn.cursor() as cur:
             cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS steps (
-                    workflow_id TEXT,
-                    instance_id TEXT,
-                    step_name TEXT,
-                    state TEXT,
-                    result JSONB,
-                    worker_id TEXT,
-                    expires_at DOUBLE PRECISION,
-                    PRIMARY KEY (workflow_id, instance_id, step_name)
-                );
-                """
+                "CREATE TABLE IF NOT EXISTS fuseline_meta (key TEXT PRIMARY KEY, value TEXT)"
             )
+            cur.execute("SELECT value FROM fuseline_meta WHERE key='version'")
+            row = cur.fetchone()
+            return int(row[0]) if row else 0
+
+    def _set_version(self, version: int) -> None:
+        with self._conn.cursor() as cur:
             cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS queue (
-                    workflow_id TEXT,
-                    instance_id TEXT,
-                    step_name TEXT,
-                    PRIMARY KEY (workflow_id, instance_id, step_name)
-                );
-                """
+                "INSERT INTO fuseline_meta (key, value) VALUES ('version', %s)"
+                " ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value",
+                (str(version),),
             )
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS inputs (
-                    workflow_id TEXT,
-                    instance_id TEXT,
-                    payload JSONB,
-                    PRIMARY KEY (workflow_id, instance_id)
-                );
-                """
-            )
+
+    def _migrate(self) -> None:
+        version = self._get_version()
+        for v in range(version + 1, self.LATEST_VERSION + 1):
+            stmts = self.MIGRATIONS.get(v, [])
+            for stmt in stmts:
+                with self._conn.cursor() as cur:
+                    cur.execute(stmt)
+            self._set_version(v)
 
     # ------------------------------------------------------------------
     def create_run(self, workflow_id: str, instance_id: str, steps: Iterable[str]) -> None:
-        from .workflow import Status
+        from ..workflow import Status
 
         with self._conn.cursor() as cur:
             for step in steps:
@@ -349,7 +373,7 @@ class PostgresRuntimeStorage(RuntimeStorage):
             )
 
     def get_state(self, workflow_id: str, instance_id: str, step_name: str) -> "Status | None":
-        from .workflow import Status
+        from ..workflow import Status
 
         with self._conn.cursor() as cur:
             cur.execute(

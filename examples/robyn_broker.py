@@ -1,15 +1,15 @@
 from __future__ import annotations
 import os
+from dotenv import load_dotenv
 from robyn import Robyn
-from fuseline.broker import MemoryBroker, StepReport
-from fuseline.storage import PostgresRuntimeStorage
+from fuseline.broker import PostgresBroker, StepReport
 from fuseline.workflow import WorkflowSchema
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://fuseline:fuseline@localhost:5432/fuseline")
+load_dotenv()
 
-store = PostgresRuntimeStorage(DATABASE_URL)
-broker = MemoryBroker()
-broker._store = store  # use postgres-backed storage
+DATABASE_URL = os.environ.get("DATABASE_URL")
+
+broker = PostgresBroker(DATABASE_URL)
 
 app = Robyn(__file__)
 

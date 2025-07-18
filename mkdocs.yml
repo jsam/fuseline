@@ -26,6 +26,7 @@ nav:
       - for-developers/index.md
       - for-developers/execution-flow.md
       - for-developers/state-management.md
+      - for-developers/postgres-storage.md
       - for-developers/policies.md
       - for-developers/brokers.md
       - for-developers/workers.md

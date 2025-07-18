@@ -6,8 +6,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Iterable, Mapping, Optional, Sequence
 
-from .storage import MemoryRuntimeStorage
-from .workflow import Status, StepSchema, WorkflowSchema
+from ..storage import MemoryRuntimeStorage, PostgresRuntimeStorage
+from ..workflow import Status, StepSchema, WorkflowSchema
 
 
 @dataclass
@@ -218,3 +218,12 @@ class MemoryBroker(Broker):
 
     def keep_alive(self, worker_id: str) -> None:
         self._heartbeat.add(worker_id)
+
+
+class PostgresBroker(MemoryBroker):
+    """Broker backed by :class:`PostgresRuntimeStorage`."""
+
+    def __init__(self, dsn: str | None = None) -> None:
+        store = PostgresRuntimeStorage(dsn)
+        super().__init__()
+        self._store = store

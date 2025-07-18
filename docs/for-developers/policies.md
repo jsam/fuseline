@@ -129,8 +129,8 @@ BROKER = MemoryBroker()
 ### Running a worker (client side)
 
 ```python
-from fuseline.clients import LocalBrokerClient
-from fuseline.engines import ProcessEngine
+from fuseline.broker.clients import LocalBrokerClient
+from fuseline.worker import ProcessEngine
 from my_workflow import rag_workflow  # contains custom policies
 
 client = LocalBrokerClient(BROKER)

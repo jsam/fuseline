@@ -14,8 +14,8 @@ the broker. A typical worker looks like this:
 
 ```python
 from fuseline.broker import MemoryBroker
-from fuseline.clients import LocalBrokerClient
-from fuseline.engines import ProcessEngine
+from fuseline.broker.clients import LocalBrokerClient
+from fuseline.worker import ProcessEngine
 from my_workflows import rag_workflow
 
 broker = MemoryBroker()
