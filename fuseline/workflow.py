@@ -60,7 +60,19 @@ class BaseStep:
         self.tracer: Tracer | None = None
         self.execution_group = 0
         self.state: Status = Status.PENDING
-        self.policies: List[Policy] = list(policies or [])
+        self.policies: List[Policy] = []
+        for p in policies or []:
+            self.add_policy(p)
+
+    def add_policy(self, policy: Policy) -> None:
+        """Attach *policy* to this step."""
+        self.policies.append(policy)
+        from .policies import WorkflowPolicy
+
+        if isinstance(self, Workflow) and isinstance(policy, WorkflowPolicy):
+            policy.attach_to_workflow(self)  # pragma: no cover - default no-op
+        elif isinstance(policy, StepPolicy):
+            policy.attach_to_step(self)  # pragma: no cover - default no-op
 
     def _log_event(self, event: str, **data: Any) -> None:
         if self.tracer:
@@ -348,7 +360,7 @@ class WorkflowSchema:
             for pol in schema.policies:
                 cls = _POLICY_REGISTRY.get(pol.get("name"))
                 if cls:
-                    step.policies.append(cls.from_config(pol.get("config", {})))
+                    step.add_policy(cls.from_config(pol.get("config", {})))
         outputs = [tasks[name] for name in self.outputs]
         wf = Workflow(
             outputs=outputs,
@@ -359,7 +371,7 @@ class WorkflowSchema:
         for pol in self.policies:
             cls = _POLICY_REGISTRY.get(pol.get("name"))
             if cls:
-                wf.policies.append(cls.from_config(pol.get("config", {})))
+                wf.add_policy(cls.from_config(pol.get("config", {})))
         return wf
 
 

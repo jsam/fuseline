@@ -5,6 +5,11 @@ title: "Policies"
 Fuseline exposes a pluggable *policy* system. Policies attach to steps or
 workflows and modify how they run.
 
+Policies are instantiated when a workflow is defined but executed by the
+worker when the workflow runs.  When a policy is associated with a step or a
+workflow the framework calls ``attach_to_step`` or ``attach_to_workflow`` on the
+policy instance allowing it to prepare internal state.
+
 ### Retries and backoff
 
 `RetryPolicy` controls how many times a step is retried. Attach it to a

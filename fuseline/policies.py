@@ -23,7 +23,15 @@ _POLICY_REGISTRY: Dict[str, Type["Policy"]] = {}
 
 
 class Policy(abc.ABC):
-    """Base class for all policies."""
+    """Base class for all policies.
+
+    Policies are instantiated on the driver process when a workflow is
+    defined.  They are executed in the worker process once the workflow is
+    dispatched.  To support this separation policies may override the
+    :py:meth:`attach_to_step` and :py:meth:`attach_to_workflow` hooks which are
+    invoked when the policy is associated with a :class:`~fuseline.workflow.Step`
+    or :class:`~fuseline.workflow.Workflow`.
+    """
 
     name = "policy"
 
@@ -33,12 +41,21 @@ class Policy(abc.ABC):
             _POLICY_REGISTRY[cls.name] = cls
 
     def to_config(self) -> Dict[str, Any]:
-        """Return a serialisable representation."""
+        """Return a serialisable representation used in ``WorkflowSchema``."""
         return {}
 
     @classmethod
     def from_config(cls, cfg: Dict[str, Any]) -> "Policy":
         return cls(**cfg)  # type: ignore[arg-type]
+
+    # lifecycle -----------------------------------------------------------
+    def attach_to_step(self, step: "Step") -> None:  # pragma: no cover - default
+        """Called when the policy is added to a step."""
+        pass
+
+    def attach_to_workflow(self, wf: "Workflow") -> None:  # pragma: no cover - default
+        """Called when the policy is added to a workflow."""
+        pass
 
 
 class FailureAction(str, Enum):
@@ -60,6 +77,9 @@ class FailureDecision:
 class StepPolicy(Policy):
     """Policy applied to individual steps."""
 
+    def attach_to_step(self, step: "Step") -> None:  # pragma: no cover - default
+        pass
+
     def on_start(self, step: "Step") -> None:
         pass
 
@@ -72,6 +92,9 @@ class StepPolicy(Policy):
 
 class WorkflowPolicy(Policy):
     """Policy applied to workflow execution."""
+
+    def attach_to_workflow(self, wf: "Workflow") -> None:  # pragma: no cover - default
+        pass
 
     def on_workflow_start(self, wf: "Workflow") -> None:  # pragma: no cover - default no-op
         pass
