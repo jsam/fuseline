@@ -1,7 +1,9 @@
 import pytest
 
-from fuseline.workflow import Step, Workflow
-from fuseline.policies import StepPolicy, WorkflowPolicy
+import time
+
+from fuseline.workflow import Step, Workflow, Status
+from fuseline.policies import StepPolicy, WorkflowPolicy, StepTimeoutPolicy
 
 
 class BinderStepPolicy(StepPolicy):
@@ -32,3 +34,15 @@ def test_policy_binding() -> None:
     wf = Workflow(outputs=[s], policies=[wp])
     assert sp.bound_to is s
     assert wp.bound_to is wf
+
+
+class SlowStep(Step):
+    def run_step(self) -> None:
+        time.sleep(0.1)
+
+
+def test_step_timeout() -> None:
+    s = SlowStep(policies=[StepTimeoutPolicy(0.01)])
+    wf = Workflow(outputs=[s])
+    wf.run()
+    assert wf.state == Status.FAILED
