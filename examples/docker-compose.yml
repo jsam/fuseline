@@ -14,7 +14,7 @@ services:
     volumes:
       - ./../:/app
     working_dir: /app/examples
-    command: python robyn_broker.py
+    command: python -m fuseline.broker.http
     environment:
       DATABASE_URL: postgresql://fuseline:fuseline@db:5432/fuseline
       PYTHONUNBUFFERED: "1"

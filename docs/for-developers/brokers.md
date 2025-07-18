@@ -24,53 +24,21 @@ tests often use :class:`MemoryBroker` directly.
   persistence to ``RuntimeStorage`` which may use a database or message
   queue.
 
-## Example: simple HTTP broker
+## Running the built-in HTTP broker
 
 ``MemoryBroker`` lives entirely in memory and is mostly useful for unit
-tests or single‑process demos.  A real deployment runs the broker as a
-server and exposes the API described in [Broker API](broker-api.md).  The
-snippet below sketches a small HTTP service using `Robyn` and the
-``PostgresBroker`` so workers can connect over the network.  The broker
-reads the database URL from the ``DATABASE_URL`` environment variable.
+tests or single‑process demos. Production deployments should expose the
+broker over HTTP so multiple workers can connect. Fuseline ships with a
+ready-to-use server implemented with `Robyn`.
 
-```python
-# broker_server.py (server process)
-from robyn import Robyn
-
-from fuseline.broker import PostgresBroker, StepReport
-from fuseline.workflow import WorkflowSchema
-
-broker = PostgresBroker()
-
-app = Robyn(__file__)
-
-@app.post("/worker/register")
-async def register(request):
-    workflows = [WorkflowSchema(**wf) for wf in request.json]
-    return broker.register_worker(workflows)
-
-@app.post("/workflow/dispatch")
-async def dispatch(request):
-    wf = WorkflowSchema(**request.json["workflow"])
-    return broker.dispatch_workflow(wf, request.json.get("inputs"))
-
-@app.get("/workflow/step")
-async def get_step(request):
-    wid = request.qs_params.get("worker_id")
-    assignment = broker.get_step(wid)
-    if assignment is None:
-        return {"status_code": 204}
-    return assignment.model_dump()
-
-@app.post("/workflow/step")
-async def report_step(request):
-    wid = request.qs_params.get("worker_id")
-    broker.report_step(wid, StepReport(**request.json))
-    return ""
+```bash
+python -m fuseline.broker.http
 ```
 
-Workers would send HTTP requests to these endpoints instead of calling
-``MemoryBroker`` methods directly.
+The server uses :class:`PostgresBroker` under the hood and reads the
+database URL from the ``DATABASE_URL`` environment variable. Workers call
+the API described in [Broker API](broker-api.md) to register workflows and
+fetch assignments.
 
 ## Custom broker class
 
@@ -128,7 +96,7 @@ services:
     volumes:
       - ./../:/app
     working_dir: /app/examples
-    command: python robyn_broker.py
+    command: python -m fuseline.broker.http
     environment:
       DATABASE_URL: postgresql://fuseline:fuseline@db:5432/fuseline
     depends_on:
