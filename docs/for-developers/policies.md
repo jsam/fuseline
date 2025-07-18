@@ -125,10 +125,12 @@ BROKER = MemoryBroker()
 ### Running a worker (client side)
 
 ```python
+from fuseline.connectors import LocalBrokerConnector
 from fuseline.engines import ProcessEngine
 from my_workflow import rag_workflow  # contains custom policies
 
-engine = ProcessEngine(BROKER, [rag_workflow])
+connector = LocalBrokerConnector(BROKER)
+engine = ProcessEngine(connector, [rag_workflow])
 engine.work()
 ```
 
@@ -175,7 +177,8 @@ retrieve.next(answer)
 
 rag_workflow = Workflow(outputs=[answer])
 
-engine = ProcessEngine(BROKER, [rag_workflow])
+connector = LocalBrokerConnector(BROKER)
+engine = ProcessEngine(connector, [rag_workflow])
 engine.work()
 ```
 
