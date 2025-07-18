@@ -27,6 +27,8 @@ nav:
       - for-developers/execution-flow.md
       - for-developers/state-management.md
       - for-developers/policies.md
+      - for-developers/brokers.md
+      - for-developers/workers.md
       - for-developers/process-engine-tests.md
       - for-developers/broker-api.md
   - API Reference: api.md
