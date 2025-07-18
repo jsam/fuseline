@@ -10,6 +10,10 @@ worker when the workflow runs.  When a policy is associated with a step or a
 workflow the framework calls ``attach_to_step`` or ``attach_to_workflow`` on the
 policy instance allowing it to prepare internal state.
 
+``StepPolicy`` exposes ``execute`` and ``execute_async`` methods which the
+worker calls around step execution.  Policies can therefore modify synchronous
+and asynchronous steps in a uniform way.
+
 ### Retries and backoff
 
 `RetryPolicy` controls how many times a step is retried. Attach it to a
@@ -34,7 +38,7 @@ implement additional behaviour.
 ### Timeouts
 
 `StepTimeoutPolicy` aborts a step if it runs longer than the configured
-number of seconds.
+number of seconds.  The policy works for synchronous and asynchronous steps.
 
 ```python
 from fuseline.policies import StepTimeoutPolicy
