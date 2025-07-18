@@ -9,8 +9,8 @@ if TYPE_CHECKING:  # pragma: no cover - for type hints only
 from .broker import StepAssignment, StepReport, WorkflowSchema
 
 
-class BrokerConnector(ABC):
-    """Network interface used by workers to communicate with the broker."""
+class BrokerClient(ABC):
+    """Client-side interface used by workers to communicate with the broker."""
 
     @abstractmethod
     def register_worker(self, workflows: Iterable[WorkflowSchema]) -> str:
@@ -33,8 +33,8 @@ class BrokerConnector(ABC):
         """Notify the broker that ``worker_id`` is still alive."""
 
 
-class LocalBrokerConnector(BrokerConnector):
-    """Connector that directly calls a :class:`Broker` instance."""
+class LocalBrokerClient(BrokerClient):
+    """Client that directly calls a :class:`Broker` instance."""
 
     def __init__(self, broker: "Broker") -> None:
         self._broker = broker

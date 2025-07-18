@@ -1,6 +1,6 @@
 from fuseline import Step, Workflow
 from fuseline.broker import MemoryBroker
-from fuseline.connectors import LocalBrokerConnector
+from fuseline.clients import LocalBrokerClient
 from fuseline.engines import ProcessEngine
 from fuseline.policies import RetryPolicy, StepTimeoutPolicy
 
@@ -23,6 +23,6 @@ fail.policies.append(StepTimeoutPolicy(5.0))
 
 wf = Workflow(outputs=[fail])
 broker = MemoryBroker()
-connector = LocalBrokerConnector(broker)
-engine = ProcessEngine(connector, [wf])
+client = LocalBrokerClient(broker)
+engine = ProcessEngine(client, [wf])
 engine.work()
