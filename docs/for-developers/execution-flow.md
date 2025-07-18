@@ -40,7 +40,9 @@ the successor keys to choose the next edge.
 
 Workers load steps from the broker and run them using either
 `ProcessEngine` or another execution engine.  Step results are written
-back so the broker can decide which successors to enqueue.
+back so the broker can decide which successors to enqueue.  In a real
+deployment the broker runs in its own process and workers communicate
+over the :class:`BrokerClient` interface.
 
 `ProcessEngine` drives this loop by repeatedly asking the broker for the
 next step, executing it and reporting the result.  The broker examines
@@ -51,15 +53,23 @@ in‑memory without persistent state.
 ```python
 from fuseline import Workflow
 from fuseline.broker import MemoryBroker
-from fuseline.engines import ProcessEngine
+from fuseline.broker.clients import LocalBrokerClient
+from fuseline.worker import ProcessEngine
 
 broker = MemoryBroker()
-instance = broker.dispatch_workflow(workflow)
+client = LocalBrokerClient(broker)
+instance = client.dispatch_workflow(workflow.to_schema())
 
-worker = ProcessEngine(broker, [workflow])
+worker = ProcessEngine(client, [workflow])
 worker.work()
 ```
 
+This code uses ``MemoryBroker`` for simplicity.  In a real deployment the
+worker would call a broker service over the network via a
+``BrokerClient`` implementation.
+
 Multiple processes can create their own `ProcessEngine` instances
 pointing at the same broker to distribute work.  Each worker grabs the
-next available step and the broker handles queuing of successors.
+next available step and the broker handles queuing of successors.  See
+[Implementing brokers](brokers.md) and [Implementing workers](workers.md)
+for more about building these components.

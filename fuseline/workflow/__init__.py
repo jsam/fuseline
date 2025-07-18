@@ -18,8 +18,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence
 
-from .interfaces import ExecutionEngine, Exporter, Tracer
-from .policies import (
+from ..interfaces import ExecutionEngine, Exporter, Tracer
+from ..policies import (
     _POLICY_REGISTRY,
     FailureAction,
     FailureDecision,
@@ -27,10 +27,10 @@ from .policies import (
     StepPolicy,
     WorkflowPolicy,
 )
-from .storage import RuntimeStorage
+from ..storage import RuntimeStorage
 
 if TYPE_CHECKING:  # pragma: no cover - for type hints only
-    from .broker import Broker
+    from ..broker import Broker
 
 
 class Status(str, Enum):
@@ -60,7 +60,19 @@ class BaseStep:
         self.tracer: Tracer | None = None
         self.execution_group = 0
         self.state: Status = Status.PENDING
-        self.policies: List[Policy] = list(policies or [])
+        self.policies: List[Policy] = []
+        for p in policies or []:
+            self.add_policy(p)
+
+    def add_policy(self, policy: Policy) -> None:
+        """Attach *policy* to this step."""
+        self.policies.append(policy)
+        from ..policies import WorkflowPolicy
+
+        if isinstance(self, Workflow) and isinstance(policy, WorkflowPolicy):
+            policy.attach_to_workflow(self)  # pragma: no cover - default no-op
+        elif isinstance(policy, StepPolicy):
+            policy.attach_to_step(self)  # pragma: no cover - default no-op
 
     def _log_event(self, event: str, **data: Any) -> None:
         if self.tracer:
@@ -101,8 +113,16 @@ class BaseStep:
         attempt = 0
         while True:
             self.cur_retry = attempt  # type: ignore[attr-defined]
-            try:
+
+            def call() -> Any:
                 return self.run_step(setup_res)
+
+            wrapped = call
+            for pol in reversed(policies):
+                wrapped = (lambda w=wrapped, p=pol: p.execute(self, w))
+
+            try:
+                return wrapped()
             except Exception as exc:  # pragma: no cover - control via policy
                 decision: FailureDecision | None = None
                 for p in policies:
@@ -203,47 +223,53 @@ class Step(BaseStep):
         while True:
             self.cur_retry = attempt
             try:
-                if self.is_typed:
-                    kwargs = {}
-                    for name, dep in self.deps.items():
-                        if isinstance(dep, list):
-                            chosen = self.or_triggered.get(name) or dep[0]
-                            val = setup_res[chosen]
-                            cond = self.dep_conditions.get(name)
-                            if cond is not None:
-                                passed = bool(cond(val, chosen)) if isinstance(cond, Condition) else bool(cond(val))
-                                self._log_event(
-                                    "condition_check",
-                                    dependency=name,
-                                    value=val,
-                                    passed=passed,
-                                )
-                                if not passed:
-                                    self.was_skipped = True
-                                    return None
-                            kwargs[name] = val
-                        else:
-                            val = setup_res[dep]
-                            cond = self.dep_conditions.get(name)
-                            if cond is not None:
-                                passed = bool(cond(val, dep)) if isinstance(cond, Condition) else bool(cond(val))
-                                self._log_event(
-                                    "condition_check",
-                                    dependency=name,
-                                    value=val,
-                                    passed=passed,
-                                )
-                                if not passed:
-                                    self.was_skipped = True
-                                    return None
+                def call() -> Any:
+                    if self.is_typed:
+                        kwargs = {}
+                        for name, dep in self.deps.items():
+                            if isinstance(dep, list):
+                                chosen = self.or_triggered.get(name) or dep[0]
+                                val = setup_res[chosen]
+                                cond = self.dep_conditions.get(name)
+                                if cond is not None:
+                                    passed = bool(cond(val, chosen)) if isinstance(cond, Condition) else bool(cond(val))
+                                    self._log_event(
+                                        "condition_check",
+                                        dependency=name,
+                                        value=val,
+                                        passed=passed,
+                                    )
+                                    if not passed:
+                                        self.was_skipped = True
+                                        return None
+                                kwargs[name] = val
+                            else:
+                                val = setup_res[dep]
+                                cond = self.dep_conditions.get(name)
+                                if cond is not None:
+                                    passed = bool(cond(val, dep)) if isinstance(cond, Condition) else bool(cond(val))
+                                    self._log_event(
+                                        "condition_check",
+                                        dependency=name,
+                                        value=val,
+                                        passed=passed,
+                                    )
+                                    if not passed:
+                                        self.was_skipped = True
+                                        return None
 
-                            kwargs[name] = val
-                    kwargs.update({k: v for k, v in self.params.items() if k in self.param_names and k not in kwargs})
-                    result = type(self).run_step(self, **kwargs)
-                    if isinstance(setup_res, dict):
-                        setup_res[self] = result
-                    return result
-                return type(self).run_step(self, setup_res)
+                                kwargs[name] = val
+                        kwargs.update({k: v for k, v in self.params.items() if k in self.param_names and k not in kwargs})
+                        result = type(self).run_step(self, **kwargs)
+                        if isinstance(setup_res, dict):
+                            setup_res[self] = result
+                        return result
+                    return type(self).run_step(self, setup_res)
+
+                wrapped = call
+                for pol in reversed(policies):
+                    wrapped = (lambda w=wrapped, p=pol: p.execute(self, w))
+                return wrapped()
             except Exception as e:
                 decision: FailureDecision | None = None
                 for p in policies:
@@ -348,7 +374,7 @@ class WorkflowSchema:
             for pol in schema.policies:
                 cls = _POLICY_REGISTRY.get(pol.get("name"))
                 if cls:
-                    step.policies.append(cls.from_config(pol.get("config", {})))
+                    step.add_policy(cls.from_config(pol.get("config", {})))
         outputs = [tasks[name] for name in self.outputs]
         wf = Workflow(
             outputs=outputs,
@@ -359,7 +385,7 @@ class WorkflowSchema:
         for pol in self.policies:
             cls = _POLICY_REGISTRY.get(pol.get("name"))
             if cls:
-                wf.policies.append(cls.from_config(pol.get("config", {})))
+                wf.add_policy(cls.from_config(pol.get("config", {})))
         return wf
 
 
@@ -380,7 +406,7 @@ class Workflow(BaseStep):
         self.outputs = outputs
         self.execution_engine = execution_engine
         if isinstance(trace, str):
-            from .tracing import FileTracer
+            from ..tracing import FileTracer
 
             self.tracer: Tracer | None = FileTracer(trace)
             self.trace_path = trace
@@ -446,7 +472,7 @@ class Workflow(BaseStep):
         By default the workflow is exported to YAML via :class:`YamlExporter`.
         """
 
-        from .exporters import YamlExporter
+        from ..exporters import YamlExporter
 
         exporter = exporter or YamlExporter()
         exporter.export(self, path)
@@ -512,7 +538,7 @@ class Workflow(BaseStep):
         """
         self.params = inputs or {}
         shared: Dict[Any, Any] = {}
-        from .engines import PoolEngine
+        from ..worker import PoolEngine
 
         engine = execution_engine or self.execution_engine or PoolEngine()
         wf_policies = [p for p in self.policies if isinstance(p, WorkflowPolicy)]
@@ -528,7 +554,7 @@ class Workflow(BaseStep):
             runtime_store.set_inputs(self.workflow_id, self.workflow_instance_id, self.params)
             runtime_store.set_inputs(self.workflow_id, self.workflow_instance_id, self.params)
         if self.tracer:
-            from .tracing import BoundTracer
+            from ..tracing import BoundTracer
 
             bound = BoundTracer(self.tracer, self.workflow_id, self.workflow_instance_id)
             for step in self._collect_steps():
@@ -550,7 +576,7 @@ class Workflow(BaseStep):
                     step.state = Status.CANCELLED
                     step._log_event("step_cancelled")
             if self.tracer:
-                from .tracing import BoundTracer
+                from ..tracing import BoundTracer
 
                 BoundTracer(self.tracer, self.workflow_id, self.workflow_instance_id).record(
                     {"event": "workflow_finished"}
@@ -561,7 +587,7 @@ class Workflow(BaseStep):
         for pol in wf_policies:
             pol.on_workflow_finished(self, result if self.state == Status.SUCCEEDED else None)
         if self.tracer and self.state != Status.FAILED:
-            from .tracing import BoundTracer
+            from ..tracing import BoundTracer
 
             BoundTracer(self.tracer, self.workflow_id, self.workflow_instance_id).record({"event": "workflow_finished"})
         if runtime_store:
@@ -760,7 +786,7 @@ class BatchWorkflow(Workflow):
     ) -> Any:
         self.params = inputs or {}
         shared: Dict[Any, Any] = {}
-        from .engines import PoolEngine
+        from ..worker import PoolEngine
 
         engine = execution_engine or self.execution_engine or PoolEngine()
         self.before_all(shared)
@@ -857,13 +883,25 @@ class AsyncStep(Step):
                                     return None
                             kwargs[name] = val
                     kwargs.update({k: v for k, v in self.params.items() if k in self.param_names and k not in kwargs})
-                    method = type(self).run_step_async
-                    result = await method(self, **kwargs)
+                    async def call() -> Any:
+                        method = type(self).run_step_async
+                        return await method(self, **kwargs)
+
+                    wrapped = call
+                    for pol in reversed(policies):
+                        wrapped = (lambda w=wrapped, p=pol: p.execute_async(self, w))
+                    result = await wrapped()
                     if isinstance(setup_res, dict):
                         setup_res[self] = result
                     return result
-                method = type(self).run_step_async
-                return await method(self, setup_res)
+                async def call() -> Any:
+                    method = type(self).run_step_async
+                    return await method(self, setup_res)
+
+                wrapped = call
+                for pol in reversed(policies):
+                    wrapped = (lambda w=wrapped, p=pol: p.execute_async(self, w))
+                return await wrapped()
             except Exception as e:
                 decision: FailureDecision | None = None
                 for p in policies:
@@ -976,7 +1014,7 @@ class AsyncWorkflow(Workflow, AsyncStep):
         """
         self.params = inputs or {}
         shared: Dict[Any, Any] = {}
-        from .engines import PoolEngine
+        from ..worker import PoolEngine
 
         engine = execution_engine or self.execution_engine or PoolEngine()
         wf_policies = [p for p in self.policies if isinstance(p, WorkflowPolicy)]
@@ -990,7 +1028,7 @@ class AsyncWorkflow(Workflow, AsyncStep):
                 step_names.values(),
             )
         if self.tracer:
-            from .tracing import BoundTracer
+            from ..tracing import BoundTracer
 
             bound = BoundTracer(self.tracer, self.workflow_id, self.workflow_instance_id)
             for step in self._collect_steps():
@@ -1011,14 +1049,14 @@ class AsyncWorkflow(Workflow, AsyncStep):
                     step.state = Status.CANCELLED
                     step._log_event("step_cancelled")
             if self.tracer:
-                from .tracing import BoundTracer
+                from ..tracing import BoundTracer
 
                 BoundTracer(self.tracer, self.workflow_id, self.workflow_instance_id).record(
                     {"event": "workflow_finished"}
                 )
             return None
         if self.tracer:
-            from .tracing import BoundTracer
+            from ..tracing import BoundTracer
 
             BoundTracer(self.tracer, self.workflow_id, self.workflow_instance_id).record({"event": "workflow_finished"})
         for pol in wf_policies:

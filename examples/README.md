@@ -78,3 +78,14 @@ Runs a simple workflow while recording the order of executed steps to
 ## policy_workflow.py
 
 Demonstrates attaching a ``RetryPolicy`` to a step.
+
+## HTTP broker
+
+Run a production-ready broker with Robyn and Postgres using the built-in
+module:
+
+```bash
+python -m fuseline.broker.http
+```
+
+See `docker-compose.yml` for a runnable setup.
