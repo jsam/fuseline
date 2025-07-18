@@ -1,0 +1,24 @@
+version: '3'
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: fuseline
+      POSTGRES_PASSWORD: fuseline
+      POSTGRES_DB: fuseline
+    ports:
+      - "5432:5432"
+
+  broker:
+    image: python:3.11-slim
+    volumes:
+      - ./../:/app
+    working_dir: /app/examples
+    command: python robyn_broker.py
+    environment:
+      DATABASE_URL: postgresql://fuseline:fuseline@db:5432/fuseline
+      PYTHONUNBUFFERED: "1"
+    depends_on:
+      - db
+    ports:
+      - "8000:8000"

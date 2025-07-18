@@ -28,7 +28,7 @@ from .clients import BrokerClient, LocalBrokerClient
 from .engines import PoolEngine, ProcessEngine
 from .exporters import YamlExporter
 from .interfaces import ExecutionEngine, Exporter, Tracer
-from .storage import MemoryRuntimeStorage, RuntimeStorage
+from .storage import MemoryRuntimeStorage, RuntimeStorage, PostgresRuntimeStorage
 from .tracing import FileTracer
 from .typing import Computed, T
 from .workflow import (

@@ -29,38 +29,46 @@ tests often use :class:`MemoryBroker` directly.
 ``MemoryBroker`` lives entirely in memory and is mostly useful for unit
 tests or single‑process demos.  A real deployment runs the broker as a
 server and exposes the API described in [Broker API](broker-api.md).  The
-snippet below sketches a small HTTP service using `FastAPI` that wraps a
-``MemoryBroker`` so workers can connect over the network.
+snippet below sketches a small HTTP service using `Robyn` and a
+``PostgresRuntimeStorage`` backend so workers can connect over the network.
 
 ```python
 # broker_server.py (server process)
-from fastapi import FastAPI, HTTPException
+from robyn import Robyn
 
 from fuseline.broker import MemoryBroker, StepReport
+from fuseline.storage import PostgresRuntimeStorage
 from fuseline.workflow import WorkflowSchema
 
+store = PostgresRuntimeStorage("postgresql://fuseline:fuseline@localhost:5432/fuseline")
 broker = MemoryBroker()
-app = FastAPI()
+broker._store = store
+
+app = Robyn(__file__)
 
 @app.post("/worker/register")
-def register(workflows: list[dict]) -> str:
-    return broker.register_worker([WorkflowSchema(**wf) for wf in workflows])
+async def register(request):
+    workflows = [WorkflowSchema(**wf) for wf in request.json]
+    return broker.register_worker(workflows)
 
 @app.post("/workflow/dispatch")
-def dispatch(payload: dict) -> str:
-    wf = WorkflowSchema(**payload["workflow"])
-    return broker.dispatch_workflow(wf, payload.get("inputs"))
+async def dispatch(request):
+    wf = WorkflowSchema(**request.json["workflow"])
+    return broker.dispatch_workflow(wf, request.json.get("inputs"))
 
 @app.get("/workflow/step")
-def get_step(worker_id: str):
-    assignment = broker.get_step(worker_id)
+async def get_step(request):
+    wid = request.qs_params.get("worker_id")
+    assignment = broker.get_step(wid)
     if assignment is None:
-        raise HTTPException(status_code=204)
+        return {"status_code": 204}
     return assignment.model_dump()
 
 @app.post("/workflow/step")
-def report_step(worker_id: str, report: dict) -> None:
-    broker.report_step(worker_id, StepReport(**report))
+async def report_step(request):
+    wid = request.qs_params.get("worker_id")
+    broker.report_step(wid, StepReport(**request.json))
+    return ""
 ```
 
 Workers would send HTTP requests to these endpoints instead of calling
@@ -101,3 +109,32 @@ class MyBroker(Broker):
 
 Once a broker exposes these methods it can be wrapped in a network
 service and used by multiple workers.
+
+### docker-compose example
+
+``examples/docker-compose.yml`` launches Postgres and the Robyn broker:
+
+```yaml
+version: '3'
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: fuseline
+      POSTGRES_PASSWORD: fuseline
+      POSTGRES_DB: fuseline
+    ports:
+      - "5432:5432"
+  broker:
+    image: python:3.11-slim
+    volumes:
+      - ./../:/app
+    working_dir: /app/examples
+    command: python robyn_broker.py
+    environment:
+      DATABASE_URL: postgresql://fuseline:fuseline@db:5432/fuseline
+    depends_on:
+      - db
+    ports:
+      - "8000:8000"
+```
