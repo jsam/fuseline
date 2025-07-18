@@ -24,7 +24,7 @@
 __version__ = "0.1.2"
 __version_tuple__ = (0, 1, 2)
 from .broker import Broker, MemoryBroker, StepReport
-from .connectors import BrokerConnector, LocalBrokerConnector
+from .clients import BrokerClient, LocalBrokerClient
 from .engines import PoolEngine, ProcessEngine
 from .exporters import YamlExporter
 from .interfaces import ExecutionEngine, Exporter, Tracer

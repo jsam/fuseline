@@ -51,14 +51,14 @@ in‑memory without persistent state.
 ```python
 from fuseline import Workflow
 from fuseline.broker import MemoryBroker
-from fuseline.connectors import LocalBrokerConnector
+from fuseline.clients import LocalBrokerClient
 from fuseline.engines import ProcessEngine
 
 broker = MemoryBroker()
-connector = LocalBrokerConnector(broker)
-instance = connector.dispatch_workflow(workflow.to_schema())
+client = LocalBrokerClient(broker)
+instance = client.dispatch_workflow(workflow.to_schema())
 
-worker = ProcessEngine(connector, [workflow])
+worker = ProcessEngine(client, [workflow])
 worker.work()
 ```
 
