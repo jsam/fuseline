@@ -53,8 +53,8 @@ in‑memory without persistent state.
 ```python
 from fuseline import Workflow
 from fuseline.broker import MemoryBroker
-from fuseline.clients import LocalBrokerClient
-from fuseline.engines import ProcessEngine
+from fuseline.broker.clients import LocalBrokerClient
+from fuseline.worker import ProcessEngine
 
 broker = MemoryBroker()
 client = LocalBrokerClient(broker)

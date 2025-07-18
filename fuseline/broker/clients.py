@@ -4,9 +4,9 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Iterable, Optional
 
 if TYPE_CHECKING:  # pragma: no cover - for type hints only
-    from .broker import Broker
+    from . import Broker
 
-from .broker import StepAssignment, StepReport, WorkflowSchema
+from . import StepAssignment, StepReport, WorkflowSchema
 
 
 class BrokerClient(ABC):

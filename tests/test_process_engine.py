@@ -2,8 +2,8 @@ from pathlib import Path
 
 from fuseline import Workflow
 from fuseline.broker import MemoryBroker
-from fuseline.clients import LocalBrokerClient
-from fuseline.engines import ProcessEngine
+from fuseline.broker.clients import LocalBrokerClient
+from fuseline.worker import ProcessEngine
 from fuseline.policies import RetryPolicy
 from fuseline.workflow import Status, Task
 

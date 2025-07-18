@@ -24,6 +24,8 @@ covered across the pages:
   :class:`Broker` interface and how to persist workflow state.
 * **How do I write a worker?**  Use :class:`ProcessEngine` or roll your
   own loop with :class:`BrokerClient`.
+* **Where does PostgresRuntimeStorage fit?**  Learn how the built-in
+  PostgreSQL backend works and how migrations are applied.
 * **Can I implement my own storage or execution engine?**  Yes!  The
   pages below describe the required interfaces and show example
   implementations.
