@@ -2,13 +2,13 @@
 title: "Batch workflows"
 ---
 
-`BatchTask` and `BatchWorkflow` run tasks for multiple parameter sets.
+`BatchStep` and `BatchWorkflow` run steps for multiple parameter sets.
 
 
 ```python
-from fuseline import BatchTask, BatchWorkflow
+from fuseline import BatchStep, BatchWorkflow
 
-class Echo(BatchTask):
+class Echo(BatchStep):
     def run_step(self, word: str) -> str:
         return word
 

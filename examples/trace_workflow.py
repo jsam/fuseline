@@ -1,13 +1,13 @@
-from fuseline import Computed, Depends, PoolEngine, Task, Workflow
+from fuseline import Computed, Depends, PoolEngine, Step, Workflow
 
 
-class Add(Task):
+class Add(Step):
     def run_step(self, x: int, y: int) -> int:
         return x + y
 
 add = Add()
 
-class Mul(Task):
+class Mul(Step):
     def run_step(self, value: Computed[int] = Depends(add)) -> int:
         return value * 2
 

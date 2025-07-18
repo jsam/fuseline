@@ -49,7 +49,8 @@ light/dark palette toggle.
 | **Batch workflows** | `BatchTask` and `BatchWorkflow` run tasks for multiple parameter sets |
 | **Parallel execution** | `PoolEngine` executes independent branches concurrently |
 | **Conditional dependencies** | Attach `Condition` functions to `Depends` for branch logic |
-| **Retries with backoff** | Tasks accept `max_retries` and `wait` to retry on failure |
+| **Retries with backoff** | Attach `RetryPolicy` to retry failed steps |
+| **Policies** | Attach `Policy` objects to customise retries, timeouts and other behaviour |
 | **Workflow export** | Serialize graphs to YAML with `Workflow.export` and `YamlExporter` |
 | **Tracing** | Record execution events using `FileTracer` |
 | **Runtime storage** | Persist workflow state so multiple workers can resume runs |

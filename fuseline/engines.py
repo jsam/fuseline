@@ -5,10 +5,20 @@ from __future__ import annotations
 import asyncio
 import warnings
 from concurrent.futures import ThreadPoolExecutor
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Iterable, List
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Awaitable,
+    Callable,
+    Iterable,
+    List,
+    Mapping,
+    Sequence,
+)
 
 from .broker import Broker, StepReport
 from .interfaces import ExecutionEngine
+from .policies import WorkerPolicy
 
 if TYPE_CHECKING:  # pragma: no cover - for typing only
     from .workflow import Step, Workflow
@@ -50,7 +60,13 @@ class PoolEngine(ExecutionEngine):
 class ProcessEngine:
     """Execute workflow steps fetched from a :class:`Broker`."""
 
-    def __init__(self, broker: "Broker", workflows: Iterable["Workflow"]) -> None:
+    def __init__(
+        self,
+        broker: "Broker",
+        workflows: Iterable["Workflow"],
+        *,
+        worker_policies: Mapping[str, Sequence[WorkerPolicy]] | None = None,
+    ) -> None:
         self.broker = broker
         self.workflows = {wf.workflow_id: wf for wf in workflows}
         self._step_names: dict[str, dict["Step", str]] = {}
@@ -60,7 +76,8 @@ class ProcessEngine:
             self._step_names[wf.workflow_id] = mapping
             self._rev_names[wf.workflow_id] = {n: s for s, n in mapping.items()}
         schemas = [wf.to_schema() for wf in workflows]
-        self.worker_id = broker.register_worker(schemas)
+        wf_policies = worker_policies or {}
+        self.worker_id = broker.register_worker(schemas, wf_policies)
 
     def work(self) -> None:
         while True:

@@ -1,7 +1,7 @@
-from fuseline import Task, Workflow
+from fuseline import Step, Workflow
 
 
-class PrintStep(Task):
+class PrintStep(Step):
     def __init__(self, message: str, action: str = "default") -> None:
         super().__init__()
         self.message = message

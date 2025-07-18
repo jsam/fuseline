@@ -2,36 +2,58 @@
 title: "Policies"
 ---
 
-Fuseline tasks expose simple reliability controls.
+Fuseline exposes a pluggable *policy* system. Policies attach to steps or
+workflows and modify how they run.
 
 ### Retries and backoff
 
-`Task` and `AsyncTask` accept `max_retries` and `wait` arguments. When a
-step raises an exception, it will be retried until `max_retries` is
-exhausted. The optional `wait` value sleeps between attempts.
+`RetryPolicy` controls how many times a step is retried. Attach it to a
+`Step` or `AsyncStep` to enable retry behaviour.
 
-Retries happen inside the task's private `_exec` method.  If a retry is
-needed the task logs the error and waits before running again.  You may
-subclass `Task` to implement custom backoff strategies or additional
-recovery logic.
+```python
+from fuseline import Step, Workflow
+from fuseline.policies import RetryPolicy
+
+class Flaky(Step):
+    def run_step(self) -> None:
+        raise RuntimeError("boom")
+
+step = Flaky()
+step.policies.append(RetryPolicy(max_retries=3, wait=1))
+Workflow(outputs=[step]).run()
+```
+
+Custom policies can subclass `StepPolicy` and override the hooks to
+implement additional behaviour.
+
+### Worker policies
+
+`WorkerPolicy` influences how a worker interacts with the broker. The
+provided `StepTimeoutWorkerPolicy` reads a `StepTimeoutPolicy` attached to
+a step and sets the assignment expiry accordingly.
+
+```python
+from fuseline.policies import StepTimeoutPolicy, StepTimeoutWorkerPolicy
+
+step = Flaky()
+step.policies.append(StepTimeoutPolicy(30.0))
+engine = ProcessEngine(
+    broker,
+    [Workflow(outputs=[step])],
+    worker_policies={"workflow-id": [StepTimeoutWorkerPolicy()]},
+)
+```
 
 ### Fail-fast
 
 If any step fails after exhausting retries, downstream steps are marked
-`CANCELLED` and the workflow state becomes `FAILED`.
-
-Individual steps control this behaviour via the `max_retries` argument;
-set it to ``0`` to disable retries entirely.  A workflow stops as soon
-as any step reaches the `FAILED` state after exhausting its retries.
-Custom engines may choose to implement alternative fail-fast semantics.
+`CANCELLED` and the workflow state becomes `FAILED`. Set `max_retries=0`
+to disable retries. Custom engines may implement alternative semantics.
 
 ### Common questions
 
-- How do I override retry logic?  Subclass `Task` and implement
-  `exec_fallback` to customize what happens after the final failure.
+- How do I override retry logic?  Subclass `StepPolicy`.
 - Can I pause a workflow?  Persist state using `RuntimeStorage` and resume
   with `ProcessEngine`.
-- Can I change timeouts or other limits?  You can extend `Task` and raise
-  your own exceptions in `run_step` when conditions are not met.  The
-  engine will treat those like any other failure and apply the retry
-  policy.
+- Can I change timeouts or other limits?  Implement a custom policy and
+  raise exceptions in `run_step` when limits are hit.

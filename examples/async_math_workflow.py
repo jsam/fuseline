@@ -1,15 +1,15 @@
 import asyncio
 
-from fuseline import AsyncTask, AsyncWorkflow, Computed, Depends
+from fuseline import AsyncStep, AsyncWorkflow, Computed, Depends
 
 
-class AsyncAddTask(AsyncTask):
+class AsyncAddTask(AsyncStep):
     async def run_step_async(self, a: int, b: int) -> int:
         await asyncio.sleep(0.1)
         return a + b
 
 
-class AsyncMultiplyTask(AsyncTask):
+class AsyncMultiplyTask(AsyncStep):
     add = AsyncAddTask()
 
     async def run_step_async(
@@ -19,7 +19,7 @@ class AsyncMultiplyTask(AsyncTask):
         return value * c
 
 
-class AsyncPrintTask(AsyncTask):
+class AsyncPrintTask(AsyncStep):
     mul = AsyncMultiplyTask()
 
     async def run_step_async(self, result: Computed[int] = Depends(mul)) -> None:

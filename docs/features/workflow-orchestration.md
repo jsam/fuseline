@@ -2,17 +2,17 @@
 title: "Workflow orchestration"
 ---
 
-Chain tasks with `>>` or dependency injection and run them with `Workflow`.
+Chain steps with `>>` or dependency injection and run them with `Workflow`.
 
 
 ```python
-from fuseline import Task, Workflow
+from fuseline import Step, Workflow
 
-class Hello(Task):
+class Hello(Step):
     def run_step(self, _setup_res):
         print("hello")
 
-class World(Task):
+class World(Step):
     def run_step(self, _setup_res):
         print("world")
 

@@ -1,12 +1,12 @@
-from fuseline import Computed, Depends, Task, Workflow
+from fuseline import Computed, Depends, Step, Workflow
 
 
-class AddTask(Task):
+class AddTask(Step):
     def run_step(self, x: int, y: int) -> int:
         return x + y
 
 
-class MulTask(Task):
+class MulTask(Step):
     add = AddTask()
 
     def run_step(self, val: Computed[int] = Depends(add)) -> int:

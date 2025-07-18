@@ -36,10 +36,10 @@ downstream steps to be marked `CANCELLED` unless they belong to an OR
 group.  Branching actions can return a custom string matching one of
 the successor keys to choose the next edge.
 
-### Executing tasks
+### Executing steps
 
-Workers load tasks from the broker and run them using either
-`ProcessEngine` or another execution engine.  Task results are written
+Workers load steps from the broker and run them using either
+`ProcessEngine` or another execution engine.  Step results are written
 back so the broker can decide which successors to enqueue.
 
 `ProcessEngine` drives this loop by repeatedly asking the broker for the

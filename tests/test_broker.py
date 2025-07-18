@@ -1,4 +1,7 @@
+import pytest
+
 from fuseline.broker import MemoryBroker, StepAssignment, StepReport
+from fuseline.policies import StepTimeoutPolicy, StepTimeoutWorkerPolicy
 from fuseline.workflow import Status, Task, Workflow
 
 
@@ -9,13 +12,17 @@ class Simple(Task):
 
 def test_assignment_lifecycle():
     s = Simple()
+    s.policies.append(StepTimeoutPolicy(10.0))
     wf = Workflow(outputs=[s], workflow_id="wfa")
     broker = MemoryBroker()
-    worker = broker.register_worker([wf.to_schema()])
+    worker = broker.register_worker(
+        [wf.to_schema()], {wf.workflow_id: [StepTimeoutWorkerPolicy()]}
+    )
     instance = broker.dispatch_workflow(wf.to_schema())
 
-    assignment = broker.get_step(worker, timeout=10.0)
+    assignment = broker.get_step(worker)
     assert isinstance(assignment, StepAssignment)
+    assert assignment.expires_at - assignment.assigned_at == pytest.approx(10.0)
     assert (
         broker._store.get_assignment(wf.workflow_id, instance, assignment.step_name)[0]
         == worker

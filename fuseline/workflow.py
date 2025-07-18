@@ -19,6 +19,14 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence
 
 from .interfaces import ExecutionEngine, Exporter, Tracer
+from .policies import (
+    _POLICY_REGISTRY,
+    FailureAction,
+    FailureDecision,
+    Policy,
+    StepPolicy,
+    WorkflowPolicy,
+)
 from .storage import RuntimeStorage
 
 if TYPE_CHECKING:  # pragma: no cover - for type hints only
@@ -36,7 +44,7 @@ class Status(str, Enum):
     SKIPPED = "SKIPPED"
 
 
-class Step:
+class BaseStep:
     """Minimal unit of work in a :class:`Workflow`.
 
     The lifecycle provides per-step hooks as well as hooks that are executed
@@ -45,13 +53,14 @@ class Step:
     :py:meth:`teardown` and :py:meth:`after_all` to customise behaviour.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, *, policies: Optional[Sequence[Policy]] = None) -> None:
         self.params: Dict[str, Any] = {}
-        self.successors: Dict[str, List["Step"]] = {}
-        self.predecessors: List["Step"] = []
+        self.successors: Dict[str, List["BaseStep"]] = {}
+        self.predecessors: List["BaseStep"] = []
         self.tracer: Tracer | None = None
         self.execution_group = 0
         self.state: Status = Status.PENDING
+        self.policies: List[Policy] = list(policies or [])
 
     def _log_event(self, event: str, **data: Any) -> None:
         if self.tracer:
@@ -61,7 +70,7 @@ class Step:
         """Store parameters passed from the workflow."""
         self.params = params
 
-    def next(self, node: "Step", action: str = "default") -> "Step":
+    def next(self, node: "BaseStep", action: str = "default") -> "BaseStep":
         """Add a successor step to run after this one."""
         self.successors.setdefault(action, []).append(node)
         if self not in node.predecessors:
@@ -80,9 +89,7 @@ class Step:
         """Execute the step."""
         pass
 
-    def teardown(
-        self, shared: Any, setup_res: Any, exec_res: Any
-    ) -> Any:  # pragma: no cover
+    def teardown(self, shared: Any, setup_res: Any, exec_res: Any) -> Any:  # pragma: no cover
         """Clean up after :py:meth:`run_step`. Return value is propagated as the step result."""
         return exec_res
 
@@ -90,12 +97,34 @@ class Step:
         """Hook executed once after the final call to :py:meth:`run`."""
         pass
 
-    def _exec(self, setup_res: Any) -> Any:
-        return self.run_step(setup_res)
+    def _exec(self, setup_res: Any, policies: Sequence[StepPolicy]) -> Any:
+        attempt = 0
+        while True:
+            self.cur_retry = attempt  # type: ignore[attr-defined]
+            try:
+                return self.run_step(setup_res)
+            except Exception as exc:  # pragma: no cover - control via policy
+                decision: FailureDecision | None = None
+                for p in policies:
+                    d = p.on_failure(self, exc, attempt)
+                    if d is not None:
+                        decision = d
+                        break
+                if decision and decision.action == FailureAction.RETRY:
+                    if decision.delay > 0:
+                        time.sleep(decision.delay)
+                    attempt += 1
+                    continue
+                raise
 
-    def _run(self, shared: Any) -> Any:
+    def _run(self, shared: Any, policies: Sequence[Policy]) -> Any:
+        step_policies = [p for p in policies if isinstance(p, StepPolicy)]
+        for pol in step_policies:
+            pol.on_start(self)
         p = self.setup(shared)
-        e = self._exec(p)
+        e = self._exec(p, step_policies)
+        for pol in step_policies:
+            pol.on_success(self, e)
         return self.teardown(shared, p, e)
 
     def run(self, shared: Any) -> Any:
@@ -103,14 +132,12 @@ class Step:
             warnings.warn("Step won't run successors. Use Workflow.")
         self.before_all(shared)
         self._log_event("step_started")
-        result = self._run(shared)
-        self._log_event(
-            "step_finished", result=result, skipped=getattr(self, "was_skipped", False)
-        )
+        result = self._run(shared, self.policies)
+        self._log_event("step_finished", result=result, skipped=getattr(self, "was_skipped", False))
         self.after_all(shared)
         return result
 
-    def __rshift__(self, other: "Step") -> "Step":
+    def __rshift__(self, other: "BaseStep") -> "BaseStep":
         """Shorthand for :py:meth:`next`."""
         return self.next(other)
 
@@ -121,21 +148,19 @@ class Step:
 
 
 class _ConditionalTransition:
-    def __init__(self, src: Step, action: str) -> None:
+    def __init__(self, src: BaseStep, action: str) -> None:
         self.src = src
         self.action = action
 
-    def __rshift__(self, tgt: Step) -> Step:
+    def __rshift__(self, tgt: BaseStep) -> BaseStep:
         return self.src.next(tgt, self.action)
 
 
-class Task(Step):
-    """Step with optional retry logic and typed dependencies."""
+class Step(BaseStep):
+    """Workflow step with typed dependencies and pluggable policies."""
 
-    def __init__(self, max_retries: int = 1, wait: float = 0) -> None:
-        super().__init__()
-        self.max_retries = max_retries
-        self.wait = wait
+    def __init__(self, *, policies: Optional[Sequence[Policy]] = None) -> None:
+        super().__init__(policies=policies)
         self.cur_retry: Optional[int] = None
         self.deps: Dict[str, Step | List[Step]] = {}
         self.dep_conditions: Dict[str, Callable[[Any], bool]] = {}
@@ -152,33 +177,31 @@ class Task(Step):
                 if isinstance(dep_obj, list):
                     dep_steps: List[Step] = []
                     for obj in dep_obj:
-                        dstep = obj if isinstance(obj, Step) else FunctionTask(obj)
+                        dstep = obj if isinstance(obj, Step) else FunctionStep(obj)
                         dstep >> self
                         dep_steps.append(dstep)
                     self.deps[param.name] = dep_steps
                     self.or_groups[param.name] = dep_steps
                 else:
-                    dep_step = (
-                        dep_obj if isinstance(dep_obj, Step) else FunctionTask(dep_obj)
-                    )
+                    dep_step = dep_obj if isinstance(dep_obj, Step) else FunctionStep(dep_obj)
                     dep_step >> self
                     self.deps[param.name] = dep_step
                 if param.default.condition is not None:
                     self.dep_conditions[param.name] = param.default.condition
             elif param.name not in {"self", "setup_res", "shared"}:
                 self.param_names.append(param.name)
-        self.is_typed = bool(self.deps) or not (
-            len(params) == 2 and params[1].name in {"setup_res", "shared"}
-        )
+        self.is_typed = bool(self.deps) or not (len(params) == 2 and params[1].name in {"setup_res", "shared"})
 
     def setup(self, shared: Any) -> Any:  # type: ignore[override]
         if self.is_typed:
             return shared
         return super().setup(shared)
 
-    def _exec(self, setup_res: Any) -> Any:
+    def _exec(self, setup_res: Any, policies: Sequence[StepPolicy]) -> Any:
         self.was_skipped = False
-        for self.cur_retry in range(self.max_retries):
+        attempt = 0
+        while True:
+            self.cur_retry = attempt
             try:
                 if self.is_typed:
                     kwargs = {}
@@ -188,11 +211,7 @@ class Task(Step):
                             val = setup_res[chosen]
                             cond = self.dep_conditions.get(name)
                             if cond is not None:
-                                passed = (
-                                    bool(cond(val, chosen))
-                                    if isinstance(cond, Condition)
-                                    else bool(cond(val))
-                                )
+                                passed = bool(cond(val, chosen)) if isinstance(cond, Condition) else bool(cond(val))
                                 self._log_event(
                                     "condition_check",
                                     dependency=name,
@@ -207,11 +226,7 @@ class Task(Step):
                             val = setup_res[dep]
                             cond = self.dep_conditions.get(name)
                             if cond is not None:
-                                passed = (
-                                    bool(cond(val, dep))
-                                    if isinstance(cond, Condition)
-                                    else bool(cond(val))
-                                )
+                                passed = bool(cond(val, dep)) if isinstance(cond, Condition) else bool(cond(val))
                                 self._log_event(
                                     "condition_check",
                                     dependency=name,
@@ -223,33 +238,35 @@ class Task(Step):
                                     return None
 
                             kwargs[name] = val
-                    kwargs.update(
-                        {
-                            k: v
-                            for k, v in self.params.items()
-                            if k in self.param_names and k not in kwargs
-                        }
-                    )
+                    kwargs.update({k: v for k, v in self.params.items() if k in self.param_names and k not in kwargs})
                     result = type(self).run_step(self, **kwargs)
                     if isinstance(setup_res, dict):
                         setup_res[self] = result
                     return result
                 return type(self).run_step(self, setup_res)
             except Exception as e:
-                if self.cur_retry == self.max_retries - 1:
-                    return self.exec_fallback(setup_res, e)
-                if self.wait > 0:
-                    time.sleep(self.wait)
+                decision: FailureDecision | None = None
+                for p in policies:
+                    d = p.on_failure(self, e, attempt)
+                    if d is not None:
+                        decision = d
+                        break
+                if decision and decision.action == FailureAction.RETRY:
+                    if decision.delay > 0:
+                        time.sleep(decision.delay)
+                    attempt += 1
+                    continue
+                return self.exec_fallback(setup_res, e)
 
     def exec_fallback(self, setup_res: Any, exc: Exception) -> Any:
         raise exc
 
 
-class BatchTask(Task):
-    """Execute a sequence of items using a :class:`Task`."""
+class BatchStep(Step):
+    """Execute a sequence of items using a :class:`Step`."""
 
-    def _exec(self, items: Any) -> Any:
-        return [super(BatchTask, self)._exec(i) for i in (items or [])]
+    def _exec(self, items: Any, policies: Sequence[StepPolicy]) -> Any:
+        return [super(BatchStep, self)._exec(i, policies) for i in (items or [])]
 
 
 @dataclass
@@ -260,6 +277,7 @@ class StepSchema:
     successors: dict[str, list[str]] = field(default_factory=dict)
     predecessors: list[str] = field(default_factory=list)
     or_groups: dict[str, list[str]] = field(default_factory=dict)
+    policies: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -270,6 +288,7 @@ class WorkflowSchema:
     version: str
     steps: dict[str, StepSchema]
     outputs: list[str]
+    policies: list[dict[str, Any]] = field(default_factory=list)
 
     def to_yaml(self) -> str:
         """Serialize this schema to a YAML string."""
@@ -282,10 +301,12 @@ class WorkflowSchema:
                     "successors": step.successors,
                     "predecessors": step.predecessors,
                     "or_groups": step.or_groups,
+                    "policies": step.policies,
                 }
                 for name, step in self.steps.items()
             },
             "outputs": list(self.outputs),
+            "policies": self.policies,
         }
 
         def _dump_yaml(obj: Any, indent: int = 0) -> str:
@@ -324,6 +345,10 @@ class WorkflowSchema:
             for succ_action, succs in schema.successors.items():
                 for succ_name in succs:
                     step.next(tasks[succ_name], succ_action)
+            for pol in schema.policies:
+                cls = _POLICY_REGISTRY.get(pol.get("name"))
+                if cls:
+                    step.policies.append(cls.from_config(pol.get("config", {})))
         outputs = [tasks[name] for name in self.outputs]
         wf = Workflow(
             outputs=outputs,
@@ -331,10 +356,14 @@ class WorkflowSchema:
             workflow_id=self.workflow_id,
             version=self.version,
         )
+        for pol in self.policies:
+            cls = _POLICY_REGISTRY.get(pol.get("name"))
+            if cls:
+                wf.policies.append(cls.from_config(pol.get("config", {})))
         return wf
 
 
-class Workflow(Step):
+class Workflow(BaseStep):
     """A sequence of :class:`Step` objects executed via an engine."""
 
     def __init__(
@@ -345,8 +374,9 @@ class Workflow(Step):
         trace: str | Tracer | None = None,
         workflow_id: str | None = None,
         version: str = "1",
+        policies: Optional[Sequence[Policy]] = None,
     ) -> None:
-        super().__init__()
+        super().__init__(policies=policies)
         self.outputs = outputs
         self.execution_engine = execution_engine
         if isinstance(trace, str):
@@ -376,7 +406,7 @@ class Workflow(Step):
             for pred in step.predecessors:
                 preds[step] = True
                 walk(pred)
-            if isinstance(step, Task):
+            if isinstance(step, Step):
                 for dep in step.deps.values():
                     if isinstance(dep, list):
                         for d in dep:
@@ -428,16 +458,10 @@ class Workflow(Step):
         name_map = self._step_name_map()
         schema_steps: dict[str, StepSchema] = {}
         for step in steps:
-            succs = {
-                act: [name_map[s] for s in tgts]
-                for act, tgts in step.successors.items()
-            }
+            succs = {act: [name_map[s] for s in tgts] for act, tgts in step.successors.items()}
             or_groups = (
-                {
-                    k: [name_map[s] for s in grp]
-                    for k, grp in getattr(step, "or_groups", {}).items()
-                }
-                if isinstance(step, Task)
+                {k: [name_map[s] for s in grp] for k, grp in getattr(step, "or_groups", {}).items()}
+                if isinstance(step, Step)
                 else {}
             )
             preds = [name_map[p] for p in step.predecessors]
@@ -446,12 +470,14 @@ class Workflow(Step):
                 successors=succs,
                 predecessors=preds,
                 or_groups=or_groups,
+                policies=[{"name": p.name, "config": p.to_config()} for p in step.policies],
             )
         return WorkflowSchema(
             workflow_id=self.workflow_id,
             version=self.workflow_version,
             steps=schema_steps,
             outputs=[name_map[o] for o in self.outputs],
+            policies=[{"name": p.name, "config": p.to_config()} for p in self.policies],
         )
 
     def dispatch(
@@ -489,6 +515,7 @@ class Workflow(Step):
         from .engines import PoolEngine
 
         engine = execution_engine or self.execution_engine or PoolEngine()
+        wf_policies = [p for p in self.policies if isinstance(p, WorkflowPolicy)]
         self.workflow_instance_id = uuid.uuid4().hex
         step_names = None
         if runtime_store:
@@ -498,22 +525,18 @@ class Workflow(Step):
                 self.workflow_instance_id,
                 step_names.values(),
             )
-            runtime_store.set_inputs(
-                self.workflow_id, self.workflow_instance_id, self.params
-            )
-            runtime_store.set_inputs(
-                self.workflow_id, self.workflow_instance_id, self.params
-            )
+            runtime_store.set_inputs(self.workflow_id, self.workflow_instance_id, self.params)
+            runtime_store.set_inputs(self.workflow_id, self.workflow_instance_id, self.params)
         if self.tracer:
             from .tracing import BoundTracer
 
-            bound = BoundTracer(
-                self.tracer, self.workflow_id, self.workflow_instance_id
-            )
+            bound = BoundTracer(self.tracer, self.workflow_id, self.workflow_instance_id)
             for step in self._collect_steps():
                 step.tracer = bound
             bound.record({"event": "workflow_started"})
         self.state = Status.RUNNING
+        for pol in wf_policies:
+            pol.on_workflow_start(self)
         try:
             self.before_all(shared)
             setup_res = self.setup(shared)
@@ -529,18 +552,18 @@ class Workflow(Step):
             if self.tracer:
                 from .tracing import BoundTracer
 
-                BoundTracer(
-                    self.tracer, self.workflow_id, self.workflow_instance_id
-                ).record({"event": "workflow_finished"})
+                BoundTracer(self.tracer, self.workflow_id, self.workflow_instance_id).record(
+                    {"event": "workflow_finished"}
+                )
             return None
         finally:
             self.after_all(shared)
+        for pol in wf_policies:
+            pol.on_workflow_finished(self, result if self.state == Status.SUCCEEDED else None)
         if self.tracer and self.state != Status.FAILED:
             from .tracing import BoundTracer
 
-            BoundTracer(
-                self.tracer, self.workflow_id, self.workflow_instance_id
-            ).record({"event": "workflow_finished"})
+            BoundTracer(self.tracer, self.workflow_id, self.workflow_instance_id).record({"event": "workflow_finished"})
         if runtime_store:
             runtime_store.finalize_run(self.workflow_id, self.workflow_instance_id)
         if self.outputs:
@@ -557,9 +580,7 @@ class Workflow(Step):
     def get_next_steps(self, curr: Step, action: Optional[str]) -> List[Step]:
         nxt = curr.successors.get(action or "default", [])
         if not nxt and curr.successors:
-            warnings.warn(
-                f"Workflow ends: '{action}' not found in {list(curr.successors)}"
-            )
+            warnings.warn(f"Workflow ends: '{action}' not found in {list(curr.successors)}")
         return list(nxt)
 
     def _collect_steps(self) -> List[Step]:
@@ -570,7 +591,7 @@ class Workflow(Step):
                 return
             for pred in step.predecessors:
                 walk(pred)
-            if isinstance(step, Task):
+            if isinstance(step, Step):
                 for dep in step.deps.values():
                     if isinstance(dep, list):
                         for d in dep:
@@ -590,16 +611,16 @@ class Workflow(Step):
 
     def _execute_step(self, step: Step, shared: Dict[Any, Any]) -> Any:
         step.set_params({**self.params, **step.params})
+        policies = [*self.policies, *step.policies]
+        wf_policies = [p for p in policies if isinstance(p, WorkflowPolicy)]
+        for pol in wf_policies:
+            pol.on_step_start(self, step)
         step.before_all(shared)
         step._log_event("step_started")
         step.state = Status.RUNNING
         try:
-            result = step._run(shared)
-            step.state = (
-                Status.SKIPPED
-                if getattr(step, "was_skipped", False)
-                else Status.SUCCEEDED
-            )
+            result = step._run(shared, policies)
+            step.state = Status.SKIPPED if getattr(step, "was_skipped", False) else Status.SUCCEEDED
             step._log_event(
                 "step_finished",
                 result=result,
@@ -608,11 +629,15 @@ class Workflow(Step):
             if isinstance(shared, dict):
                 shared[step] = result
             step.after_all(shared)
+            for pol in wf_policies:
+                pol.on_step_success(self, step, result)
             return result
         except Exception as exc:
             step.state = Status.FAILED
             step._log_event("step_failed", error=str(exc))
             step.after_all(shared)
+            for pol in wf_policies:
+                pol.on_step_failure(self, step, exc)
             raise
 
     def _run_engine(
@@ -634,7 +659,7 @@ class Workflow(Step):
                 )
         for succ in nodes:
             group_preds: set[Step] = set()
-            if isinstance(succ, Task):
+            if isinstance(succ, Step):
                 succ.or_remaining = {k: True for k in succ.or_groups}
                 for group in succ.or_groups.values():
                     indegree[succ] += 1
@@ -699,7 +724,7 @@ class Workflow(Step):
                 action = res if isinstance(res, str) else None
                 for succ in self.get_next_steps(step, action):
                     decreased = False
-                    if isinstance(succ, Task):
+                    if isinstance(succ, Step):
                         for name, group in succ.or_groups.items():
                             if step in group and succ.or_remaining.get(name):
                                 succ.or_remaining[name] = False
@@ -748,9 +773,9 @@ class BatchWorkflow(Workflow):
         return result
 
 
-class AsyncTask(Task):
-    def __init__(self, max_retries: int = 1, wait: float = 0) -> None:
-        super().__init__(max_retries, wait)
+class AsyncStep(Step):
+    def __init__(self, *, policies: Optional[Sequence[Policy]] = None) -> None:
+        super().__init__(policies=policies)
         self.deps = {}
         self.dep_conditions: Dict[str, Callable[[Any], bool]] = {}
         self.or_groups: Dict[str, List[Step]] = {}
@@ -766,24 +791,20 @@ class AsyncTask(Task):
                 if isinstance(dep_obj, list):
                     dep_steps: List[Step] = []
                     for obj in dep_obj:
-                        dstep = obj if isinstance(obj, Step) else FunctionTask(obj)
+                        dstep = obj if isinstance(obj, Step) else FunctionStep(obj)
                         dstep >> self
                         dep_steps.append(dstep)
                     self.deps[param.name] = dep_steps
                     self.or_groups[param.name] = dep_steps
                 else:
-                    dep_step = (
-                        dep_obj if isinstance(dep_obj, Step) else FunctionTask(dep_obj)
-                    )
+                    dep_step = dep_obj if isinstance(dep_obj, Step) else FunctionStep(dep_obj)
                     dep_step >> self
                     self.deps[param.name] = dep_step
                 if param.default.condition is not None:
                     self.dep_conditions[param.name] = param.default.condition
             elif param.name not in {"self", "setup_res", "shared"}:
                 self.param_names.append(param.name)
-        self.is_typed = bool(self.deps) or not (
-            len(params) == 2 and params[1].name in {"setup_res", "shared"}
-        )
+        self.is_typed = bool(self.deps) or not (len(params) == 2 and params[1].name in {"setup_res", "shared"})
 
     async def before_all_async(self, shared: Any) -> Any:  # pragma: no cover
         pass
@@ -793,14 +814,13 @@ class AsyncTask(Task):
             return shared
         return None
 
-    async def run_step_async(
-        self, setup_res: Any
-    ) -> Any:  # pragma: no cover - to be overridden
+    async def run_step_async(self, setup_res: Any) -> Any:  # pragma: no cover - to be overridden
         pass
 
-    async def _exec(self, setup_res: Any) -> Any:
+    async def _exec(self, setup_res: Any, policies: Sequence[StepPolicy]) -> Any:
         self.was_skipped = False
-        for i in range(self.max_retries):
+        attempt = 0
+        while True:
             try:
                 if self.is_typed:
                     kwargs = {}
@@ -810,11 +830,7 @@ class AsyncTask(Task):
                             val = setup_res[chosen]
                             cond = self.dep_conditions.get(name)
                             if cond is not None:
-                                passed = (
-                                    bool(cond(val, chosen))
-                                    if isinstance(cond, Condition)
-                                    else bool(cond(val))
-                                )
+                                passed = bool(cond(val, chosen)) if isinstance(cond, Condition) else bool(cond(val))
                                 self._log_event(
                                     "condition_check",
                                     dependency=name,
@@ -829,11 +845,7 @@ class AsyncTask(Task):
                             val = setup_res[dep]
                             cond = self.dep_conditions.get(name)
                             if cond is not None:
-                                passed = (
-                                    bool(cond(val, dep))
-                                    if isinstance(cond, Condition)
-                                    else bool(cond(val))
-                                )
+                                passed = bool(cond(val, dep)) if isinstance(cond, Condition) else bool(cond(val))
                                 self._log_event(
                                     "condition_check",
                                     dependency=name,
@@ -844,13 +856,7 @@ class AsyncTask(Task):
                                     self.was_skipped = True
                                     return None
                             kwargs[name] = val
-                    kwargs.update(
-                        {
-                            k: v
-                            for k, v in self.params.items()
-                            if k in self.param_names and k not in kwargs
-                        }
-                    )
+                    kwargs.update({k: v for k, v in self.params.items() if k in self.param_names and k not in kwargs})
                     method = type(self).run_step_async
                     result = await method(self, **kwargs)
                     if isinstance(setup_res, dict):
@@ -859,19 +865,23 @@ class AsyncTask(Task):
                 method = type(self).run_step_async
                 return await method(self, setup_res)
             except Exception as e:
-                if i == self.max_retries - 1:
-                    return await self.run_step_fallback_async(setup_res, e)
-                if self.wait > 0:
-                    await asyncio.sleep(self.wait)
+                decision: FailureDecision | None = None
+                for p in policies:
+                    d = p.on_failure(self, e, attempt)
+                    if d is not None:
+                        decision = d
+                        break
+                if decision and decision.action == FailureAction.RETRY:
+                    if decision.delay > 0:
+                        await asyncio.sleep(decision.delay)
+                    attempt += 1
+                    continue
+                return await self.run_step_fallback_async(setup_res, e)
 
-    async def run_step_fallback_async(
-        self, setup_res: Any, exc: Exception
-    ) -> Any:  # pragma: no cover
+    async def run_step_fallback_async(self, setup_res: Any, exc: Exception) -> Any:  # pragma: no cover
         raise exc
 
-    async def teardown_async(
-        self, shared: Any, setup_res: Any, exec_res: Any
-    ) -> Any:  # pragma: no cover
+    async def teardown_async(self, shared: Any, setup_res: Any, exec_res: Any) -> Any:  # pragma: no cover
         return exec_res
 
     async def after_all_async(self, shared: Any) -> Any:  # pragma: no cover
@@ -883,10 +893,8 @@ class AsyncTask(Task):
         shared: Dict[Any, Any] = {}
         await self.before_all_async(shared)
         self._log_event("step_started")
-        result = await self._run_async(shared)
-        self._log_event(
-            "step_finished", result=result, skipped=getattr(self, "was_skipped", False)
-        )
+        result = await self._run_async(shared, self.policies)
+        self._log_event("step_finished", result=result, skipped=getattr(self, "was_skipped", False))
         await self.after_all_async(shared)
         if self.outputs:
             if len(self.outputs) == 1:
@@ -894,45 +902,41 @@ class AsyncTask(Task):
             return [shared.get(o) for o in self.outputs]
         return result
 
-    async def _run_async(self, shared: Any) -> Any:
+    async def _run_async(self, shared: Any, policies: Sequence[StepPolicy]) -> Any:
         p = await self.setup_async(shared)
-        e = await self._exec(p)
+        e = await self._exec(p, policies)
         return await self.teardown_async(shared, p, e)
 
     def _run(self, shared: Any) -> Any:
         raise RuntimeError("Use run_async.")
 
 
-class AsyncBatchTask(AsyncTask, BatchTask):
-    async def _exec(self, items: Any) -> Any:
-        return [await super(AsyncBatchTask, self)._exec(i) for i in items]
+class AsyncBatchStep(AsyncStep, BatchStep):
+    async def _exec(self, items: Any, policies: Sequence[StepPolicy]) -> Any:
+        return [await super(AsyncBatchStep, self)._exec(i, policies) for i in items]
 
 
-class AsyncParallelBatchTask(AsyncTask, BatchTask):
-    async def _exec(self, items: Any) -> Any:
-        return await asyncio.gather(
-            *(super(AsyncParallelBatchTask, self)._exec(i) for i in items)
-        )
+class AsyncParallelBatchStep(AsyncStep, BatchStep):
+    async def _exec(self, items: Any, policies: Sequence[StepPolicy]) -> Any:
+        return await asyncio.gather(*(super(AsyncParallelBatchStep, self)._exec(i, policies) for i in items))
 
 
-class AsyncWorkflow(Workflow, AsyncTask):
-    async def _execute_step_async(
-        self, step: Step, shared: Dict[Any, Any], engine: ExecutionEngine
-    ) -> Any:
+class AsyncWorkflow(Workflow, AsyncStep):
+    async def _execute_step_async(self, step: Step, shared: Dict[Any, Any], engine: ExecutionEngine) -> Any:
         step.set_params({**self.params, **step.params})
+        policies = [*self.policies, *step.policies]
+        wf_policies = [p for p in policies if isinstance(p, WorkflowPolicy)]
         if isinstance(step, AsyncWorkflow):
             result = await step._run_async(shared, engine)
-        elif isinstance(step, AsyncTask):
+        elif isinstance(step, AsyncStep):
+            for pol in wf_policies:
+                pol.on_step_start(self, step)
             await step.before_all_async(shared)
             step._log_event("step_started")
             step.state = Status.RUNNING
             try:
-                result = await step._run_async(shared)
-                step.state = (
-                    Status.SKIPPED
-                    if getattr(step, "was_skipped", False)
-                    else Status.SUCCEEDED
-                )
+                result = await step._run_async(shared, policies)
+                step.state = Status.SKIPPED if getattr(step, "was_skipped", False) else Status.SUCCEEDED
                 step._log_event(
                     "step_finished",
                     result=result,
@@ -941,10 +945,14 @@ class AsyncWorkflow(Workflow, AsyncTask):
                 if isinstance(shared, dict):
                     shared[step] = result
                 await step.after_all_async(shared)
+                for pol in wf_policies:
+                    pol.on_step_success(self, step, result)
             except Exception as exc:
                 step.state = Status.FAILED
                 step._log_event("step_failed", error=str(exc))
                 await step.after_all_async(shared)
+                for pol in wf_policies:
+                    pol.on_step_failure(self, step, exc)
                 raise
         else:
             result = self._execute_step(step, shared)
@@ -971,6 +979,7 @@ class AsyncWorkflow(Workflow, AsyncTask):
         from .engines import PoolEngine
 
         engine = execution_engine or self.execution_engine or PoolEngine()
+        wf_policies = [p for p in self.policies if isinstance(p, WorkflowPolicy)]
         self.workflow_instance_id = uuid.uuid4().hex
         step_names = None
         if runtime_store:
@@ -983,13 +992,13 @@ class AsyncWorkflow(Workflow, AsyncTask):
         if self.tracer:
             from .tracing import BoundTracer
 
-            bound = BoundTracer(
-                self.tracer, self.workflow_id, self.workflow_instance_id
-            )
+            bound = BoundTracer(self.tracer, self.workflow_id, self.workflow_instance_id)
             for step in self._collect_steps():
                 step.tracer = bound
             bound.record({"event": "workflow_started"})
         self.state = Status.RUNNING
+        for pol in wf_policies:
+            pol.on_workflow_start(self)
         try:
             await self.before_all_async(shared)
             result = await self._run_async(shared, engine, runtime_store, step_names)
@@ -1004,16 +1013,16 @@ class AsyncWorkflow(Workflow, AsyncTask):
             if self.tracer:
                 from .tracing import BoundTracer
 
-                BoundTracer(
-                    self.tracer, self.workflow_id, self.workflow_instance_id
-                ).record({"event": "workflow_finished"})
+                BoundTracer(self.tracer, self.workflow_id, self.workflow_instance_id).record(
+                    {"event": "workflow_finished"}
+                )
             return None
         if self.tracer:
             from .tracing import BoundTracer
 
-            BoundTracer(
-                self.tracer, self.workflow_id, self.workflow_instance_id
-            ).record({"event": "workflow_finished"})
+            BoundTracer(self.tracer, self.workflow_id, self.workflow_instance_id).record({"event": "workflow_finished"})
+        for pol in wf_policies:
+            pol.on_workflow_finished(self, result if self.state == Status.SUCCEEDED else None)
         if runtime_store:
             runtime_store.finalize_run(self.workflow_id, self.workflow_instance_id)
         if self.outputs:
@@ -1033,7 +1042,7 @@ class AsyncWorkflow(Workflow, AsyncTask):
         indegree: Dict[Step, int] = {n: 0 for n in nodes}
         for succ in nodes:
             group_preds: set[Step] = set()
-            if isinstance(succ, Task):
+            if isinstance(succ, Step):
                 succ.or_remaining = {k: True for k in succ.or_groups}
                 for group in succ.or_groups.values():
                     indegree[succ] += 1
@@ -1082,9 +1091,7 @@ class AsyncWorkflow(Workflow, AsyncTask):
                         )
                     return None
 
-            results = await engine.run_async_steps(
-                [lambda s=s: run_step(s) for s in batch]
-            )
+            results = await engine.run_async_steps([lambda s=s: run_step(s) for s in batch])
 
             if exc:
                 raise exc["err"]
@@ -1094,7 +1101,7 @@ class AsyncWorkflow(Workflow, AsyncTask):
                 action = res if isinstance(res, str) else None
                 for succ in self.get_next_steps(step, action):
                     decreased = False
-                    if isinstance(succ, Task):
+                    if isinstance(succ, Step):
                         for name, group in succ.or_groups.items():
                             if step in group and succ.or_remaining.get(name):
                                 succ.or_remaining[name] = False
@@ -1142,9 +1149,7 @@ class AsyncBatchWorkflow(AsyncWorkflow, BatchWorkflow):
 class AsyncParallelBatchWorkflow(AsyncWorkflow, BatchWorkflow):
     async def _run_async(self, shared: Any) -> Any:
         pr = await self.setup_async(shared) or []
-        await asyncio.gather(
-            *(self._orch_async(shared, {**self.params, **bp}) for bp in pr)
-        )
+        await asyncio.gather(*(self._orch_async(shared, {**self.params, **bp}) for bp in pr))
         return await self.teardown_async(shared, pr, None)
 
 
@@ -1170,32 +1175,26 @@ class Depends:
             else:
                 self.obj = obj
         else:
-            self.obj = [
-                o
-                for obj in objs
-                for o in (obj if isinstance(obj, (list, tuple)) else [obj])
-            ]
+            self.obj = [o for obj in objs for o in (obj if isinstance(obj, (list, tuple)) else [obj])]
         if isinstance(condition, type) and issubclass(condition, Condition):
             self.condition = condition()
         else:
             self.condition = condition
 
 
-class FunctionTask(Task):
-    """Task wrapping a Python callable."""
+class FunctionStep(Step):
+    """Step wrapping a Python callable."""
 
-    def __init__(
-        self, func: Callable[..., Any], max_retries: int = 1, wait: float = 0
-    ) -> None:
-        super().__init__(max_retries, wait)
+    def __init__(self, func: Callable[..., Any], *, policies: Optional[Sequence[Policy]] = None) -> None:
+        super().__init__(policies=policies)
         self.func = func
-        self.deps: Dict[str, FunctionTask] = {}
+        self.deps: Dict[str, FunctionStep] = {}
         self.dep_conditions: Dict[str, Callable[[Any], bool]] = {}
 
-    def setup(self, shared: Dict["FunctionTask", Any]) -> Dict["FunctionTask", Any]:  # type: ignore[override]
+    def setup(self, shared: Dict["FunctionStep", Any]) -> Dict["FunctionStep", Any]:  # type: ignore[override]
         return shared
 
-    def run_step(self, shared: Dict["FunctionTask", Any]) -> Any:
+    def run_step(self, shared: Dict["FunctionStep", Any]) -> Any:
         kwargs = {}
         for name, dep in self.deps.items():
             if isinstance(dep, list):
@@ -1230,20 +1229,18 @@ class FunctionTask(Task):
         return exec_res
 
 
-class TypedTask(Task):
-    """Deprecated alias for :class:`Task`."""
+class TypedStep(Step):
+    """Deprecated alias for :class:`Step`."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        warnings.warn(
-            "TypedTask is deprecated; inherit from Task instead", DeprecationWarning
-        )
+        warnings.warn("TypedStep is deprecated; inherit from Step instead", DeprecationWarning)
         super().__init__(*args, **kwargs)
 
 
 def workflow_from_functions(outputs: List[Callable[..., Any]]) -> Workflow:
     """Create a :class:`Workflow` from typed Python functions."""
 
-    steps: Dict[Callable[..., Any], FunctionTask] = {}
+    steps: Dict[Callable[..., Any], FunctionStep] = {}
     has_pred: Dict[Step, bool] = {}
 
     def build_step(obj: Callable[..., Any] | Step) -> Step:
@@ -1252,7 +1249,7 @@ def workflow_from_functions(outputs: List[Callable[..., Any]]) -> Workflow:
         func = obj
         if func in steps:
             return steps[func]
-        step = FunctionTask(func)
+        step = FunctionStep(func)
         steps[func] = step
         for param in inspect.signature(func).parameters.values():
             if isinstance(param.default, Depends):
@@ -1261,7 +1258,7 @@ def workflow_from_functions(outputs: List[Callable[..., Any]]) -> Workflow:
                     deps = [build_step(o) for o in dep_obj]
                     for d in deps:
                         d >> step
-                    if isinstance(step, FunctionTask):
+                    if isinstance(step, FunctionStep):
                         step.deps[param.name] = deps  # type: ignore[assignment]
                         step.or_groups[param.name] = deps
                         if param.default.condition is not None:
@@ -1270,7 +1267,7 @@ def workflow_from_functions(outputs: List[Callable[..., Any]]) -> Workflow:
                 else:
                     dep = build_step(dep_obj)
                     dep >> step
-                    if isinstance(step, FunctionTask):
+                    if isinstance(step, FunctionStep):
                         step.deps[param.name] = dep  # type: ignore[assignment]
                         if param.default.condition is not None:
                             step.dep_conditions[param.name] = param.default.condition
@@ -1281,3 +1278,12 @@ def workflow_from_functions(outputs: List[Callable[..., Any]]) -> Workflow:
     step_outputs = [build_step(func) for func in outputs]
 
     return Workflow(outputs=step_outputs)
+
+# Backwards compatibility aliases
+Task = Step
+AsyncTask = AsyncStep
+BatchTask = BatchStep
+AsyncBatchTask = AsyncBatchStep
+AsyncParallelBatchTask = AsyncParallelBatchStep
+FunctionTask = FunctionStep
+TypedTask = TypedStep
