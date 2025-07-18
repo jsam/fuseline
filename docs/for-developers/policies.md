@@ -85,7 +85,8 @@ Workers communicate with a ``Broker`` to fetch ``StepAssignment`` objects and
 report results back via ``StepReport``. The easiest way to run workflows is to
 use :class:`ProcessEngine` which already handles policy execution. Custom
 workers can replicate this by calling ``workflow._execute_step`` with the
-assigned step and inputs:
+assigned step and inputs. See [Implementing workers](workers.md) for a
+complete walk through:
 
 ```python
 assignment = broker.get_step(worker_id)
@@ -111,7 +112,9 @@ separate processes. The broker acts as a long running server that stores
 workflow schemas, decides which step is ready next and records results.
 Workers are clients that keep the actual `Workflow` objects with all of
 their policies. A worker contacts the broker to fetch a step assignment,
-executes it and then reports the outcome back.
+executes it and then reports the outcome back. See
+[Implementing brokers](brokers.md) and [Implementing workers](workers.md)
+for more details.
 
 ### Starting a broker (server side)
 

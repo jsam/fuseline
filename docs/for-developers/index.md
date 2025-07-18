@@ -20,6 +20,10 @@ covered across the pages:
   finished.
 * **How are retries and other policies applied?**  Learn how the engine
   handles failures, backoff and fail-fast behaviour.
+* **How do I build a custom broker?**  See the responsibilities of the
+  :class:`Broker` interface and how to persist workflow state.
+* **How do I write a worker?**  Use :class:`ProcessEngine` or roll your
+  own loop with :class:`BrokerClient`.
 * **Can I implement my own storage or execution engine?**  Yes!  The
   pages below describe the required interfaces and show example
   implementations.
@@ -33,3 +37,5 @@ See also:
 - [Execution flow](execution-flow.md)
 - [State & storage](state-management.md)
 - [Policies](policies.md)
+- [Implementing brokers](brokers.md)
+- [Implementing workers](workers.md)

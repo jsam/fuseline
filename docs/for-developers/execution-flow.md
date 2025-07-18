@@ -40,7 +40,9 @@ the successor keys to choose the next edge.
 
 Workers load steps from the broker and run them using either
 `ProcessEngine` or another execution engine.  Step results are written
-back so the broker can decide which successors to enqueue.
+back so the broker can decide which successors to enqueue.  In a real
+deployment the broker runs in its own process and workers communicate
+over the :class:`BrokerClient` interface.
 
 `ProcessEngine` drives this loop by repeatedly asking the broker for the
 next step, executing it and reporting the result.  The broker examines
@@ -64,4 +66,6 @@ worker.work()
 
 Multiple processes can create their own `ProcessEngine` instances
 pointing at the same broker to distribute work.  Each worker grabs the
-next available step and the broker handles queuing of successors.
+next available step and the broker handles queuing of successors.  See
+[Implementing brokers](brokers.md) and [Implementing workers](workers.md)
+for more about building these components.
