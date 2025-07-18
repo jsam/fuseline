@@ -2,22 +2,33 @@
 title: "Policies"
 ---
 
-Fuseline exposes a pluggable *policy* system. Policies attach to steps or
-workflows and modify how they run.
+Fuseline exposes a pluggable *policy* system used to change how steps and
+workflows execute. Policies are instantiated when a workflow is defined but
+are executed by the worker process at runtime.
 
-Policies are instantiated when a workflow is defined but executed by the
-worker when the workflow runs.  When a policy is associated with a step or a
-workflow the framework calls ``attach_to_step`` or ``attach_to_workflow`` on the
-policy instance allowing it to prepare internal state.
+A policy may be attached to a single step or to the entire workflow. When a
+policy object is added the framework calls ``attach_to_step`` or
+``attach_to_workflow`` so the instance can bind itself to the target.
 
-``StepPolicy`` exposes ``execute`` and ``execute_async`` methods which the
-worker calls around step execution.  Policies can therefore modify synchronous
-and asynchronous steps in a uniform way.
+Two base classes exist:
 
-### Retries and backoff
+* ``StepPolicy`` – modifies the behaviour of an individual ``Step``.  The
+  worker calls ``execute`` (and ``execute_async`` for async steps) around the
+  step's ``run_step`` method.
+* ``WorkflowPolicy`` – observes the workflow lifecycle and receives
+  ``on_workflow_start``/``on_step_start``/``on_step_success`` and other hooks.
 
-`RetryPolicy` controls how many times a step is retried. Attach it to a
-`Step` or `AsyncStep` to enable retry behaviour.
+Policies keep their own configuration and implementation in a single class so a
+worker only needs to invoke the interface methods.
+
+## Using built‑in policies
+
+Fuseline ships with a couple of common policies.
+
+### RetryPolicy
+
+``RetryPolicy`` retries a step after failure and optionally waits between
+attempts.
 
 ```python
 from fuseline import Step, Workflow
@@ -28,36 +39,67 @@ class Flaky(Step):
         raise RuntimeError("boom")
 
 step = Flaky()
-step.policies.append(RetryPolicy(max_retries=3, wait=1))
+step.add_policy(RetryPolicy(max_retries=3, wait=1))
 Workflow(outputs=[step]).run()
 ```
 
-Custom policies can subclass `StepPolicy` and override the hooks to
-implement additional behaviour.
+### StepTimeoutPolicy
 
-### Timeouts
-
-`StepTimeoutPolicy` aborts a step if it runs longer than the configured
-number of seconds.  The policy works for synchronous and asynchronous steps.
+``StepTimeoutPolicy`` aborts a step if it runs longer than the configured number
+of seconds. It works for synchronous and asynchronous steps.
 
 ```python
+from fuseline import Workflow
 from fuseline.policies import StepTimeoutPolicy
 
-step = Flaky()
-step.policies.append(StepTimeoutPolicy(5.0))
+step.add_policy(StepTimeoutPolicy(5.0))
 Workflow(outputs=[step]).run()
 ```
 
-### Fail-fast
+## Attaching custom policies
 
-If any step fails after exhausting retries, downstream steps are marked
-`CANCELLED` and the workflow state becomes `FAILED`. Set `max_retries=0`
-to disable retries. Custom engines may implement alternative semantics.
+A custom policy subclasses ``StepPolicy`` or ``WorkflowPolicy`` and overrides
+the hooks it cares about. Both the configuration and behaviour live in the same
+class.
 
-### Common questions
+```python
+from fuseline.policies import StepPolicy
 
-- How do I override retry logic?  Subclass `StepPolicy`.
-- Can I pause a workflow?  Persist state using `RuntimeStorage` and resume
-  with `ProcessEngine`.
-- Can I change timeouts or other limits?  Implement a custom policy and
-  raise exceptions in `run_step` when limits are hit.
+class LogStartPolicy(StepPolicy):
+    def execute(self, step, call):
+        print(f"running {step}")
+        return call()
+```
+
+Attach it to a step or workflow using ``add_policy``:
+
+```python
+s = Flaky()
+s.add_policy(LogStartPolicy())
+wf = Workflow(outputs=[s])
+```
+
+## Executing policies in a custom worker
+
+Workers communicate with a ``Broker`` to fetch ``StepAssignment`` objects and
+report results back via ``StepReport``. The easiest way to run workflows is to
+use :class:`ProcessEngine` which already handles policy execution. Custom
+workers can replicate this by calling ``workflow._execute_step`` with the
+assigned step and inputs:
+
+```python
+assignment = broker.get_step(worker_id)
+step = workflow_step_map[assignment.step_name]
+shared = build_shared_dict(assignment.payload)
+result = workflow._execute_step(step, shared)
+broker.report_step(worker_id, StepReport(
+    workflow_id=assignment.workflow_id,
+    instance_id=assignment.instance_id,
+    step_name=assignment.step_name,
+    state=step.state,
+    result=result,
+))
+```
+
+``_execute_step`` applies all policies attached to the workflow and the step.
+This ensures behaviour is consistent regardless of the worker implementation.
