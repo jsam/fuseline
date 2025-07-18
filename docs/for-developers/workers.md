@@ -24,6 +24,9 @@ engine = ProcessEngine(client, [rag_workflow])
 engine.work()
 ```
 
+Here ``MemoryBroker`` runs in the same process for clarity.  Deployments
+usually expose the broker over HTTP so workers can connect remotely.
+
 Every time ``engine.work()`` is called the worker asks the broker for the
 next step, executes it and then reports a ``StepReport``. Attached
 policies are executed automatically by ``ProcessEngine``.

@@ -64,6 +64,10 @@ worker = ProcessEngine(client, [workflow])
 worker.work()
 ```
 
+This code uses ``MemoryBroker`` for simplicity.  In a real deployment the
+worker would call a broker service over the network via a
+``BrokerClient`` implementation.
+
 Multiple processes can create their own `ProcessEngine` instances
 pointing at the same broker to distribute work.  Each worker grabs the
 next available step and the broker handles queuing of successors.  See

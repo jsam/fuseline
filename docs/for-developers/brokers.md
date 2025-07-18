@@ -24,21 +24,47 @@ tests often use :class:`MemoryBroker` directly.
   persistence to ``RuntimeStorage`` which may use a database or message
   queue.
 
-## Example
+## Example: simple HTTP broker
+
+``MemoryBroker`` lives entirely in memory and is mostly useful for unit
+tests or single‑process demos.  A real deployment runs the broker as a
+server and exposes the API described in [Broker API](broker-api.md).  The
+snippet below sketches a small HTTP service using `FastAPI` that wraps a
+``MemoryBroker`` so workers can connect over the network.
 
 ```python
-from fuseline.broker import MemoryBroker
-from fuseline.workflow import Workflow
+# broker_server.py (server process)
+from fastapi import FastAPI, HTTPException
+
+from fuseline.broker import MemoryBroker, StepReport
+from fuseline.workflow import WorkflowSchema
 
 broker = MemoryBroker()
-wf = Workflow(outputs=[...])  # build a workflow graph
-broker.dispatch_workflow(wf.to_schema())
+app = FastAPI()
+
+@app.post("/worker/register")
+def register(workflows: list[dict]) -> str:
+    return broker.register_worker([WorkflowSchema(**wf) for wf in workflows])
+
+@app.post("/workflow/dispatch")
+def dispatch(payload: dict) -> str:
+    wf = WorkflowSchema(**payload["workflow"])
+    return broker.dispatch_workflow(wf, payload.get("inputs"))
+
+@app.get("/workflow/step")
+def get_step(worker_id: str):
+    assignment = broker.get_step(worker_id)
+    if assignment is None:
+        raise HTTPException(status_code=204)
+    return assignment.model_dump()
+
+@app.post("/workflow/step")
+def report_step(worker_id: str, report: dict) -> None:
+    broker.report_step(worker_id, StepReport(**report))
 ```
 
-``MemoryBroker`` lives entirely in memory and is useful for tests or
-single‑process demos. Real deployments usually expose the broker over
-HTTP. The [Broker API](broker-api.md) page describes the network
-endpoints.
+Workers would send HTTP requests to these endpoints instead of calling
+``MemoryBroker`` methods directly.
 
 ## Custom broker class
 

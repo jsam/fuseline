@@ -121,7 +121,8 @@ for more details.
 ```python
 from fuseline.broker import MemoryBroker
 
-# In a real deployment this broker would be exposed via HTTP
+# ``MemoryBroker`` is convenient for small demos.
+# Production setups would expose the broker over HTTP instead.
 BROKER = MemoryBroker()
 ```
 
