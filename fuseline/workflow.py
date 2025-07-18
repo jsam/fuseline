@@ -883,13 +883,25 @@ class AsyncStep(Step):
                                     return None
                             kwargs[name] = val
                     kwargs.update({k: v for k, v in self.params.items() if k in self.param_names and k not in kwargs})
-                    method = type(self).run_step_async
-                    result = await method(self, **kwargs)
+                    async def call() -> Any:
+                        method = type(self).run_step_async
+                        return await method(self, **kwargs)
+
+                    wrapped = call
+                    for pol in reversed(policies):
+                        wrapped = (lambda w=wrapped, p=pol: p.execute_async(self, w))
+                    result = await wrapped()
                     if isinstance(setup_res, dict):
                         setup_res[self] = result
                     return result
-                method = type(self).run_step_async
-                return await method(self, setup_res)
+                async def call() -> Any:
+                    method = type(self).run_step_async
+                    return await method(self, setup_res)
+
+                wrapped = call
+                for pol in reversed(policies):
+                    wrapped = (lambda w=wrapped, p=pol: p.execute_async(self, w))
+                return await wrapped()
             except Exception as e:
                 decision: FailureDecision | None = None
                 for p in policies:

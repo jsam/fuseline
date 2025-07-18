@@ -12,7 +12,7 @@ from __future__ import annotations
 import abc
 from dataclasses import dataclass
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Callable, Dict, Type
+from typing import TYPE_CHECKING, Any, Callable, Dict, Type, Awaitable
 
 if TYPE_CHECKING:  # pragma: no cover - for type hints only
     from .workflow import Step, StepSchema, Workflow, WorkflowSchema
@@ -84,6 +84,12 @@ class StepPolicy(Policy):
         """Run ``call`` applying this policy."""
         return call()
 
+    async def execute_async(
+        self, step: "Step", call: Callable[[], Awaitable[Any]]
+    ) -> Any:
+        """Run ``call`` in an asynchronous context."""
+        return await call()
+
     def on_start(self, step: "Step") -> None:
         pass
 
@@ -154,6 +160,16 @@ class StepTimeoutPolicy(StepPolicy):
                 return fut.result(timeout=self.seconds)
             except _TO:
                 raise TimeoutError(f"step exceeded {self.seconds}s")
+
+    async def execute_async(
+        self, step: "Step", call: Callable[[], Awaitable[Any]]
+    ) -> Any:
+        import asyncio
+
+        try:
+            return await asyncio.wait_for(call(), timeout=self.seconds)
+        except asyncio.TimeoutError as e:
+            raise TimeoutError(f"step exceeded {self.seconds}s") from e
 
 
 __all__ = [

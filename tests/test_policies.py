@@ -1,6 +1,9 @@
 import pytest
 
 import time
+import asyncio
+
+from fuseline.workflow import AsyncStep
 
 from fuseline.workflow import Step, Workflow, Status
 from fuseline.policies import StepPolicy, WorkflowPolicy, StepTimeoutPolicy
@@ -45,4 +48,18 @@ def test_step_timeout() -> None:
     s = SlowStep(policies=[StepTimeoutPolicy(0.01)])
     wf = Workflow(outputs=[s])
     wf.run()
+    assert wf.state == Status.FAILED
+
+
+class AsyncSlowStep(AsyncStep):
+    async def run_step_async(self) -> None:  # type: ignore[override]
+        await asyncio.sleep(0.1)
+
+
+def test_step_timeout_async() -> None:
+    from fuseline.workflow import AsyncWorkflow
+
+    s = AsyncSlowStep(policies=[StepTimeoutPolicy(0.01)])
+    wf = AsyncWorkflow(outputs=[s])
+    asyncio.run(wf.run_async())
     assert wf.state == Status.FAILED
