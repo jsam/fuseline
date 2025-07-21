@@ -7,6 +7,9 @@ its connection string from the `DATABASE_URL` environment variable by default an
 supports simple schema migrations so future Fuseline versions can upgrade the
 database structure automatically.
 
+``psycopg`` must be installed to use this backend. The provided Dockerfile
+includes ``psycopg[binary]`` so the HTTP broker works out of the box.
+
 ```python
 from fuseline.broker.storage import PostgresRuntimeStorage
 
