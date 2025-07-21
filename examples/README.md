@@ -89,3 +89,16 @@ python -m fuseline.broker.http
 ```
 
 See `docker-compose.yml` for a runnable setup.
+
+## worker_package
+
+Demonstrates creating a standalone package containing a workflow. The
+package can be installed from a git repository and run with the Fuseline
+worker CLI:
+
+```bash
+cd worker_package
+uv pip install -e .
+BROKER_URL=http://localhost:8000 \
+    python -m fuseline.worker my_workflow:workflow
+```

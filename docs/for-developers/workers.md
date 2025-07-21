@@ -6,6 +6,9 @@ Workers are long running processes that execute workflow steps. They
 hold the actual :class:`Workflow` objects (including any attached
 policies) and communicate with a broker via a :class:`BrokerClient`.
 
+See :doc:`../getting-started/worker-package` for a walkthrough of
+packaging workflows as a separate repository that workers can install.
+
 ## Using ``ProcessEngine``
 
 ``ProcessEngine`` already implements the worker loop. It registers the
