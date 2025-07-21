@@ -23,6 +23,7 @@ __all__ = [
     "handle_dispatch_workflow",
     "handle_get_step",
     "handle_report_step",
+    "handle_keep_alive",
     "main",
 ]
 
@@ -51,6 +52,11 @@ def handle_report_step(broker: Broker, worker_id: str, payload: dict[str, Any]) 
     broker.report_step(worker_id, StepReport(**payload))
 
 
+def handle_keep_alive(broker: Broker, worker_id: str) -> None:
+    """Record that *worker_id* is still alive."""
+    broker.keep_alive(worker_id)
+
+
 def register_routes(app: Robyn, broker: Broker) -> None:
     """Register standard broker API routes on *app*."""
 
@@ -74,6 +80,12 @@ def register_routes(app: Robyn, broker: Broker) -> None:
     async def report_step(request):  # pragma: no cover - integration
         wid = request.qs_params.get("worker_id")
         handle_report_step(broker, wid, request.json)
+        return ""
+
+    @app.post("/worker/keep-alive")
+    async def keep_alive(request):  # pragma: no cover - integration
+        wid = request.qs_params.get("worker_id")
+        handle_keep_alive(broker, wid)
         return ""
 
 

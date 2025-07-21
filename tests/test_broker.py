@@ -1,4 +1,5 @@
 import pytest
+import time
 
 from fuseline.broker import MemoryBroker, StepAssignment, StepReport
 from fuseline.policies import StepTimeoutPolicy
@@ -40,3 +41,15 @@ def test_assignment_lifecycle():
         broker._store.get_assignment(wf.workflow_id, instance, assignment.step_name)
         is None
     )
+
+
+def test_worker_pruning(monkeypatch):
+    s = Simple()
+    wf = Workflow(outputs=[s], workflow_id="wfb")
+    broker = MemoryBroker(worker_ttl=0.01)
+    wid = broker.register_worker([wf.to_schema()])
+    broker.keep_alive(wid)
+    assert wid in broker._workers
+    time.sleep(0.02)
+    broker.get_step(wid)
+    assert wid not in broker._workers

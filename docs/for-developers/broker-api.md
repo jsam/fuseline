@@ -49,6 +49,8 @@ POST /worker/keep-alive
 ```
 
 Periodic heartbeats let the broker know a worker is still active.
+The in-memory broker removes workers that fail to send a heartbeat
+before the timeout elapses.
 
 These endpoints map directly onto the `RuntimeStorage` interface used by
 `ProcessEngine`. Implementations can store data in a database, message

@@ -12,7 +12,7 @@ from .base import Broker, StepAssignment, StepReport
 class MemoryBroker(Broker):
     """Simple in-memory broker used for tests."""
 
-    def __init__(self) -> None:
+    def __init__(self, worker_ttl: float = 30.0) -> None:
         self._workers: dict[str, set[tuple[str, str]]] = {}
         self._wf_defs: dict[tuple[str, str], WorkflowSchema] = {}
         self._steps: dict[tuple[str, str], dict[str, StepSchema]] = {}
@@ -20,11 +20,20 @@ class MemoryBroker(Broker):
         self._instance_version: dict[tuple[str, str], str] = {}
         self._store = MemoryRuntimeStorage()
         self._wid = 0
-        self._heartbeat: set[str] = set()
+        self._last_seen: dict[str, float] = {}
+        self._worker_ttl = worker_ttl
+
+    def _prune_dead(self) -> None:
+        now = time.time()
+        expired = [wid for wid, ts in self._last_seen.items() if now - ts > self._worker_ttl]
+        for wid in expired:
+            self._workers.pop(wid, None)
+            self._last_seen.pop(wid, None)
 
     def register_worker(
         self, workflows: Iterable[WorkflowSchema]
     ) -> str:
+        self._prune_dead()
         self._wid += 1
         wid = str(self._wid)
         wf_keys: set[tuple[str, str]] = set()
@@ -39,11 +48,13 @@ class MemoryBroker(Broker):
             wf_keys.add(key)
 
         self._workers[wid] = wf_keys
+        self._last_seen[wid] = time.time()
         return wid
 
     def dispatch_workflow(
         self, workflow: WorkflowSchema, inputs: Optional[dict[str, Any]] = None
     ) -> str:
+        self._prune_dead()
         instance = uuid.uuid4().hex
         key = (workflow.workflow_id, workflow.version)
         if key not in self._wf_defs:
@@ -96,7 +107,9 @@ class MemoryBroker(Broker):
         }
 
     def get_step(self, worker_id: str) -> StepAssignment | None:
+        self._prune_dead()
         allowed = self._workers.get(worker_id, set())
+        self._last_seen[worker_id] = time.time()
         for wf_id, version, instance in self._instances:
             if (wf_id, version) not in allowed:
                 continue
@@ -129,6 +142,7 @@ class MemoryBroker(Broker):
         worker_id: str,
         report: StepReport,
     ) -> None:
+        self._prune_dead()
         workflow_id = report.workflow_id
         instance_id = report.instance_id
         step_name = report.step_name
@@ -160,5 +174,8 @@ class MemoryBroker(Broker):
         if not self._store._queues[(workflow_id, instance_id)]:
             self._store.finalize_run(workflow_id, instance_id)
 
+        self._last_seen[worker_id] = time.time()
+
     def keep_alive(self, worker_id: str) -> None:
-        self._heartbeat.add(worker_id)
+        self._last_seen[worker_id] = time.time()
+        self._prune_dead()
