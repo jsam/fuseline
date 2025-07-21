@@ -6,6 +6,7 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
     from ..workflow import Step, Workflow
 
 from ..broker.clients import BrokerClient
+
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from ..broker import StepReport
 
@@ -25,11 +26,25 @@ class ProcessEngine:
         schemas = [wf.to_schema() for wf in workflows]
         self.worker_id = client.register_worker(schemas)
 
-    def work(self) -> None:
+    def work(self, *, block: bool = False, poll_interval: float = 1.0) -> None:
+        """Process step assignments until no work remains.
+
+        If ``block`` is true (the default for long-running workers) the
+        method polls the broker at ``poll_interval`` second intervals when no
+        assignment is available.  With ``block`` set to ``False`` the call
+        returns as soon as the broker has no work queued.  Tests rely on the
+        non-blocking behaviour and therefore pass ``False``.
+        """
+
         while True:
             self.client.keep_alive(self.worker_id)
             assignment = self.client.get_step(self.worker_id)
             if assignment is None:
+                if block:
+                    import time
+
+                    time.sleep(poll_interval)
+                    continue
                 break
             wf_id = assignment.workflow_id
             instance_id = assignment.instance_id
@@ -37,10 +52,7 @@ class ProcessEngine:
             payload = assignment.payload
             workflow = self.workflows[wf_id]
             step = self._rev_names[wf_id][step_name]
-            shared = {
-                self._rev_names[wf_id][name]: value
-                for name, value in payload.get("results", {}).items()
-            }
+            shared = {self._rev_names[wf_id][name]: value for name, value in payload.get("results", {}).items()}
             workflow.params.update(payload.get("workflow_inputs", {}))
             try:
                 result = workflow._execute_step(step, shared)

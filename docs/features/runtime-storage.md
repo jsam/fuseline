@@ -9,6 +9,7 @@ You can run a workflow in a single process while persisting state, or dispatch t
 ```python
 from fuseline import Workflow
 from fuseline.broker import MemoryBroker
+from fuseline.broker.clients import LocalBrokerClient
 from fuseline.worker import ProcessEngine
 
 broker = MemoryBroker()
@@ -18,8 +19,9 @@ wf = Workflow(outputs=[...])
 instance = broker.dispatch_workflow(wf)
 
 # workers consume queued steps
-worker = ProcessEngine(broker, [wf])
-worker.work()
+client = LocalBrokerClient(broker)
+worker = ProcessEngine(client, [wf])
+worker.work(block=True)
 ```
 
 The store keeps track of workflow inputs and each step's output so any

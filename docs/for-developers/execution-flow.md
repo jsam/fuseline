@@ -61,7 +61,9 @@ client = LocalBrokerClient(broker)  # HttpBrokerClient("http://localhost:8000") 
 instance = client.dispatch_workflow(workflow.to_schema())
 
 worker = ProcessEngine(client, [workflow])
-worker.work()
+# block=True keeps the worker alive, polling the broker when no steps are
+# immediately available.
+worker.work(block=True)
 ```
 
 This code uses ``MemoryBroker`` for simplicity.  In a real deployment the
