@@ -12,6 +12,7 @@ except Exception:  # pragma: no cover - optional
 
 from dataclasses import asdict
 from typing import Any, Iterable
+import json
 
 from robyn import Robyn
 
@@ -80,12 +81,12 @@ def register_routes(app: Robyn, broker: Broker) -> None:
 
     @app.post("/worker/register")
     async def register(request):  # pragma: no cover - integration
-        payload = await request.json()
+        payload = json.loads(request.body)
         return handle_register_worker(broker, payload)
 
     @app.post("/repository/register")
     async def register_repo(request):  # pragma: no cover - integration
-        payload = await request.json()
+        payload = json.loads(request.body)
         handle_register_repository(broker, payload)
         return ""
 
@@ -99,7 +100,7 @@ def register_routes(app: Robyn, broker: Broker) -> None:
 
     @app.post("/workflow/dispatch")
     async def dispatch(request):  # pragma: no cover - integration
-        payload = await request.json()
+        payload = json.loads(request.body)
         return handle_dispatch_workflow(broker, payload)
 
     @app.get("/workflow/step")
@@ -113,7 +114,7 @@ def register_routes(app: Robyn, broker: Broker) -> None:
     @app.post("/workflow/step")
     async def report_step(request):  # pragma: no cover - integration
         wid = request.qs_params.get("worker_id")
-        payload = await request.json()
+        payload = json.loads(request.body)
         handle_report_step(broker, wid, payload)
         return ""
 
