@@ -83,13 +83,14 @@ timeout.
 
 ### docker-compose example
 
-``examples/docker-compose.yml`` launches Postgres and the Robyn broker:
+``docker/docker-compose.yml`` launches Postgres, the broker and a demo
+worker:
 
 ```yaml
 version: '3'
 services:
   db:
-    image: postgres:15
+    image: pgvector/pgvector:latest
     environment:
       POSTGRES_USER: fuseline
       POSTGRES_PASSWORD: fuseline
@@ -97,15 +98,21 @@ services:
     ports:
       - "5432:5432"
   broker:
-    image: python:3.11-slim
-    volumes:
-      - ./../:/app
-    working_dir: /app/examples
-    command: python -m fuseline.broker.http
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.broker
     environment:
       DATABASE_URL: postgresql://fuseline:fuseline@db:5432/fuseline
     depends_on:
       - db
     ports:
       - "8000:8000"
+  worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.worker
+    environment:
+      BROKER_URL: http://broker:8000
+    depends_on:
+      - broker
 ```

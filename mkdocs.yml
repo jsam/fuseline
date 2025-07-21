@@ -7,6 +7,7 @@ nav:
       - getting-started/concepts.md
       - getting-started/first-agent.md
       - getting-started/worker-package.md
+      - getting-started/docker.md
   - Features & Concepts:
       - features/index.md
       - features/steps-tasks.md

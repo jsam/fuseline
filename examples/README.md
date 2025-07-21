@@ -88,7 +88,8 @@ module:
 python -m fuseline.broker.http
 ```
 
-See `docker-compose.yml` for a runnable setup.
+See `../docker/docker-compose.yml` for a runnable setup that also
+includes a worker container.
 
 ## worker_package
 
