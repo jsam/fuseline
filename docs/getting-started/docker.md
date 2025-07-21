@@ -22,3 +22,7 @@ docker compose up --build
 
 The broker becomes available on ``http://localhost:8000``. Swagger
 documentation is served at ``/docs``.
+
+``HOST`` and ``PORT`` environment variables control the address and port
+used by the broker. The Dockerfile defaults to ``0.0.0.0`` so the service
+is reachable from other containers.
