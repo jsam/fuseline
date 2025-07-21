@@ -6,7 +6,12 @@ from typing import Any, Iterable, Optional
 
 from .storage import MemoryRuntimeStorage
 from ..workflow import Status, StepSchema, WorkflowSchema
-from .base import Broker, StepAssignment, StepReport
+from .base import (
+    Broker,
+    StepAssignment,
+    StepReport,
+    RepositoryInfo,
+)
 
 
 class MemoryBroker(Broker):
@@ -18,6 +23,7 @@ class MemoryBroker(Broker):
         self._steps: dict[tuple[str, str], dict[str, StepSchema]] = {}
         self._instances: list[tuple[str, str, str]] = []
         self._instance_version: dict[tuple[str, str], str] = {}
+        self._repositories: dict[str, RepositoryInfo] = {}
         self._store = MemoryRuntimeStorage()
         self._wid = 0
         self._last_seen: dict[str, float] = {}
@@ -179,3 +185,11 @@ class MemoryBroker(Broker):
     def keep_alive(self, worker_id: str) -> None:
         self._last_seen[worker_id] = time.time()
         self._prune_dead()
+
+    # Repository management -------------------------------------------------
+
+    def register_repository(self, repo: RepositoryInfo) -> None:
+        self._repositories[repo.name] = repo
+
+    def get_repository(self, name: str) -> RepositoryInfo | None:
+        return self._repositories.get(name)

@@ -1,7 +1,7 @@
 import pytest
 import time
 
-from fuseline.broker import MemoryBroker, StepAssignment, StepReport
+from fuseline.broker import MemoryBroker, StepAssignment, StepReport, RepositoryInfo
 from fuseline.workflow.policies import StepTimeoutPolicy
 from fuseline.workflow import Status, Task, Workflow
 
@@ -53,3 +53,15 @@ def test_worker_pruning(monkeypatch):
     time.sleep(0.02)
     broker.get_step(wid)
     assert wid not in broker._workers
+
+
+def test_repository_registration():
+    broker = MemoryBroker()
+    repo = RepositoryInfo(
+        name="repo",
+        url="http://example.com/repo.git",
+        workflows=["pkg:wf"],
+        credentials={"token": "x"},
+    )
+    broker.register_repository(repo)
+    assert broker.get_repository("repo") == repo

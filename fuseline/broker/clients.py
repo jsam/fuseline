@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, Iterable, Optional
 if TYPE_CHECKING:  # pragma: no cover - for type hints only
     from . import Broker
 
-from . import StepAssignment, StepReport
+from . import StepAssignment, StepReport, RepositoryInfo
 from ..workflow import WorkflowSchema
 
 
@@ -36,6 +36,16 @@ class BrokerClient(ABC):
     def keep_alive(self, worker_id: str) -> None:
         """Notify the broker that ``worker_id`` is still alive."""
 
+    # Repository management -------------------------------------------------
+
+    @abstractmethod
+    def register_repository(self, repo: RepositoryInfo) -> None:
+        """Register a workflow repository with the broker."""
+
+    @abstractmethod
+    def get_repository(self, name: str) -> RepositoryInfo | None:
+        """Return repository information for ``name`` if known."""
+
 
 class LocalBrokerClient(BrokerClient):
     """Client that directly calls a :class:`Broker` instance."""
@@ -57,6 +67,12 @@ class LocalBrokerClient(BrokerClient):
 
     def keep_alive(self, worker_id: str) -> None:
         self._broker.keep_alive(worker_id)
+
+    def register_repository(self, repo: RepositoryInfo) -> None:
+        self._broker.register_repository(repo)
+
+    def get_repository(self, name: str) -> RepositoryInfo | None:
+        return self._broker.get_repository(name)
 
 
 class HttpBrokerClient(BrokerClient):
@@ -105,3 +121,10 @@ class HttpBrokerClient(BrokerClient):
 
     def keep_alive(self, worker_id: str) -> None:
         self._post("/worker/keep-alive", None, {"worker_id": worker_id})
+
+    def register_repository(self, repo: RepositoryInfo) -> None:
+        self._post("/repository/register", asdict(repo))
+
+    def get_repository(self, name: str) -> RepositoryInfo | None:
+        data = self._get("/repository", {"name": name})
+        return RepositoryInfo(**data) if data else None
