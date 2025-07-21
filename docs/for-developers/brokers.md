@@ -76,6 +76,11 @@ class MyBroker(Broker):
 Once a broker exposes these methods it can be wrapped in a network
 service and used by multiple workers.
 
+``MemoryBroker`` tracks a ``keep_alive`` timestamp for each worker.
+Workers should call the ``/worker/keep-alive`` endpoint periodically so
+the broker can prune entries that have not been seen for a configurable
+timeout.
+
 ### docker-compose example
 
 ``examples/docker-compose.yml`` launches Postgres and the Robyn broker:

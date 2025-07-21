@@ -8,6 +8,7 @@ from fuseline.broker.http import (
     handle_dispatch_workflow,
     handle_get_step,
     handle_report_step,
+    handle_keep_alive,
     create_app,
 )
 from fuseline.workflow import Workflow, Task, Status
@@ -44,6 +45,15 @@ def test_handler_flow():
     )
 
     assert handle_get_step(broker, wid) is None
+
+
+def test_keep_alive_handler():
+    s = Simple()
+    wf = Workflow(outputs=[s], workflow_id="wf2")
+    broker = MemoryBroker()
+    wid = handle_register_worker(broker, [wf.to_schema()])
+    handle_keep_alive(broker, wid)
+    assert wid in broker._last_seen
 
 
 def test_create_app_returns_robyn():
