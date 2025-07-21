@@ -24,8 +24,8 @@
 __version__ = "0.1.2"
 __version_tuple__ = (0, 1, 2)
 from .broker import Broker, MemoryBroker, PostgresBroker, StepReport
-from .broker.clients import BrokerClient, LocalBrokerClient
-from .worker import ExecutionEngine
+from .broker.clients import BrokerClient, LocalBrokerClient, HttpBrokerClient
+from .worker import ExecutionEngine, run_from_env
 from .workflow.exporters import Exporter, YamlExporter
 from .workflow.tracing import FileTracer, Tracer
 from .broker.storage import (
@@ -62,4 +62,7 @@ def __getattr__(name: str):
     if name == "ProcessEngine":
         from .worker import ProcessEngine as _ProcessEngine
         return _ProcessEngine
+    if name == "run_from_env":
+        from .worker import run_from_env as _run_from_env
+        return _run_from_env
     raise AttributeError(name)

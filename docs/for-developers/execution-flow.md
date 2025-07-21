@@ -53,11 +53,11 @@ in‑memory without persistent state.
 ```python
 from fuseline import Workflow
 from fuseline.broker import MemoryBroker
-from fuseline.broker.clients import LocalBrokerClient
+from fuseline.broker.clients import LocalBrokerClient, HttpBrokerClient
 from fuseline.worker import ProcessEngine
 
 broker = MemoryBroker()
-client = LocalBrokerClient(broker)
+client = LocalBrokerClient(broker)  # HttpBrokerClient("http://localhost:8000") for real deployments
 instance = client.dispatch_workflow(workflow.to_schema())
 
 worker = ProcessEngine(client, [workflow])

@@ -129,11 +129,11 @@ BROKER = MemoryBroker()
 ### Running a worker (client side)
 
 ```python
-from fuseline.broker.clients import LocalBrokerClient
+from fuseline.broker.clients import LocalBrokerClient, HttpBrokerClient
 from fuseline.worker import ProcessEngine
 from my_workflow import rag_workflow  # contains custom policies
 
-client = LocalBrokerClient(BROKER)
+client = LocalBrokerClient(BROKER)  # HttpBrokerClient("http://broker:8000") in production
 engine = ProcessEngine(client, [rag_workflow])
 engine.work()
 ```
@@ -181,7 +181,7 @@ retrieve.next(answer)
 
 rag_workflow = Workflow(outputs=[answer])
 
-client = LocalBrokerClient(BROKER)
+client = LocalBrokerClient(BROKER)  # HttpBrokerClient("http://broker:8000") in production
 engine = ProcessEngine(client, [rag_workflow])
 engine.work()
 ```
