@@ -135,7 +135,7 @@ from my_workflow import rag_workflow  # contains custom policies
 
 client = LocalBrokerClient(BROKER)  # HttpBrokerClient("http://broker:8000") in production
 engine = ProcessEngine(client, [rag_workflow])
-engine.work()
+engine.work(block=True)
 ```
 
 The worker registers the workflow schema with the broker and then enters a
@@ -183,7 +183,7 @@ rag_workflow = Workflow(outputs=[answer])
 
 client = LocalBrokerClient(BROKER)  # HttpBrokerClient("http://broker:8000") in production
 engine = ProcessEngine(client, [rag_workflow])
-engine.work()
+engine.work(block=True)
 ```
 
 The policies modify how each step executes: ``RetrieveDocs`` will abort

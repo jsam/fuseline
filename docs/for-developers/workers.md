@@ -24,7 +24,7 @@ from my_workflows import rag_workflow
 broker = MemoryBroker()
 client = LocalBrokerClient(broker)  # HttpBrokerClient("http://localhost:8000") for production
 engine = ProcessEngine(client, [rag_workflow])
-engine.work()
+engine.work(block=True)
 ```
 
 Here ``MemoryBroker`` runs in the same process for clarity.  Deployments

@@ -30,7 +30,7 @@ def _clone_repository(info: RepositoryInfo) -> str:
     user = info.credentials.get("username", "")
     if token and url.startswith("https://"):
         prefix = "https://"
-        url = f"https://{user}:{token}@" + url[len(prefix):]
+        url = f"https://{user}:{token}@" + url[len(prefix) :]
     subprocess.run(["git", "clone", url, path], check=True)
     sys.path.insert(0, path)
     return path
@@ -49,12 +49,13 @@ def _run_once(client: BrokerClient, specs: Iterable[str]) -> None:
             for wf_spec in info.workflows:
                 workflows.append(_load_workflow(wf_spec))
     engine = ProcessEngine(client, workflows)
-    engine.work()
+    engine.work(block=True)
 
 
 def run_from_env(specs: list[str]) -> None:
     base_url = os.environ.get("BROKER_URL", "http://localhost:8000")
     processes = int(os.environ.get("WORKER_PROCESSES", "1"))
+
     def target() -> None:
         client = HttpBrokerClient(base_url)
         _run_once(client, specs)
