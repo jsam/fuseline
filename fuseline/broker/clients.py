@@ -6,7 +6,8 @@ from typing import TYPE_CHECKING, Any, Iterable, Optional
 if TYPE_CHECKING:  # pragma: no cover - for type hints only
     from . import Broker
 
-from . import StepAssignment, StepReport, WorkflowSchema
+from . import StepAssignment, StepReport
+from ..workflow import WorkflowSchema
 
 
 class BrokerClient(ABC):

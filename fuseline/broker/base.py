@@ -1,0 +1,63 @@
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from typing import Any, Iterable, Mapping, Optional, Sequence
+
+from ..workflow import Status, StepSchema, WorkflowSchema
+
+
+@dataclass
+class StepAssignment:
+    """Information returned by :meth:`Broker.get_step`."""
+
+    workflow_id: str
+    instance_id: str
+    step_name: str
+    payload: dict[str, Any]
+    assigned_at: float
+    expires_at: float
+
+
+@dataclass
+class StepReport:
+    """Information sent to :meth:`Broker.report_step`."""
+
+    workflow_id: str
+    instance_id: str
+    step_name: str
+    state: Status
+    result: Any
+
+
+class Broker(ABC):
+    """Interface implemented by the workflow broker."""
+
+    @abstractmethod
+    def register_worker(
+        self, workflows: Iterable[WorkflowSchema]
+    ) -> str:
+        """Register a worker and return a worker ID."""
+
+    @abstractmethod
+    def dispatch_workflow(
+        self, workflow: WorkflowSchema, inputs: Optional[dict[str, Any]] = None
+    ) -> str:
+        """Create a workflow run and queue initial steps."""
+
+    @abstractmethod
+    def get_step(self, worker_id: str) -> StepAssignment | None:
+        """Return the next step for *worker_id* and record the assignment."""
+
+    @abstractmethod
+    def report_step(
+        self,
+        worker_id: str,
+        report: StepReport,
+    ) -> None:
+        """Store step output and mark it completed."""
+
+    @abstractmethod
+    def keep_alive(self, worker_id: str) -> None:
+        """Notify the broker that *worker_id* is still active."""
+
