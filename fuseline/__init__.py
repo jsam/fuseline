@@ -25,11 +25,10 @@ __version__ = "0.1.2"
 __version_tuple__ = (0, 1, 2)
 from .broker import Broker, MemoryBroker, PostgresBroker, StepReport
 from .broker.clients import BrokerClient, LocalBrokerClient
-from .worker import PoolEngine, ProcessEngine
-from .exporters import YamlExporter
-from .interfaces import ExecutionEngine, Exporter, Tracer
+from .worker import ExecutionEngine
+from .exporters import Exporter, YamlExporter
+from .tracing import FileTracer, Tracer
 from .storage import MemoryRuntimeStorage, RuntimeStorage, PostgresRuntimeStorage
-from .tracing import FileTracer
 from .typing import Computed, T
 from .workflow import (
     AsyncBatchStep,
@@ -50,3 +49,13 @@ from .workflow import (
     WorkflowSchema,
     workflow_from_functions,
 )
+
+
+def __getattr__(name: str):
+    if name == "PoolEngine":
+        from .worker import PoolEngine as _PoolEngine
+        return _PoolEngine
+    if name == "ProcessEngine":
+        from .worker import ProcessEngine as _ProcessEngine
+        return _ProcessEngine
+    raise AttributeError(name)

@@ -5,7 +5,7 @@ import os
 import socket
 from datetime import datetime
 
-from .interfaces import Tracer
+from .base import Tracer
 
 
 class FileTracer(Tracer):

@@ -7,7 +7,7 @@ import warnings
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Awaitable, Callable, Iterable, List
 
-from ..interfaces import ExecutionEngine
+from .base import ExecutionEngine
 
 
 class PoolEngine(ExecutionEngine):
