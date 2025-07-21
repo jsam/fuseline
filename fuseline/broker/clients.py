@@ -114,7 +114,14 @@ class HttpBrokerClient(BrokerClient):
 
     def get_step(self, worker_id: str) -> StepAssignment | None:
         data = self._get("/workflow/step", {"worker_id": worker_id})
-        return StepAssignment(**data) if data else None
+        if not data:
+            return None
+        # Older broker versions returned a JSON object with ``status_code``
+        # rather than using an HTTP 204 response.  Guard against that
+        # behaviour so workers remain compatible.
+        if isinstance(data, dict) and data.get("status_code") == 204:
+            return None
+        return StepAssignment(**data)
 
     def report_step(self, worker_id: str, report: StepReport) -> None:
         self._post("/workflow/step", asdict(report), {"worker_id": worker_id})
