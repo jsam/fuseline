@@ -2,7 +2,7 @@ import pytest
 import time
 
 from fuseline.broker import MemoryBroker, StepAssignment, StepReport
-from fuseline.policies import StepTimeoutPolicy
+from fuseline.workflow.policies import StepTimeoutPolicy
 from fuseline.workflow import Status, Task, Workflow
 
 

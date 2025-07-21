@@ -8,7 +8,7 @@ supports simple schema migrations so future Fuseline versions can upgrade the
 database structure automatically.
 
 ```python
-from fuseline.storage import PostgresRuntimeStorage
+from fuseline.broker.storage import PostgresRuntimeStorage
 
 store = PostgresRuntimeStorage()  # uses DATABASE_URL
 ```

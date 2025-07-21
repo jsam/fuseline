@@ -6,7 +6,7 @@ from typing import Any, Iterable, Optional, TYPE_CHECKING
 from .base import RuntimeStorage
 
 if TYPE_CHECKING:  # pragma: no cover - for type hints only
-    from ..workflow import Status
+    from ...workflow import Status
 
 
 class MemoryRuntimeStorage(RuntimeStorage):
@@ -24,7 +24,7 @@ class MemoryRuntimeStorage(RuntimeStorage):
     def create_run(
         self, workflow_id: str, instance_id: str, steps: Iterable[str]
     ) -> None:
-        from ..workflow import Status
+        from ...workflow import Status
 
         for step in steps:
             self._states[(workflow_id, instance_id, step)] = Status.PENDING

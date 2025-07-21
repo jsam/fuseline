@@ -4,7 +4,7 @@ import time
 import uuid
 from typing import Any, Iterable, Optional
 
-from ..storage import MemoryRuntimeStorage
+from .storage import MemoryRuntimeStorage
 from ..workflow import Status, StepSchema, WorkflowSchema
 from .base import Broker, StepAssignment, StepReport
 

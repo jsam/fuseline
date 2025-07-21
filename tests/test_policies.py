@@ -6,7 +6,7 @@ import asyncio
 from fuseline.workflow import AsyncStep
 
 from fuseline.workflow import Step, Workflow, Status
-from fuseline.policies import StepPolicy, WorkflowPolicy, StepTimeoutPolicy
+from fuseline.workflow.policies import StepPolicy, WorkflowPolicy, StepTimeoutPolicy
 
 
 class BinderStepPolicy(StepPolicy):

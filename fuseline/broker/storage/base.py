@@ -6,7 +6,7 @@ import json
 from typing import TYPE_CHECKING, Any, Iterable, Optional
 
 if TYPE_CHECKING:  # pragma: no cover - for type hints only
-    from ..workflow import Status
+    from ...workflow import Status
 
 
 class RuntimeStorage(ABC):
