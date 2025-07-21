@@ -87,10 +87,10 @@ timeout.
 worker:
 
 ```yaml
-version: '3'
 services:
   db:
-    image: pgvector/pgvector:latest
+    # Postgres image with the pgvector extension installed
+    image: pgvector/pgvector:pg16
     environment:
       POSTGRES_USER: fuseline
       POSTGRES_PASSWORD: fuseline

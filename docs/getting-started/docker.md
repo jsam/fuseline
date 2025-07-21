@@ -10,7 +10,8 @@ The ``docker`` directory contains:
 * ``Dockerfile.worker`` – builds a worker image that connects to the
   broker.
 * ``docker-compose.yml`` – launches Postgres with the ``pgvector``
-  extension, the broker and a demo worker.
+  extension using the ``pgvector/pgvector:pg16`` image, the broker and a demo
+  worker.
 
 From the ``docker`` directory run:
 
