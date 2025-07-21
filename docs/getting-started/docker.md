@@ -7,9 +7,10 @@ The ``docker`` directory contains:
 
 * ``Dockerfile.broker`` – builds an image that starts the Robyn broker
   with ``PostgresBroker``. The Dockerfile installs ``robyn`` and
-  ``psycopg[binary]`` so the server can run against Postgres.
+  ``psycopg[binary]`` along with ``curl`` used by the health check so the
+  server can run against Postgres.
 * ``Dockerfile.worker`` – builds a worker image that connects to the
-  broker.
+  broker. ``git`` is installed so workflow repositories can be cloned.
 * ``docker-compose.yml`` – launches Postgres with the ``pgvector``
   extension using the ``pgvector/pgvector:pg16`` image, the broker and a demo
   worker. Health checks coordinate startup so the worker only begins once the

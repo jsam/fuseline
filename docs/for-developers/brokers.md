@@ -86,7 +86,9 @@ timeout.
 ``docker/docker-compose.yml`` launches Postgres, the broker and a demo
 worker. Health checks ensure the database starts before the broker and that
 the worker waits for the broker. The broker image installs ``robyn`` and
-``psycopg[binary]`` so it can expose the HTTP API backed by Postgres:
+``psycopg[binary]`` as well as ``curl`` for the health check. The worker
+image includes ``git`` so repositories can be cloned. Together they expose
+the HTTP API backed by Postgres:
 
 ```yaml
 services:
