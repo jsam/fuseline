@@ -27,6 +27,7 @@ class ProcessEngine:
 
     def work(self) -> None:
         while True:
+            self.client.keep_alive(self.worker_id)
             assignment = self.client.get_step(self.worker_id)
             if assignment is None:
                 break
@@ -36,9 +37,15 @@ class ProcessEngine:
             payload = assignment.payload
             workflow = self.workflows[wf_id]
             step = self._rev_names[wf_id][step_name]
-            shared = {self._rev_names[wf_id][name]: value for name, value in payload.get("results", {}).items()}
+            shared = {
+                self._rev_names[wf_id][name]: value
+                for name, value in payload.get("results", {}).items()
+            }
             workflow.params.update(payload.get("workflow_inputs", {}))
-            result = workflow._execute_step(step, shared)
+            try:
+                result = workflow._execute_step(step, shared)
+            except Exception:
+                result = None
             from ..broker import StepReport  # imported lazily to avoid cycle
 
             self.client.report_step(

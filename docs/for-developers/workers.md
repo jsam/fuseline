@@ -14,12 +14,12 @@ the broker. A typical worker looks like this:
 
 ```python
 from fuseline.broker import MemoryBroker
-from fuseline.broker.clients import LocalBrokerClient
+from fuseline.broker.clients import LocalBrokerClient, HttpBrokerClient
 from fuseline.worker import ProcessEngine
 from my_workflows import rag_workflow
 
 broker = MemoryBroker()
-client = LocalBrokerClient(broker)
+client = LocalBrokerClient(broker)  # HttpBrokerClient("http://localhost:8000") for production
 engine = ProcessEngine(client, [rag_workflow])
 engine.work()
 ```
@@ -37,7 +37,7 @@ When implementing your own worker you still use a ``BrokerClient`` to
 communicate with the broker. The following skeleton shows the core loop:
 
 ```python
-client = LocalBrokerClient(broker)
+client = LocalBrokerClient(broker)  # HttpBrokerClient("http://localhost:8000") for production
 worker_id = client.register_worker([workflow.to_schema()])
 
 while True:
@@ -70,3 +70,18 @@ provided engine. Workers may also send heartbeats using
 Several workers can connect to the same broker. Each one retrieves the
 next available step and processes it independently. The broker ensures a
 step is only assigned to one worker at a time.
+
+## Worker command
+
+Fuseline ships with a small CLI so you can spin up workers directly from
+your workflow modules. Point it at the workflow objects and set
+``BROKER_URL`` to the broker address. ``WORKER_PROCESSES`` controls how
+many worker processes spawn.
+
+```bash
+BROKER_URL=http://localhost:8000 WORKER_PROCESSES=2 \
+    python -m fuseline.worker mymodule:workflow
+```
+
+Each spawned process loads ``mymodule`` and executes the ``workflow``
+object using :class:`ProcessEngine` and the HTTP broker client.

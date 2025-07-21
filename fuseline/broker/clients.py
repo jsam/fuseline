@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from dataclasses import asdict
+import json
+from urllib import request, parse
 from typing import TYPE_CHECKING, Any, Iterable, Optional
 
 if TYPE_CHECKING:  # pragma: no cover - for type hints only
@@ -54,3 +57,51 @@ class LocalBrokerClient(BrokerClient):
 
     def keep_alive(self, worker_id: str) -> None:
         self._broker.keep_alive(worker_id)
+
+
+class HttpBrokerClient(BrokerClient):
+    """Client that communicates with a remote HTTP broker."""
+
+    def __init__(self, base_url: str) -> None:
+        self.base_url = base_url.rstrip("/")
+
+    def _post(self, path: str, data: Any = None, query: Optional[dict[str, str]] = None) -> Any:
+        url = self.base_url + path
+        if query:
+            url += "?" + parse.urlencode(query)
+        body = json.dumps(data).encode() if data is not None else b""
+        req = request.Request(url, data=body, headers={"Content-Type": "application/json"})
+        with request.urlopen(req) as resp:
+            payload = resp.read()
+        if payload:
+            return json.loads(payload)
+        return None
+
+    def _get(self, path: str, query: Optional[dict[str, str]] = None) -> Any:
+        url = self.base_url + path
+        if query:
+            url += "?" + parse.urlencode(query)
+        with request.urlopen(url) as resp:
+            if resp.status == 204:
+                return None
+            payload = resp.read()
+        if not payload:
+            return None
+        return json.loads(payload)
+
+    def register_worker(self, workflows: Iterable[WorkflowSchema]) -> str:
+        data = [asdict(wf) for wf in workflows]
+        return self._post("/worker/register", data)
+
+    def dispatch_workflow(self, workflow: WorkflowSchema, inputs: Optional[dict[str, Any]] = None) -> str:
+        return self._post("/workflow/dispatch", {"workflow": asdict(workflow), "inputs": inputs})
+
+    def get_step(self, worker_id: str) -> StepAssignment | None:
+        data = self._get("/workflow/step", {"worker_id": worker_id})
+        return StepAssignment(**data) if data else None
+
+    def report_step(self, worker_id: str, report: StepReport) -> None:
+        self._post("/workflow/step", asdict(report), {"worker_id": worker_id})
+
+    def keep_alive(self, worker_id: str) -> None:
+        self._post("/worker/keep-alive", None, {"worker_id": worker_id})
