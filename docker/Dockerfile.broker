@@ -1,6 +1,12 @@
 FROM python:3.11-slim
 WORKDIR /app
 COPY .. /app
-RUN pip install robyn psycopg[binary] && pip install -e .
+# install broker dependencies and curl for the health check
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && pip install robyn psycopg[binary] \
+    && pip install -e . \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 ENV PYTHONUNBUFFERED=1
 CMD ["python", "-m", "fuseline.broker.http"]

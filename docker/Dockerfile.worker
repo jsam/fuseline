@@ -1,7 +1,12 @@
 FROM python:3.11-slim
 WORKDIR /app
 COPY .. /app
-RUN pip install -e .
+# install git so workers can clone workflow repositories
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git \
+    && pip install -e . \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 ENV PYTHONUNBUFFERED=1
 ENV BROKER_URL=http://broker:8000
 CMD ["python", "-m", "fuseline.worker", "examples.worker_package.my_workflow:workflow"]
