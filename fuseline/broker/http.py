@@ -119,14 +119,6 @@ def register_routes(app: Robyn, broker: Broker) -> None:
         handle_keep_alive(broker, wid)
         return ""
 
-    @app.get("/openapi.json")
-    async def openapi(request):  # pragma: no cover - integration
-        return OPENAPI_SPEC
-
-    @app.get("/docs")
-    async def docs(request):  # pragma: no cover - integration
-        return {"headers": {"Content-Type": "text/html"}, "body": SWAGGER_HTML}
-
 
 def create_app(dsn: str | None = None, broker: Broker | None = None) -> Robyn:
     """Return a Robyn app exposing the broker API."""
@@ -135,6 +127,8 @@ def create_app(dsn: str | None = None, broker: Broker | None = None) -> Robyn:
         dsn = dsn or os.environ.get("DATABASE_URL")
         broker = PostgresBroker(dsn)
     app = Robyn(__file__)
+    app.openapi_spec = OPENAPI_SPEC
+    app.swagger_html = SWAGGER_HTML
     register_routes(app, broker)
     return app
 
