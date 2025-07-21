@@ -1,0 +1,52 @@
+import pytest
+
+pytest.importorskip("robyn")
+
+from fuseline.broker import MemoryBroker
+from fuseline.broker.http import (
+    handle_register_worker,
+    handle_dispatch_workflow,
+    handle_get_step,
+    handle_report_step,
+    create_app,
+)
+from fuseline.workflow import Workflow, Task, Status
+
+
+class Simple(Task):
+    def run_step(self):
+        return "ok"
+
+
+def test_handler_flow():
+    s = Simple()
+    wf = Workflow(outputs=[s], workflow_id="wf")
+    broker = MemoryBroker()
+
+    wid = handle_register_worker(broker, [wf.to_schema()])
+    instance = handle_dispatch_workflow(broker, {"workflow": wf.to_schema()})
+
+    assignment = handle_get_step(broker, wid)
+    assert assignment is not None
+    assert assignment["workflow_id"] == wf.workflow_id
+    assert assignment["instance_id"] == instance
+
+    handle_report_step(
+        broker,
+        wid,
+        {
+            "workflow_id": wf.workflow_id,
+            "instance_id": instance,
+            "step_name": assignment["step_name"],
+            "state": Status.SUCCEEDED,
+            "result": None,
+        },
+    )
+
+    assert handle_get_step(broker, wid) is None
+
+
+def test_create_app_returns_robyn():
+    robyn = pytest.importorskip("robyn")
+    app = create_app(broker=MemoryBroker())
+    assert isinstance(app, robyn.Robyn)
