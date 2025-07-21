@@ -135,7 +135,8 @@ def create_app(dsn: str | None = None, broker: Broker | None = None) -> Robyn:
 
 def main() -> None:
     port = int(os.environ.get("PORT", "8000"))
-    create_app().start(port=port)
+    host = os.environ.get("HOST", "0.0.0.0")
+    create_app().start(port=port, host=host)
 
 
 if __name__ == "__main__":  # pragma: no cover - manual start

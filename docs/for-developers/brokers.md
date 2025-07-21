@@ -117,3 +117,6 @@ services:
     depends_on:
       - broker
 ```
+
+The broker reads ``HOST`` and ``PORT`` from the environment when started.
+By default it listens on ``0.0.0.0:8000`` so other containers can reach it.
