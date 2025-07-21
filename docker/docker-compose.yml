@@ -8,6 +8,11 @@ services:
       POSTGRES_DB: fuseline
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "fuseline"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
   broker:
     build:
       context: ..
@@ -15,9 +20,15 @@ services:
     environment:
       DATABASE_URL: postgresql://fuseline:fuseline@db:5432/fuseline
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     ports:
       - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
   worker:
     build:
       context: ..
@@ -25,4 +36,5 @@ services:
     environment:
       BROKER_URL: http://broker:8000
     depends_on:
-      - broker
+      broker:
+        condition: service_healthy
