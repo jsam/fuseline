@@ -4,16 +4,18 @@ pytest.importorskip("robyn")
 
 from fuseline.broker import MemoryBroker
 from fuseline.broker.http import (
-    handle_register_worker,
+    OPENAPI_SPEC,
+    SWAGGER_HTML,
+    create_app,
     handle_dispatch_workflow,
+    handle_get_repository,
     handle_get_step,
-    handle_report_step,
     handle_keep_alive,
     handle_register_repository,
-    handle_get_repository,
-    create_app,
+    handle_register_worker,
+    handle_report_step,
 )
-from fuseline.workflow import Workflow, Task, Status
+from fuseline.workflow import Status, Task, Workflow
 
 
 class Simple(Task):
@@ -75,3 +77,8 @@ def test_repository_handlers():
     handle_register_repository(broker, payload)
     repo = handle_get_repository(broker, "repo")
     assert repo["url"] == payload["url"]
+
+
+def test_openapi_constants():
+    assert "/worker/register" in OPENAPI_SPEC["paths"]
+    assert "swagger-ui" in SWAGGER_HTML

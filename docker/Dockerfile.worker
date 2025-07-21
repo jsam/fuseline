@@ -1,0 +1,7 @@
+FROM python:3.11-slim
+WORKDIR /app
+COPY .. /app
+RUN pip install -e .
+ENV PYTHONUNBUFFERED=1
+ENV BROKER_URL=http://broker:8000
+CMD ["python", "-m", "fuseline.worker", "examples.worker_package.my_workflow:workflow"]

@@ -5,29 +5,35 @@ import os
 try:  # optional dependency
     from dotenv import load_dotenv
 except Exception:  # pragma: no cover - optional
+
     def load_dotenv() -> None:  # type: ignore
         return None
+
 
 from dataclasses import asdict
 from typing import Any, Iterable
 
 from robyn import Robyn
 
-from . import Broker, PostgresBroker, StepReport, RepositoryInfo
 from ..workflow import WorkflowSchema
+from . import Broker, PostgresBroker, RepositoryInfo, StepReport
+from .openapi import OPENAPI_SPEC, SWAGGER_HTML
 
 __all__ = [
+    "OPENAPI_SPEC",
+    "SWAGGER_HTML",
     "create_app",
-    "register_routes",
-    "handle_register_worker",
-    "handle_register_repository",
-    "handle_get_repository",
     "handle_dispatch_workflow",
+    "handle_get_repository",
     "handle_get_step",
-    "handle_report_step",
     "handle_keep_alive",
+    "handle_register_repository",
+    "handle_register_worker",
+    "handle_report_step",
     "main",
+    "register_routes",
 ]
+
 
 def handle_register_worker(broker: Broker, payload: Iterable[dict[str, Any]]) -> str:
     """Register a worker using *payload* workflow schemas."""
@@ -112,6 +118,14 @@ def register_routes(app: Robyn, broker: Broker) -> None:
         wid = request.qs_params.get("worker_id")
         handle_keep_alive(broker, wid)
         return ""
+
+    @app.get("/openapi.json")
+    async def openapi(request):  # pragma: no cover - integration
+        return OPENAPI_SPEC
+
+    @app.get("/docs")
+    async def docs(request):  # pragma: no cover - integration
+        return {"headers": {"Content-Type": "text/html"}, "body": SWAGGER_HTML}
 
 
 def create_app(dsn: str | None = None, broker: Broker | None = None) -> Robyn:

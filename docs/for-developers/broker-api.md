@@ -74,6 +74,13 @@ Periodic heartbeats let the broker know a worker is still active.
 The in-memory broker removes workers that fail to send a heartbeat
 before the timeout elapses.
 
+### Swagger documentation
+
+The built-in HTTP broker exposes an OpenAPI specification at
+``/openapi.json`` and a Swagger UI under ``/docs`` when running
+``python -m fuseline.broker.http``. Visit the ``/docs`` endpoint in your
+browser to explore and try the API.
+
 These endpoints map directly onto the `RuntimeStorage` interface used by
 `ProcessEngine`. Implementations can store data in a database, message
 queue or any other system.
