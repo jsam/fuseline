@@ -8,6 +8,8 @@ except Exception:  # pragma: no cover - optional
     def load_dotenv() -> None:  # type: ignore
         return None
 
+from dataclasses import asdict
+
 from robyn import Robyn
 
 from . import PostgresBroker, StepReport
@@ -37,7 +39,7 @@ def create_app(dsn: str | None = None) -> Robyn:
         assignment = broker.get_step(wid)
         if assignment is None:
             return {"status_code": 204}
-        return assignment.model_dump()
+        return asdict(assignment)
 
     @app.post("/workflow/step")
     async def report_step(request):  # pragma: no cover - integration
