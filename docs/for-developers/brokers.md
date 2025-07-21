@@ -84,7 +84,8 @@ timeout.
 ### docker-compose example
 
 ``docker/docker-compose.yml`` launches Postgres, the broker and a demo
-worker:
+worker. The broker image installs ``robyn`` and ``psycopg[binary]`` so it
+can expose the HTTP API backed by Postgres:
 
 ```yaml
 services:

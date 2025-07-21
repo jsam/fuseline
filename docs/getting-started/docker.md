@@ -6,7 +6,8 @@ Fuseline provides Dockerfiles for running the broker and a basic worker.
 The ``docker`` directory contains:
 
 * ``Dockerfile.broker`` – builds an image that starts the Robyn broker
-  with ``PostgresBroker``.
+  with ``PostgresBroker``. The Dockerfile installs ``robyn`` and
+  ``psycopg[binary]`` so the server can run against Postgres.
 * ``Dockerfile.worker`` – builds a worker image that connects to the
   broker.
 * ``docker-compose.yml`` – launches Postgres with the ``pgvector``
