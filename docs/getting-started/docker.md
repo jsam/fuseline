@@ -12,7 +12,8 @@ The ``docker`` directory contains:
   broker.
 * ``docker-compose.yml`` – launches Postgres with the ``pgvector``
   extension using the ``pgvector/pgvector:pg16`` image, the broker and a demo
-  worker.
+  worker. Health checks coordinate startup so the worker only begins once the
+  broker is ready.
 
 From the ``docker`` directory run:
 

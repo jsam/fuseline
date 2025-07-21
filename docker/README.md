@@ -6,7 +6,8 @@ This folder contains Docker configurations for running Fuseline with Postgres.
 * ``Dockerfile.worker`` builds a simple worker image that connects to the broker
   using ``HttpBrokerClient``.
 * ``docker-compose.yml`` runs Postgres using the ``pgvector/pgvector:pg16``
-  image, the broker and a worker connected to it.
+  image, the broker and a worker connected to it. Health checks ensure the
+  database starts first, then the broker, and finally the worker.
 
 Run ``docker compose up --build`` inside this directory to start all
 services.

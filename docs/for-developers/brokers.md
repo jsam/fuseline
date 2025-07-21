@@ -84,8 +84,9 @@ timeout.
 ### docker-compose example
 
 ``docker/docker-compose.yml`` launches Postgres, the broker and a demo
-worker. The broker image installs ``robyn`` and ``psycopg[binary]`` so it
-can expose the HTTP API backed by Postgres:
+worker. Health checks ensure the database starts before the broker and that
+the worker waits for the broker. The broker image installs ``robyn`` and
+``psycopg[binary]`` so it can expose the HTTP API backed by Postgres:
 
 ```yaml
 services:
@@ -105,9 +106,15 @@ services:
     environment:
       DATABASE_URL: postgresql://fuseline:fuseline@db:5432/fuseline
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     ports:
       - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
   worker:
     build:
       context: ..
@@ -115,7 +122,8 @@ services:
     environment:
       BROKER_URL: http://broker:8000
     depends_on:
-      - broker
+      broker:
+        condition: service_healthy
 ```
 
 The broker reads ``HOST`` and ``PORT`` from the environment when started.
