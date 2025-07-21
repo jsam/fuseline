@@ -1,0 +1,13 @@
+[tool.poetry]
+name = "my-workflow"
+version = "0.1.0"
+description = "Packaged workflow example"
+authors = ["Example <example@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fuseline = { path = "../..", develop = true }
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
