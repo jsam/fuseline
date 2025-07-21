@@ -80,11 +80,13 @@ def register_routes(app: Robyn, broker: Broker) -> None:
 
     @app.post("/worker/register")
     async def register(request):  # pragma: no cover - integration
-        return handle_register_worker(broker, request.json)
+        payload = await request.json()
+        return handle_register_worker(broker, payload)
 
     @app.post("/repository/register")
     async def register_repo(request):  # pragma: no cover - integration
-        handle_register_repository(broker, request.json)
+        payload = await request.json()
+        handle_register_repository(broker, payload)
         return ""
 
     @app.get("/repository")
@@ -97,7 +99,8 @@ def register_routes(app: Robyn, broker: Broker) -> None:
 
     @app.post("/workflow/dispatch")
     async def dispatch(request):  # pragma: no cover - integration
-        return handle_dispatch_workflow(broker, request.json)
+        payload = await request.json()
+        return handle_dispatch_workflow(broker, payload)
 
     @app.get("/workflow/step")
     async def get_step(request):  # pragma: no cover - integration
@@ -110,7 +113,8 @@ def register_routes(app: Robyn, broker: Broker) -> None:
     @app.post("/workflow/step")
     async def report_step(request):  # pragma: no cover - integration
         wid = request.qs_params.get("worker_id")
-        handle_report_step(broker, wid, request.json)
+        payload = await request.json()
+        handle_report_step(broker, wid, payload)
         return ""
 
     @app.post("/worker/keep-alive")
