@@ -92,7 +92,7 @@ def register_routes(app: Robyn, broker: Broker) -> None:
 
     @app.get("/repository")
     async def get_repo(request):  # pragma: no cover - integration
-        name = request.qs_params.get("name")
+        name = request.query_params.get("name")
         data = handle_get_repository(broker, name)
         if data is None:
             return {"status_code": 404}
@@ -105,7 +105,7 @@ def register_routes(app: Robyn, broker: Broker) -> None:
 
     @app.get("/workflow/step")
     async def get_step(request):  # pragma: no cover - integration
-        wid = request.qs_params.get("worker_id")
+        wid = request.query_params.get("worker_id")
         data = handle_get_step(broker, wid)
         if data is None:
             return {"status_code": 204}
@@ -113,14 +113,14 @@ def register_routes(app: Robyn, broker: Broker) -> None:
 
     @app.post("/workflow/step")
     async def report_step(request):  # pragma: no cover - integration
-        wid = request.qs_params.get("worker_id")
+        wid = request.query_params.get("worker_id")
         payload = json.loads(request.body)
         handle_report_step(broker, wid, payload)
         return ""
 
     @app.post("/worker/keep-alive")
     async def keep_alive(request):  # pragma: no cover - integration
-        wid = request.qs_params.get("worker_id")
+        wid = request.query_params.get("worker_id")
         handle_keep_alive(broker, wid)
         return ""
 
