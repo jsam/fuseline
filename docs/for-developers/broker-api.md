@@ -51,7 +51,8 @@ The broker returns the next step for the worker including the workflow
 inputs and dependency results.  It also records when the task was
 handed out and when it should expire.  The response contains the
 workflow ID, instance ID, step name, parameters and timeout metadata.
-If no step is available the response is empty.
+If no step is available the request yields an HTTP ``204`` response
+with an empty body.
 
 ### Reporting progress
 
