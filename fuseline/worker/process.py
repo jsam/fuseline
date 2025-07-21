@@ -5,8 +5,9 @@ from typing import TYPE_CHECKING, Iterable
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from ..workflow import Step, Workflow
 
-from ..broker import StepReport
 from ..broker.clients import BrokerClient
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from ..broker import StepReport
 
 
 class ProcessEngine:
@@ -38,6 +39,8 @@ class ProcessEngine:
             shared = {self._rev_names[wf_id][name]: value for name, value in payload.get("results", {}).items()}
             workflow.params.update(payload.get("workflow_inputs", {}))
             result = workflow._execute_step(step, shared)
+            from ..broker import StepReport  # imported lazily to avoid cycle
+
             self.client.report_step(
                 self.worker_id,
                 StepReport(

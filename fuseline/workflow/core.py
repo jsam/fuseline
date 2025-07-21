@@ -18,7 +18,9 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence
 
-from ..interfaces import ExecutionEngine, Exporter, Tracer
+from ..worker import ExecutionEngine
+from ..exporters import Exporter
+from ..tracing import Tracer
 from ..policies import (
     _POLICY_REGISTRY,
     FailureAction,
