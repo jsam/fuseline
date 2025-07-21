@@ -30,6 +30,16 @@ class StepReport:
     result: Any
 
 
+@dataclass
+class RepositoryInfo:
+    """Metadata for a workflow repository."""
+
+    name: str
+    url: str
+    workflows: Sequence[str]
+    credentials: Mapping[str, str]
+
+
 class Broker(ABC):
     """Interface implemented by the workflow broker."""
 
@@ -60,4 +70,14 @@ class Broker(ABC):
     @abstractmethod
     def keep_alive(self, worker_id: str) -> None:
         """Notify the broker that *worker_id* is still active."""
+
+    # Repository management -------------------------------------------------
+
+    @abstractmethod
+    def register_repository(self, repo: RepositoryInfo) -> None:
+        """Store metadata for a workflow repository."""
+
+    @abstractmethod
+    def get_repository(self, name: str) -> RepositoryInfo | None:
+        """Return the repository information for *name* if known."""
 

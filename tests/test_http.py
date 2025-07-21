@@ -9,6 +9,8 @@ from fuseline.broker.http import (
     handle_get_step,
     handle_report_step,
     handle_keep_alive,
+    handle_register_repository,
+    handle_get_repository,
     create_app,
 )
 from fuseline.workflow import Workflow, Task, Status
@@ -60,3 +62,16 @@ def test_create_app_returns_robyn():
     robyn = pytest.importorskip("robyn")
     app = create_app(broker=MemoryBroker())
     assert isinstance(app, robyn.Robyn)
+
+
+def test_repository_handlers():
+    broker = MemoryBroker()
+    payload = {
+        "name": "repo",
+        "url": "http://example.com/repo.git",
+        "workflows": ["pkg:wf"],
+        "credentials": {},
+    }
+    handle_register_repository(broker, payload)
+    repo = handle_get_repository(broker, "repo")
+    assert repo["url"] == payload["url"]

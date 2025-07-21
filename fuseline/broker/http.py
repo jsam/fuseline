@@ -13,13 +13,15 @@ from typing import Any, Iterable
 
 from robyn import Robyn
 
-from . import Broker, PostgresBroker, StepReport
+from . import Broker, PostgresBroker, StepReport, RepositoryInfo
 from ..workflow import WorkflowSchema
 
 __all__ = [
     "create_app",
     "register_routes",
     "handle_register_worker",
+    "handle_register_repository",
+    "handle_get_repository",
     "handle_dispatch_workflow",
     "handle_get_step",
     "handle_report_step",
@@ -31,6 +33,16 @@ def handle_register_worker(broker: Broker, payload: Iterable[dict[str, Any]]) ->
     """Register a worker using *payload* workflow schemas."""
     workflows = [WorkflowSchema(**wf) for wf in payload]
     return broker.register_worker(workflows)
+
+
+def handle_register_repository(broker: Broker, payload: dict[str, Any]) -> None:
+    """Store workflow repository information."""
+    broker.register_repository(RepositoryInfo(**payload))
+
+
+def handle_get_repository(broker: Broker, name: str) -> dict[str, Any] | None:
+    repo = broker.get_repository(name)
+    return asdict(repo) if repo else None
 
 
 def handle_dispatch_workflow(broker: Broker, payload: dict[str, Any]) -> str:
@@ -63,6 +75,19 @@ def register_routes(app: Robyn, broker: Broker) -> None:
     @app.post("/worker/register")
     async def register(request):  # pragma: no cover - integration
         return handle_register_worker(broker, request.json)
+
+    @app.post("/repository/register")
+    async def register_repo(request):  # pragma: no cover - integration
+        handle_register_repository(broker, request.json)
+        return ""
+
+    @app.get("/repository")
+    async def get_repo(request):  # pragma: no cover - integration
+        name = request.qs_params.get("name")
+        data = handle_get_repository(broker, name)
+        if data is None:
+            return {"status_code": 404}
+        return data
 
     @app.post("/workflow/dispatch")
     async def dispatch(request):  # pragma: no cover - integration

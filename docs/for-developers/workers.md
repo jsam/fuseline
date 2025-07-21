@@ -77,14 +77,18 @@ step is only assigned to one worker at a time.
 ## Worker command
 
 Fuseline ships with a small CLI so you can spin up workers directly from
-your workflow modules. Point it at the workflow objects and set
-``BROKER_URL`` to the broker address. ``WORKER_PROCESSES`` controls how
+your workflow modules or a registered repository. Point it at the
+workflow objects or give a repository name and set ``BROKER_URL`` to the
+broker address. ``WORKER_PROCESSES`` controls how
 many worker processes spawn.
 
 ```bash
 BROKER_URL=http://localhost:8000 WORKER_PROCESSES=2 \
     python -m fuseline.worker mymodule:workflow
+
+BROKER_URL=http://localhost:8000 python -m fuseline.worker github.com/jsam/my-workflows
 ```
 
 Each spawned process loads ``mymodule`` and executes the ``workflow``
-object using :class:`ProcessEngine` and the HTTP broker client.
+object (or the repository workflows) using :class:`ProcessEngine` and the
+HTTP broker client.

@@ -3,10 +3,32 @@ title: "Broker API"
 ---
 
 The broker stores workflow definitions and tracks running instances.
-Workers communicate with it over HTTP (or another transport) using four
+Workers communicate with it over HTTP (or another transport) using a few
 endpoints.  Each step handed to a worker is represented by a
 `StepAssignment` object containing the workflow identifiers, the payload
 needed to run the task and a timeout deadline.
+
+### Registering workflow repositories
+
+```
+POST /repository/register
+```
+
+Store the location and credentials for a repository containing workflow
+implementations. The payload must include a unique ``name`` used by
+workers, the repository ``url``, a list of ``workflows`` specified as
+``module:object`` strings and any ``credentials`` needed to clone the
+repository.
+
+### Fetching repository info
+
+```
+GET /repository?name=<repo>
+```
+
+Workers call this endpoint when starting up. The broker returns the URL
+and credentials for the requested repository along with the workflow
+objects to load.
 
 ### Worker registration
 
