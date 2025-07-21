@@ -103,7 +103,11 @@ class HttpBrokerClient(BrokerClient):
             payload = resp.read()
         if not payload:
             return None
-        return json.loads(payload)
+        data = json.loads(payload)
+        if isinstance(data, dict) and "status_code" in data:
+            if data["status_code"] in {204, 404}:
+                return None
+        return data
 
     def register_worker(self, workflows: Iterable[WorkflowSchema]) -> str:
         data = [asdict(wf) for wf in workflows]
