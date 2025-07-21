@@ -54,6 +54,10 @@ workflow ID, instance ID, step name, parameters and timeout metadata.
 If no step is available the request yields an HTTP ``204`` response
 with an empty body.
 
+Older broker versions returned a JSON object like ``{"status_code": 204}``.  The
+``HttpBrokerClient`` still accepts this legacy format for compatibility but new
+implementations should rely on the proper HTTP status code.
+
 ### Reporting progress
 
 ```
