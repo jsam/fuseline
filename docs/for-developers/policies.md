@@ -32,7 +32,7 @@ attempts.
 
 ```python
 from fuseline import Step, Workflow
-from fuseline.policies import RetryPolicy
+from fuseline.workflow.policies import RetryPolicy
 
 class Flaky(Step):
     def run_step(self) -> None:
@@ -50,7 +50,7 @@ of seconds. It works for synchronous and asynchronous steps.
 
 ```python
 from fuseline import Workflow
-from fuseline.policies import StepTimeoutPolicy
+from fuseline.workflow.policies import StepTimeoutPolicy
 
 step.add_policy(StepTimeoutPolicy(5.0))
 Workflow(outputs=[step]).run()
@@ -63,7 +63,7 @@ the hooks it cares about. Both the configuration and behaviour live in the same
 class.
 
 ```python
-from fuseline.policies import StepPolicy
+from fuseline.workflow.policies import StepPolicy
 
 class LogStartPolicy(StepPolicy):
     def execute(self, step, call):
@@ -164,7 +164,7 @@ worker process while the broker merely coordinates step order.
 
 ```python
 from fuseline import Step, Workflow
-from fuseline.policies import StepTimeoutPolicy, RetryPolicy
+from fuseline.workflow.policies import StepTimeoutPolicy, RetryPolicy
 
 class RetrieveDocs(Step):
     def run_step(self, query: str) -> list[str]:

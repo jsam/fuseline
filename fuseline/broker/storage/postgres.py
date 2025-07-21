@@ -87,7 +87,7 @@ class PostgresRuntimeStorage(RuntimeStorage):
 
     # ------------------------------------------------------------------
     def create_run(self, workflow_id: str, instance_id: str, steps: Iterable[str]) -> None:
-        from ..workflow import Status
+        from ...workflow import Status
 
         with self._conn.cursor() as cur:
             for step in steps:
@@ -159,7 +159,7 @@ class PostgresRuntimeStorage(RuntimeStorage):
             )
 
     def get_state(self, workflow_id: str, instance_id: str, step_name: str) -> "Status | None":
-        from ..workflow import Status
+        from ...workflow import Status
 
         with self._conn.cursor() as cur:
             cur.execute(

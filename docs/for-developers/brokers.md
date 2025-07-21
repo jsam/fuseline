@@ -51,7 +51,7 @@ dispatching runs, handing out ``StepAssignment`` objects and accepting
 ```python
 from fuseline.broker import Broker, StepAssignment, StepReport
 from fuseline.workflow import WorkflowSchema
-from fuseline.storage import RuntimeStorage
+from fuseline.broker.storage import RuntimeStorage
 
 class MyBroker(Broker):
     def __init__(self, storage: RuntimeStorage) -> None:

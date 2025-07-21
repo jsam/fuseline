@@ -6,7 +6,7 @@ from typing import Any
 import pytest
 
 from fuseline import Computed, Depends, PoolEngine
-from fuseline.policies import RetryPolicy
+from fuseline.workflow.policies import RetryPolicy
 from fuseline.workflow import (
     AsyncStep,
     AsyncWorkflow,

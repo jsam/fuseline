@@ -2,7 +2,7 @@ from fuseline import Step, Workflow
 from fuseline.broker import MemoryBroker
 from fuseline.broker.clients import LocalBrokerClient
 from fuseline.worker import ProcessEngine
-from fuseline.policies import RetryPolicy, StepTimeoutPolicy
+from fuseline.workflow.policies import RetryPolicy, StepTimeoutPolicy
 
 
 class SometimesFails(Step):

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ..storage import PostgresRuntimeStorage
+from .storage import PostgresRuntimeStorage
 from .memory import MemoryBroker
 
 
