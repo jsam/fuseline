@@ -15,7 +15,7 @@ from typing import Any, Iterable
 import json
 
 try:
-    from robyn import Robyn, status_codes
+    from robyn import Robyn, Response, status_codes
 except Exception:  # pragma: no cover - optional
 
     class status_codes:  # pragma: no cover - minimal stub
@@ -23,6 +23,12 @@ except Exception:  # pragma: no cover - optional
         HTTP_404_NOT_FOUND = 404
 
     from typing import Any as _Any  # silence flake warnings
+
+    class Response:  # pragma: no cover - minimal stub
+        def __init__(self, content: str = "", status_code: int = 200) -> None:
+            self.content = content
+            self.status_code = status_code
+            self.headers: list[tuple[str, str]] = []
 
     class Robyn:  # pragma: no cover - dummy stub for type checkers
         def __init__(self, *args: _Any, **kwargs: _Any) -> None: ...
@@ -140,7 +146,7 @@ def register_repository_routes(app: Robyn, broker: Broker) -> None:
         name = request.query_params.get("name", None)
         data = handle_get_repository(broker, name)
         if data is None:
-            return "", status_codes.HTTP_404_NOT_FOUND, []
+            return Response(status_code=status_codes.HTTP_404_NOT_FOUND)
         return data
 
 
@@ -157,7 +163,7 @@ def register_workflow_routes(app: Robyn, broker: Broker) -> None:
         wid = request.query_params.get("worker_id", None)
         data = handle_get_step(broker, wid)
         if data is None:
-            return "", status_codes.HTTP_204_NO_CONTENT, []
+            return Response(status_code=status_codes.HTTP_204_NO_CONTENT)
         return data
 
     @app.post("/workflow/step", openapi_tags=["workflow"])
