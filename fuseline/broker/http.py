@@ -83,9 +83,9 @@ def handle_status(broker: Broker) -> dict[str, str]:
     return broker.status()
 
 
-def handle_get_workers(broker: Broker) -> list[str]:
-    """Return all registered worker IDs."""
-    return list(broker.list_workers())
+def handle_get_workers(broker: Broker) -> list[dict[str, Any]]:
+    """Return status information for all connected workers."""
+    return [asdict(w) for w in broker.list_workers()]
 
 
 def register_routes(app: Robyn, broker: Broker) -> None:

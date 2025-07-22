@@ -64,4 +64,6 @@ def test_repository_registration():
 def test_list_workers():
     broker = MemoryBroker()
     wid = broker.register_worker([])
-    assert wid in broker.list_workers()
+    info = broker.list_workers()[0]
+    assert info.worker_id == wid
+    assert info.connected_at > 0

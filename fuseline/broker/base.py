@@ -40,6 +40,26 @@ class RepositoryInfo:
     credentials: Mapping[str, str]
 
 
+@dataclass
+class LastTask:
+    """Information about the most recent step processed by a worker."""
+
+    workflow_id: str
+    instance_id: str
+    step_name: str
+    success: bool
+
+
+@dataclass
+class WorkerInfo:
+    """Metadata returned by :meth:`Broker.list_workers`."""
+
+    worker_id: str
+    connected_at: float
+    last_seen: float
+    last_task: LastTask | None
+
+
 class Broker(ABC):
     """Interface implemented by the workflow broker."""
 
@@ -82,5 +102,5 @@ class Broker(ABC):
         return {"status": "ok"}
 
     @abstractmethod
-    def list_workers(self) -> Iterable[str]:
-        """Return IDs of currently connected workers."""
+    def list_workers(self) -> Iterable[WorkerInfo]:
+        """Return metadata for currently connected workers."""
