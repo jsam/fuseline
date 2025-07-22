@@ -95,20 +95,6 @@ OPENAPI_SPEC = {
                 },
             }
         },
-        "/openapi.json": {
-            "get": {
-                "summary": "OpenAPI spec",
-                "tags": ["system"],
-                "responses": {"200": {"description": "Specification"}},
-            }
-        },
-        "/docs": {
-            "get": {
-                "summary": "Swagger UI",
-                "tags": ["system"],
-                "responses": {"200": {"description": "Swagger UI"}},
-            }
-        },
     },
     "components": {
         "schemas": {
