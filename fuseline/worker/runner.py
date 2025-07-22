@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import logging
 import multiprocessing as mp
 import os
 import sys
@@ -55,18 +56,22 @@ def _run_once(client: BrokerClient, specs: Iterable[str]) -> None:
 def run_from_env(specs: list[str]) -> None:
     base_url = os.environ.get("BROKER_URL", "http://localhost:8000")
     processes = int(os.environ.get("WORKER_PROCESSES", "1"))
+    level = os.environ.get("LOG_LEVEL", "INFO").upper()
+    logging.basicConfig(level=level, format="%(asctime)s [%(levelname)s] %(message)s")
 
     def target() -> None:
         client = HttpBrokerClient(base_url)
         _run_once(client, specs)
 
     if processes <= 1:
+        logging.info("starting single worker process")
         target()
         return
 
     procs = [mp.Process(target=target) for _ in range(processes)]
     for p in procs:
         p.start()
+        logging.info("started worker process %s", p.pid)
     for p in procs:
         p.join()
 
