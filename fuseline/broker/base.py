@@ -44,15 +44,11 @@ class Broker(ABC):
     """Interface implemented by the workflow broker."""
 
     @abstractmethod
-    def register_worker(
-        self, workflows: Iterable[WorkflowSchema]
-    ) -> str:
+    def register_worker(self, workflows: Iterable[WorkflowSchema]) -> str:
         """Register a worker and return a worker ID."""
 
     @abstractmethod
-    def dispatch_workflow(
-        self, workflow: WorkflowSchema, inputs: Optional[dict[str, Any]] = None
-    ) -> str:
+    def dispatch_workflow(self, workflow: WorkflowSchema, inputs: Optional[dict[str, Any]] = None) -> str:
         """Create a workflow run and queue initial steps."""
 
     @abstractmethod
@@ -81,3 +77,10 @@ class Broker(ABC):
     def get_repository(self, name: str) -> RepositoryInfo | None:
         """Return the repository information for *name* if known."""
 
+    def status(self) -> dict[str, str]:
+        """Return a simple status dictionary."""
+        return {"status": "ok"}
+
+    @abstractmethod
+    def list_workers(self) -> Iterable[str]:
+        """Return IDs of currently connected workers."""

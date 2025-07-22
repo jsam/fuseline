@@ -79,6 +79,22 @@ Periodic heartbeats let the broker know a worker is still active.
 The in-memory broker removes workers that fail to send a heartbeat
 before the timeout elapses.
 
+### Broker status
+
+```
+GET /status
+```
+
+Returns ``{"status": "ok"}`` if the broker is running.
+
+### Listing workers
+
+```
+GET /workers
+```
+
+Retrieve the list of currently registered worker IDs.
+
 ### Swagger documentation
 
 The built-in HTTP broker exposes an OpenAPI specification at

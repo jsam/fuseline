@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Iterable
+import logging
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from ..workflow import Step, Workflow
@@ -23,8 +24,10 @@ class ProcessEngine:
             mapping = wf._step_name_map()
             self._step_names[wf.workflow_id] = mapping
             self._rev_names[wf.workflow_id] = {n: s for s, n in mapping.items()}
+        self.logger = logging.getLogger(__name__)
         schemas = [wf.to_schema() for wf in workflows]
         self.worker_id = client.register_worker(schemas)
+        self.logger.info("registered worker %s", self.worker_id)
 
     def work(self, *, block: bool = False, poll_interval: float = 1.0) -> None:
         """Process step assignments until no work remains.
@@ -38,12 +41,14 @@ class ProcessEngine:
 
         while True:
             self.client.keep_alive(self.worker_id)
+            self.logger.debug("sent heartbeat")
             assignment = self.client.get_step(self.worker_id)
             if assignment is None:
                 if block:
                     import time
 
                     time.sleep(poll_interval)
+                    self.logger.debug("no work; polling again")
                     continue
                 break
             wf_id = assignment.workflow_id

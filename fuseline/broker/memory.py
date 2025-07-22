@@ -36,9 +36,7 @@ class MemoryBroker(Broker):
             self._workers.pop(wid, None)
             self._last_seen.pop(wid, None)
 
-    def register_worker(
-        self, workflows: Iterable[WorkflowSchema]
-    ) -> str:
+    def register_worker(self, workflows: Iterable[WorkflowSchema]) -> str:
         self._prune_dead()
         self._wid += 1
         wid = str(self._wid)
@@ -57,9 +55,7 @@ class MemoryBroker(Broker):
         self._last_seen[wid] = time.time()
         return wid
 
-    def dispatch_workflow(
-        self, workflow: WorkflowSchema, inputs: Optional[dict[str, Any]] = None
-    ) -> str:
+    def dispatch_workflow(self, workflow: WorkflowSchema, inputs: Optional[dict[str, Any]] = None) -> str:
         self._prune_dead()
         instance = uuid.uuid4().hex
         key = (workflow.workflow_id, workflow.version)
@@ -76,39 +72,24 @@ class MemoryBroker(Broker):
                 self._store.enqueue(workflow.workflow_id, instance, step_name)
         return instance
 
-    def _ready(
-        self, workflow: WorkflowSchema, step: StepSchema, instance_id: str
-    ) -> bool:
+    def _ready(self, workflow: WorkflowSchema, step: StepSchema, instance_id: str) -> bool:
         finished = {Status.SUCCEEDED, Status.SKIPPED}
         groups = {p for g in step.or_groups.values() for p in g}
         for group in step.or_groups.values():
-            if not any(
-                self._store.get_state(workflow.workflow_id, instance_id, p) in finished
-                for p in group
-            ):
+            if not any(self._store.get_state(workflow.workflow_id, instance_id, p) in finished for p in group):
                 return False
         for pred in step.predecessors:
             if pred in groups:
                 continue
-            if (
-                self._store.get_state(workflow.workflow_id, instance_id, pred)
-                not in finished
-            ):
+            if self._store.get_state(workflow.workflow_id, instance_id, pred) not in finished:
                 return False
         state = self._store.get_state(workflow.workflow_id, instance_id, step.name)
         return state == Status.PENDING
 
-    def _build_inputs(
-        self, workflow: WorkflowSchema, instance_id: str, step: StepSchema
-    ) -> dict[str, Any]:
-        deps = {
-            p: self._store.get_result(workflow.workflow_id, instance_id, p)
-            for p in step.predecessors
-        }
+    def _build_inputs(self, workflow: WorkflowSchema, instance_id: str, step: StepSchema) -> dict[str, Any]:
+        deps = {p: self._store.get_result(workflow.workflow_id, instance_id, p) for p in step.predecessors}
         return {
-            "workflow_inputs": self._store.get_inputs(
-                workflow.workflow_id, instance_id
-            ),
+            "workflow_inputs": self._store.get_inputs(workflow.workflow_id, instance_id),
             "results": {k: v for k, v in deps.items() if v is not None},
         }
 
@@ -130,9 +111,7 @@ class MemoryBroker(Broker):
                 inputs = self._build_inputs(workflow, instance, step)
                 assigned_at = time.time()
                 expires_at = assigned_at + 60.0
-                self._store.assign_step(
-                    wf_id, instance, step_name, worker_id, expires_at
-                )
+                self._store.assign_step(wf_id, instance, step_name, worker_id, expires_at)
                 return StepAssignment(
                     workflow_id=wf_id,
                     instance_id=instance,
@@ -193,3 +172,7 @@ class MemoryBroker(Broker):
 
     def get_repository(self, name: str) -> RepositoryInfo | None:
         return self._repositories.get(name)
+
+    def list_workers(self) -> list[str]:
+        self._prune_dead()
+        return list(self._workers.keys())

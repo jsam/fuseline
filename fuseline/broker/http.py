@@ -28,6 +28,8 @@ __all__ = [
     "handle_get_repository",
     "handle_get_step",
     "handle_keep_alive",
+    "handle_status",
+    "handle_get_workers",
     "handle_register_repository",
     "handle_register_worker",
     "handle_report_step",
@@ -74,6 +76,16 @@ def handle_report_step(broker: Broker, worker_id: str, payload: dict[str, Any]) 
 def handle_keep_alive(broker: Broker, worker_id: str) -> None:
     """Record that *worker_id* is still alive."""
     broker.keep_alive(worker_id)
+
+
+def handle_status(broker: Broker) -> dict[str, str]:
+    """Return broker health status."""
+    return broker.status()
+
+
+def handle_get_workers(broker: Broker) -> list[str]:
+    """Return all registered worker IDs."""
+    return list(broker.list_workers())
 
 
 def register_routes(app: Robyn, broker: Broker) -> None:
@@ -123,6 +135,14 @@ def register_routes(app: Robyn, broker: Broker) -> None:
         wid = request.query_params.get("worker_id", None)
         handle_keep_alive(broker, wid)
         return ""
+
+    @app.get("/status")
+    async def status(request):  # pragma: no cover - integration
+        return handle_status(broker)
+
+    @app.get("/workers")
+    async def workers(request):  # pragma: no cover - integration
+        return handle_get_workers(broker)
 
 
 def create_app(dsn: str | None = None, broker: Broker | None = None) -> Robyn:

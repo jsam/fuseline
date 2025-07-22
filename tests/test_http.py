@@ -11,6 +11,8 @@ from fuseline.broker.http import (
     handle_get_repository,
     handle_get_step,
     handle_keep_alive,
+    handle_status,
+    handle_get_workers,
     handle_register_repository,
     handle_register_worker,
     handle_report_step,
@@ -77,6 +79,14 @@ def test_repository_handlers():
     handle_register_repository(broker, payload)
     repo = handle_get_repository(broker, "repo")
     assert repo["url"] == payload["url"]
+
+
+def test_status_and_list_workers():
+    broker = MemoryBroker()
+    assert handle_status(broker)["status"] == "ok"
+    wid = handle_register_worker(broker, [])
+    workers = handle_get_workers(broker)
+    assert wid in workers
 
 
 def test_openapi_constants():

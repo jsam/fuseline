@@ -22,10 +22,7 @@ def test_assignment_lifecycle():
     assignment = broker.get_step(worker)
     assert isinstance(assignment, StepAssignment)
     assert assignment.expires_at - assignment.assigned_at == pytest.approx(60.0)
-    assert (
-        broker._store.get_assignment(wf.workflow_id, instance, assignment.step_name)[0]
-        == worker
-    )
+    assert broker._store.get_assignment(wf.workflow_id, instance, assignment.step_name)[0] == worker
 
     broker.report_step(
         worker,
@@ -37,10 +34,7 @@ def test_assignment_lifecycle():
             result=None,
         ),
     )
-    assert (
-        broker._store.get_assignment(wf.workflow_id, instance, assignment.step_name)
-        is None
-    )
+    assert broker._store.get_assignment(wf.workflow_id, instance, assignment.step_name) is None
 
 
 def test_worker_pruning(monkeypatch):
@@ -65,3 +59,9 @@ def test_repository_registration():
     )
     broker.register_repository(repo)
     assert broker.get_repository("repo") == repo
+
+
+def test_list_workers():
+    broker = MemoryBroker()
+    wid = broker.register_worker([])
+    assert wid in broker.list_workers()

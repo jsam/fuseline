@@ -56,6 +56,8 @@ OPENAPI_SPEC = {
                 "responses": {"200": {"description": "OK"}},
             }
         },
+        "/status": {"get": {"summary": "Broker status", "responses": {"200": {"description": "OK"}}}},
+        "/workers": {"get": {"summary": "List workers", "responses": {"200": {"description": "Workers"}}}},
         "/openapi.json": {"get": {"summary": "OpenAPI spec", "responses": {"200": {"description": "Specification"}}}},
         "/docs": {"get": {"summary": "Swagger UI", "responses": {"200": {"description": "Swagger UI"}}}},
     },
