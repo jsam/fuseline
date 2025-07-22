@@ -92,3 +92,10 @@ def test_status_and_list_workers():
 def test_openapi_constants():
     assert "/worker/register" in OPENAPI_SPEC["paths"]
     assert "swagger-ui" in SWAGGER_HTML
+
+
+def test_openapi_tags_grouped():
+    paths = OPENAPI_SPEC["paths"]
+    assert paths["/worker/register"]["post"]["tags"] == ["worker"]
+    assert paths["/repository"]["get"]["tags"] == ["repository"]
+    assert paths["/workflow/dispatch"]["post"]["tags"] == ["workflow"]
