@@ -15,14 +15,12 @@ from typing import Any, Iterable
 import json
 
 try:
-    from robyn import Robyn, Response
+    from robyn import Robyn, status_codes
 except Exception:  # pragma: no cover - optional
-    from dataclasses import dataclass
 
-    class Response:  # type: ignore
-        def __init__(self, body: str = "", status_code: int = 200):
-            self.body = body
-            self.status_code = status_code
+    class status_codes:  # pragma: no cover - minimal stub
+        HTTP_204_NO_CONTENT = 204
+        HTTP_404_NOT_FOUND = 404
 
     from typing import Any as _Any  # silence flake warnings
 
@@ -142,7 +140,7 @@ def register_repository_routes(app: Robyn, broker: Broker) -> None:
         name = request.query_params.get("name", None)
         data = handle_get_repository(broker, name)
         if data is None:
-            return Response("", status_code=404)
+            return "", status_codes.HTTP_404_NOT_FOUND
         return data
 
 
@@ -159,7 +157,7 @@ def register_workflow_routes(app: Robyn, broker: Broker) -> None:
         wid = request.query_params.get("worker_id", None)
         data = handle_get_step(broker, wid)
         if data is None:
-            return Response("", status_code=204)
+            return "", status_codes.HTTP_204_NO_CONTENT
         return data
 
     @app.post("/workflow/step", openapi_tags=["workflow"])
