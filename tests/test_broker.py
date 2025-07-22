@@ -67,3 +67,11 @@ def test_list_workers():
     info = broker.list_workers()[0]
     assert info.worker_id == wid
     assert info.connected_at > 0
+
+
+def test_list_repositories():
+    broker = MemoryBroker()
+    assert broker.list_repositories(page=1) == []
+    repo = RepositoryInfo(name="r", url="u", workflows=[], credentials={})
+    broker.register_repository(repo)
+    assert broker.list_repositories(page=1) == [repo]

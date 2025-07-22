@@ -47,6 +47,10 @@ class BrokerClient(ABC):
         """Return repository information for ``name`` if known."""
 
     @abstractmethod
+    def list_repositories(self, page: int = 1) -> Iterable[RepositoryInfo]:
+        """Return repositories for the given page."""
+
+    @abstractmethod
     def list_workers(self) -> Iterable[WorkerInfo]:
         """Return information about connected workers."""
 
@@ -77,6 +81,9 @@ class LocalBrokerClient(BrokerClient):
 
     def get_repository(self, name: str) -> RepositoryInfo | None:
         return self._broker.get_repository(name)
+
+    def list_repositories(self, page: int = 1) -> Iterable[RepositoryInfo]:
+        return list(self._broker.list_repositories(page))
 
     def list_workers(self) -> Iterable[WorkerInfo]:
         return list(self._broker.list_workers())
@@ -138,6 +145,10 @@ class HttpBrokerClient(BrokerClient):
     def get_repository(self, name: str) -> RepositoryInfo | None:
         data = self._get("/repository", {"name": name})
         return RepositoryInfo(**data) if data else None
+
+    def list_repositories(self, page: int = 1) -> Iterable[RepositoryInfo]:
+        data = self._get("/repository", {"page": str(page)}) or []
+        return [RepositoryInfo(**r) for r in data]
 
     def list_workers(self) -> Iterable[WorkerInfo]:
         data = self._get("/workers") or []

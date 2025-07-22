@@ -188,6 +188,12 @@ class MemoryBroker(Broker):
     def get_repository(self, name: str) -> RepositoryInfo | None:
         return self._repositories.get(name)
 
+    def list_repositories(self, page: int = 1, page_size: int = 50) -> list[RepositoryInfo]:
+        repos = list(self._repositories.values())
+        start = (page - 1) * page_size
+        end = start + page_size
+        return repos[start:end]
+
     def list_workers(self) -> list[WorkerInfo]:
         self._prune_dead()
         workers: list[WorkerInfo] = []
