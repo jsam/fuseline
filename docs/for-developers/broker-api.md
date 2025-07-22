@@ -125,7 +125,9 @@ this:
 The built-in HTTP broker exposes an OpenAPI specification at
 ``/openapi.json`` and a Swagger UI under ``/docs`` when running
 ``python -m fuseline.broker.http``. Visit the ``/docs`` endpoint in your
-browser to explore and try the API.
+browser to explore and try the API.  Endpoints are grouped by resource
+(``repository``, ``worker``, ``workflow`` and ``system``) so related APIs
+appear together rather than being sorted by HTTP verb.
 
 These endpoints map directly onto the `RuntimeStorage` interface used by
 `ProcessEngine`. Implementations can store data in a database, message
