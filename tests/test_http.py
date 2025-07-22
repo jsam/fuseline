@@ -86,7 +86,7 @@ def test_status_and_list_workers():
     assert handle_status(broker)["status"] == "ok"
     wid = handle_register_worker(broker, [])
     workers = handle_get_workers(broker)
-    assert wid in workers
+    assert workers[0]["worker_id"] == wid
 
 
 def test_openapi_constants():

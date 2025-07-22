@@ -57,9 +57,49 @@ OPENAPI_SPEC = {
             }
         },
         "/status": {"get": {"summary": "Broker status", "responses": {"200": {"description": "OK"}}}},
-        "/workers": {"get": {"summary": "List workers", "responses": {"200": {"description": "Workers"}}}},
+        "/workers": {
+            "get": {
+                "summary": "List workers",
+                "responses": {
+                    "200": {
+                        "description": "Workers",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {"$ref": "#/components/schemas/WorkerInfo"},
+                                }
+                            }
+                        },
+                    }
+                },
+            }
+        },
         "/openapi.json": {"get": {"summary": "OpenAPI spec", "responses": {"200": {"description": "Specification"}}}},
         "/docs": {"get": {"summary": "Swagger UI", "responses": {"200": {"description": "Swagger UI"}}}},
+    },
+    "components": {
+        "schemas": {
+            "LastTask": {
+                "type": "object",
+                "properties": {
+                    "workflow_id": {"type": "string"},
+                    "instance_id": {"type": "string"},
+                    "step_name": {"type": "string"},
+                    "success": {"type": "boolean"},
+                },
+            },
+            "WorkerInfo": {
+                "type": "object",
+                "properties": {
+                    "worker_id": {"type": "string"},
+                    "connected_at": {"type": "number"},
+                    "last_seen": {"type": "number"},
+                    "last_task": {"$ref": "#/components/schemas/LastTask"},
+                },
+                "required": ["worker_id", "connected_at", "last_seen"],
+            },
+        }
     },
 }
 

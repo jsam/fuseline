@@ -93,7 +93,26 @@ Returns ``{"status": "ok"}`` if the broker is running.
 GET /workers
 ```
 
-Retrieve the list of currently registered worker IDs.
+Return detailed information about each connected worker. The response looks like
+this:
+
+```json
+[
+  {
+    "worker_id": "1",
+    "connected_at": 1690000000.0,
+    "last_seen": 1690000100.0,
+    "last_task": {
+      "workflow_id": "wf",
+      "instance_id": "abc",
+      "step_name": "build",
+      "success": true
+    }
+  }
+]
+```
+
+``last_task`` is ``null`` if the worker has not completed any steps yet.
 
 ### Swagger documentation
 

@@ -11,6 +11,8 @@ from .base import (
     StepAssignment,
     StepReport,
     RepositoryInfo,
+    LastTask,
+    WorkerInfo,
 )
 
 
@@ -27,6 +29,8 @@ class MemoryBroker(Broker):
         self._store = MemoryRuntimeStorage()
         self._wid = 0
         self._last_seen: dict[str, float] = {}
+        self._connected_at: dict[str, float] = {}
+        self._last_task: dict[str, LastTask] = {}
         self._worker_ttl = worker_ttl
 
     def _prune_dead(self) -> None:
@@ -35,6 +39,8 @@ class MemoryBroker(Broker):
         for wid in expired:
             self._workers.pop(wid, None)
             self._last_seen.pop(wid, None)
+            self._connected_at.pop(wid, None)
+            self._last_task.pop(wid, None)
 
     def register_worker(self, workflows: Iterable[WorkflowSchema]) -> str:
         self._prune_dead()
@@ -51,8 +57,11 @@ class MemoryBroker(Broker):
                 self._steps[key] = wf.steps
             wf_keys.add(key)
 
+        now = time.time()
         self._workers[wid] = wf_keys
-        self._last_seen[wid] = time.time()
+        self._last_seen[wid] = now
+        self._connected_at[wid] = now
+        self._last_task.pop(wid, None)
         return wid
 
     def dispatch_workflow(self, workflow: WorkflowSchema, inputs: Optional[dict[str, Any]] = None) -> str:
@@ -160,6 +169,12 @@ class MemoryBroker(Broker):
             self._store.finalize_run(workflow_id, instance_id)
 
         self._last_seen[worker_id] = time.time()
+        self._last_task[worker_id] = LastTask(
+            workflow_id=workflow_id,
+            instance_id=instance_id,
+            step_name=step_name,
+            success=state == Status.SUCCEEDED,
+        )
 
     def keep_alive(self, worker_id: str) -> None:
         self._last_seen[worker_id] = time.time()
@@ -173,6 +188,16 @@ class MemoryBroker(Broker):
     def get_repository(self, name: str) -> RepositoryInfo | None:
         return self._repositories.get(name)
 
-    def list_workers(self) -> list[str]:
+    def list_workers(self) -> list[WorkerInfo]:
         self._prune_dead()
-        return list(self._workers.keys())
+        workers: list[WorkerInfo] = []
+        for wid in self._workers.keys():
+            workers.append(
+                WorkerInfo(
+                    worker_id=wid,
+                    connected_at=self._connected_at.get(wid, 0.0),
+                    last_seen=self._last_seen.get(wid, 0.0),
+                    last_task=self._last_task.get(wid),
+                )
+            )
+        return workers

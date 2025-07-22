@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, Iterable, Optional
 if TYPE_CHECKING:  # pragma: no cover - for type hints only
     from . import Broker
 
-from . import StepAssignment, StepReport, RepositoryInfo
+from . import StepAssignment, StepReport, RepositoryInfo, WorkerInfo
 from ..workflow import WorkflowSchema
 
 
@@ -46,6 +46,10 @@ class BrokerClient(ABC):
     def get_repository(self, name: str) -> RepositoryInfo | None:
         """Return repository information for ``name`` if known."""
 
+    @abstractmethod
+    def list_workers(self) -> Iterable[WorkerInfo]:
+        """Return information about connected workers."""
+
 
 class LocalBrokerClient(BrokerClient):
     """Client that directly calls a :class:`Broker` instance."""
@@ -73,6 +77,9 @@ class LocalBrokerClient(BrokerClient):
 
     def get_repository(self, name: str) -> RepositoryInfo | None:
         return self._broker.get_repository(name)
+
+    def list_workers(self) -> Iterable[WorkerInfo]:
+        return list(self._broker.list_workers())
 
 
 class HttpBrokerClient(BrokerClient):
@@ -134,3 +141,7 @@ class HttpBrokerClient(BrokerClient):
     def get_repository(self, name: str) -> RepositoryInfo | None:
         data = self._get("/repository", {"name": name})
         return RepositoryInfo(**data) if data else None
+
+    def list_workers(self) -> Iterable[WorkerInfo]:
+        data = self._get("/workers") or []
+        return [WorkerInfo(**w) for w in data]
