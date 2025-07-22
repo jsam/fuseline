@@ -35,6 +35,9 @@ __all__ = [
     "handle_report_step",
     "main",
     "register_routes",
+    "register_worker_routes",
+    "register_repository_routes",
+    "register_workflow_routes",
 ]
 
 
@@ -88,13 +91,31 @@ def handle_get_workers(broker: Broker) -> list[dict[str, Any]]:
     return [asdict(w) for w in broker.list_workers()]
 
 
-def register_routes(app: Robyn, broker: Broker) -> None:
-    """Register standard broker API routes on *app*."""
+def register_worker_routes(app: Robyn, broker: Broker) -> None:
+    """Register worker-related routes on *app*."""
 
     @app.post("/worker/register")
     async def register(request):  # pragma: no cover - integration
         payload = json.loads(request.body)
         return handle_register_worker(broker, payload)
+
+    @app.post("/worker/keep-alive")
+    async def keep_alive(request):  # pragma: no cover - integration
+        wid = request.query_params.get("worker_id", None)
+        handle_keep_alive(broker, wid)
+        return ""
+
+    @app.get("/workers")
+    async def workers(request):  # pragma: no cover - integration
+        return handle_get_workers(broker)
+
+    @app.get("/status")
+    async def status(request):  # pragma: no cover - integration
+        return handle_status(broker)
+
+
+def register_repository_routes(app: Robyn, broker: Broker) -> None:
+    """Register repository endpoints."""
 
     @app.post("/repository/register")
     async def register_repo(request):  # pragma: no cover - integration
@@ -109,6 +130,10 @@ def register_routes(app: Robyn, broker: Broker) -> None:
         if data is None:
             return {"status_code": 404}
         return data
+
+
+def register_workflow_routes(app: Robyn, broker: Broker) -> None:
+    """Register workflow endpoints."""
 
     @app.post("/workflow/dispatch")
     async def dispatch(request):  # pragma: no cover - integration
@@ -130,19 +155,13 @@ def register_routes(app: Robyn, broker: Broker) -> None:
         handle_report_step(broker, wid, payload)
         return ""
 
-    @app.post("/worker/keep-alive")
-    async def keep_alive(request):  # pragma: no cover - integration
-        wid = request.query_params.get("worker_id", None)
-        handle_keep_alive(broker, wid)
-        return ""
 
-    @app.get("/status")
-    async def status(request):  # pragma: no cover - integration
-        return handle_status(broker)
+def register_routes(app: Robyn, broker: Broker) -> None:
+    """Register all broker API routes on *app*."""
 
-    @app.get("/workers")
-    async def workers(request):  # pragma: no cover - integration
-        return handle_get_workers(broker)
+    register_repository_routes(app, broker)
+    register_worker_routes(app, broker)
+    register_workflow_routes(app, broker)
 
 
 def create_app(dsn: str | None = None, broker: Broker | None = None) -> Robyn:

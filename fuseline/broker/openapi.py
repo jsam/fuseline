@@ -5,10 +5,17 @@ from __future__ import annotations
 OPENAPI_SPEC = {
     "openapi": "3.0.0",
     "info": {"title": "Fuseline Broker API", "version": "1.0"},
+    "tags": [
+        {"name": "repository", "description": "Manage workflow repositories"},
+        {"name": "worker", "description": "Register and monitor workers"},
+        {"name": "workflow", "description": "Dispatch and run workflows"},
+        {"name": "system", "description": "Broker metadata"},
+    ],
     "paths": {
         "/worker/register": {
             "post": {
                 "summary": "Register worker",
+                "tags": ["worker"],
                 "requestBody": {
                     "content": {"application/json": {"schema": {"type": "array", "items": {"type": "object"}}}}
                 },
@@ -18,6 +25,7 @@ OPENAPI_SPEC = {
         "/repository/register": {
             "post": {
                 "summary": "Register repository",
+                "tags": ["repository"],
                 "requestBody": {"content": {"application/json": {"schema": {"type": "object"}}}},
                 "responses": {"200": {"description": "OK"}},
             }
@@ -25,6 +33,7 @@ OPENAPI_SPEC = {
         "/repository": {
             "get": {
                 "summary": "Fetch repository info",
+                "tags": ["repository"],
                 "parameters": [{"name": "name", "in": "query", "required": True, "schema": {"type": "string"}}],
                 "responses": {"200": {"description": "Repository"}, "404": {"description": "Not found"}},
             }
@@ -32,6 +41,7 @@ OPENAPI_SPEC = {
         "/workflow/dispatch": {
             "post": {
                 "summary": "Dispatch workflow",
+                "tags": ["workflow"],
                 "requestBody": {"content": {"application/json": {"schema": {"type": "object"}}}},
                 "responses": {"200": {"description": "Instance ID"}},
             }
@@ -39,11 +49,13 @@ OPENAPI_SPEC = {
         "/workflow/step": {
             "get": {
                 "summary": "Get next step",
+                "tags": ["workflow"],
                 "parameters": [{"name": "worker_id", "in": "query", "required": True, "schema": {"type": "string"}}],
                 "responses": {"200": {"description": "Step assignment"}, "204": {"description": "No step"}},
             },
             "post": {
                 "summary": "Report step result",
+                "tags": ["workflow"],
                 "parameters": [{"name": "worker_id", "in": "query", "required": True, "schema": {"type": "string"}}],
                 "requestBody": {"content": {"application/json": {"schema": {"type": "object"}}}},
                 "responses": {"200": {"description": "OK"}},
@@ -52,14 +64,22 @@ OPENAPI_SPEC = {
         "/worker/keep-alive": {
             "post": {
                 "summary": "Keep worker alive",
+                "tags": ["worker"],
                 "parameters": [{"name": "worker_id", "in": "query", "required": True, "schema": {"type": "string"}}],
                 "responses": {"200": {"description": "OK"}},
             }
         },
-        "/status": {"get": {"summary": "Broker status", "responses": {"200": {"description": "OK"}}}},
+        "/status": {
+            "get": {
+                "summary": "Broker status",
+                "tags": ["system"],
+                "responses": {"200": {"description": "OK"}},
+            }
+        },
         "/workers": {
             "get": {
                 "summary": "List workers",
+                "tags": ["worker"],
                 "responses": {
                     "200": {
                         "description": "Workers",
@@ -75,8 +95,20 @@ OPENAPI_SPEC = {
                 },
             }
         },
-        "/openapi.json": {"get": {"summary": "OpenAPI spec", "responses": {"200": {"description": "Specification"}}}},
-        "/docs": {"get": {"summary": "Swagger UI", "responses": {"200": {"description": "Swagger UI"}}}},
+        "/openapi.json": {
+            "get": {
+                "summary": "OpenAPI spec",
+                "tags": ["system"],
+                "responses": {"200": {"description": "Specification"}},
+            }
+        },
+        "/docs": {
+            "get": {
+                "summary": "Swagger UI",
+                "tags": ["system"],
+                "responses": {"200": {"description": "Swagger UI"}},
+            }
+        },
     },
     "components": {
         "schemas": {

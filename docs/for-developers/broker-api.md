@@ -3,12 +3,14 @@ title: "Broker API"
 ---
 
 The broker stores workflow definitions and tracks running instances.
-Workers communicate with it over HTTP (or another transport) using a few
-endpoints.  Each step handed to a worker is represented by a
-`StepAssignment` object containing the workflow identifiers, the payload
-needed to run the task and a timeout deadline.
+Workers communicate with it over HTTP using a small set of endpoints.
+Each step handed to a worker is represented by a `StepAssignment` object
+containing the workflow identifiers, the payload needed to run the task
+and a timeout deadline.
 
-### Registering workflow repositories
+## Repository endpoints
+
+### Register repository
 
 ```
 POST /repository/register
@@ -20,7 +22,7 @@ workers, the repository ``url``, a list of ``workflows`` specified as
 ``module:object`` strings and any ``credentials`` needed to clone the
 repository.
 
-### Fetching repository info
+### Get repository info
 
 ```
 GET /repository?name=<repo>
@@ -30,7 +32,9 @@ Workers call this endpoint when starting up. The broker returns the URL
 and credentials for the requested repository along with the workflow
 objects to load.
 
-### Worker registration
+## Worker endpoints
+
+### Register worker
 
 ```
 POST /worker/register
@@ -41,7 +45,9 @@ a name and a version.  If the broker already knows a workflow under the
 same name and version but the definition differs, the registration is
 rejected.  A successful call returns a unique worker ID.
 
-### Fetching work
+## Workflow endpoints
+
+### Get next step
 
 ```
 GET /workflow/step
@@ -58,7 +64,7 @@ Older broker versions returned a JSON object like ``{"status_code": 204}``.  The
 ``HttpBrokerClient`` still accepts this legacy format for compatibility but new
 implementations should rely on the proper HTTP status code.
 
-### Reporting progress
+### Report step result
 
 ```
 POST /workflow/step
@@ -69,7 +75,7 @@ returned value. The broker stores this output so it can become the input
 for downstream steps and then decides which successors are ready to run
 next.
 
-### Keep alive
+### Worker keep‑alive
 
 ```
 POST /worker/keep-alive
@@ -87,7 +93,7 @@ GET /status
 
 Returns ``{"status": "ok"}`` if the broker is running.
 
-### Listing workers
+### List workers
 
 ```
 GET /workers
