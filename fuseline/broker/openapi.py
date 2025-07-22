@@ -130,13 +130,18 @@ SWAGGER_HTML = """<!DOCTYPE html>
 <body>
   <div id=\"swagger-ui\"></div>
   <script src=\"https://unpkg.com/swagger-ui-dist/swagger-ui-bundle.js\"></script>
+  <script src=\"https://unpkg.com/swagger-ui-dist/swagger-ui-standalone-preset.js\"></script>
   <script>
-  SwaggerUIBundle({
-    url: '/openapi.json',
-    dom_id: '#swagger-ui',
-    operationsSorter: 'alpha',
-    tagsSorter: 'alpha'
-  });
+  window.onload = function() {
+    SwaggerUIBundle({
+      url: '/openapi.json',
+      dom_id: '#swagger-ui',
+      presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+      layout: 'StandaloneLayout',
+      operationsSorter: 'alpha',
+      tagsSorter: 'alpha'
+    });
+  };
   </script>
 </body>
 </html>"""
