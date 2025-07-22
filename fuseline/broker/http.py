@@ -140,7 +140,7 @@ def register_repository_routes(app: Robyn, broker: Broker) -> None:
         name = request.query_params.get("name", None)
         data = handle_get_repository(broker, name)
         if data is None:
-            return "", status_codes.HTTP_404_NOT_FOUND
+            return "", status_codes.HTTP_404_NOT_FOUND, []
         return data
 
 
@@ -157,7 +157,7 @@ def register_workflow_routes(app: Robyn, broker: Broker) -> None:
         wid = request.query_params.get("worker_id", None)
         data = handle_get_step(broker, wid)
         if data is None:
-            return "", status_codes.HTTP_204_NO_CONTENT
+            return "", status_codes.HTTP_204_NO_CONTENT, []
         return data
 
     @app.post("/workflow/step", openapi_tags=["workflow"])
