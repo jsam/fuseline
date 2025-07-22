@@ -171,9 +171,9 @@ def create_app(dsn: str | None = None, broker: Broker | None = None) -> Robyn:
         dsn = dsn or os.environ.get("DATABASE_URL")
         broker = PostgresBroker(dsn)
     app = Robyn(__file__)
+    register_routes(app, broker)
     app.openapi_spec = OPENAPI_SPEC
     app.swagger_html = SWAGGER_HTML
-    register_routes(app, broker)
     return app
 
 
