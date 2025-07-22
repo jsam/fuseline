@@ -19,6 +19,7 @@ try:
 except Exception:  # pragma: no cover - optional
 
     class status_codes:  # pragma: no cover - minimal stub
+        HTTP_200_OK = 200
         HTTP_204_NO_CONTENT = 204
         HTTP_404_NOT_FOUND = 404
 
@@ -121,7 +122,7 @@ def register_worker_routes(app: Robyn, broker: Broker) -> None:
     async def register(request):  # pragma: no cover - integration
         payload = json.loads(request.body)
         wid = handle_register_worker(broker, payload)
-        return Response(200, {}, wid)
+        return Response(status_codes.HTTP_200_OK, {}, wid)
 
     @app.post("/worker/keep-alive", openapi_tags=["worker"])
     async def keep_alive(request):  # pragma: no cover - integration
@@ -132,12 +133,20 @@ def register_worker_routes(app: Robyn, broker: Broker) -> None:
     @app.get("/workers", openapi_tags=["worker"])
     async def workers(request):  # pragma: no cover - integration
         data = handle_get_workers(broker)
-        return Response(200, {}, json.dumps(data))
+        return Response(
+            status_codes.HTTP_200_OK,
+            {"Content-Type": "application/json"},
+            json.dumps(data),
+        )
 
     @app.get("/status", openapi_tags=["system"])
     async def status(request):  # pragma: no cover - integration
         data = handle_status(broker)
-        return Response(200, {}, json.dumps(data))
+        return Response(
+            status_codes.HTTP_200_OK,
+            {"Content-Type": "application/json"},
+            json.dumps(data),
+        )
 
 
 def register_repository_routes(app: Robyn, broker: Broker) -> None:
@@ -155,7 +164,11 @@ def register_repository_routes(app: Robyn, broker: Broker) -> None:
         data = handle_get_repository(broker, name)
         if data is None:
             return Response(status_codes.HTTP_404_NOT_FOUND, {}, "")
-        return Response(200, {}, json.dumps(data))
+        return Response(
+            status_codes.HTTP_200_OK,
+            {"Content-Type": "application/json"},
+            json.dumps(data),
+        )
 
 
 def register_workflow_routes(app: Robyn, broker: Broker) -> None:
@@ -165,7 +178,7 @@ def register_workflow_routes(app: Robyn, broker: Broker) -> None:
     async def dispatch(request):  # pragma: no cover - integration
         payload = json.loads(request.body)
         instance = handle_dispatch_workflow(broker, payload)
-        return Response(200, {}, instance)
+        return Response(status_codes.HTTP_200_OK, {}, instance)
 
     @app.get("/workflow/step", openapi_tags=["workflow"])
     async def get_step(request):  # pragma: no cover - integration
@@ -173,7 +186,11 @@ def register_workflow_routes(app: Robyn, broker: Broker) -> None:
         data = handle_get_step(broker, wid)
         if data is None:
             return Response(status_codes.HTTP_204_NO_CONTENT, {}, "")
-        return Response(200, {}, json.dumps(data))
+        return Response(
+            status_codes.HTTP_200_OK,
+            {"Content-Type": "application/json"},
+            json.dumps(data),
+        )
 
     @app.post("/workflow/step", openapi_tags=["workflow"])
     async def report_step(request):  # pragma: no cover - integration
