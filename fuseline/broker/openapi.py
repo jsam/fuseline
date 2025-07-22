@@ -32,10 +32,17 @@ OPENAPI_SPEC = {
         },
         "/repository": {
             "get": {
-                "summary": "Fetch repository info",
+                "summary": "List or fetch repository info",
                 "tags": ["repository"],
-                "parameters": [{"name": "name", "in": "query", "required": True, "schema": {"type": "string"}}],
-                "responses": {"200": {"description": "Repository"}, "404": {"description": "Not found"}},
+                "parameters": [
+                    {"name": "name", "in": "query", "required": False, "schema": {"type": "string"}},
+                    {"name": "page", "in": "query", "required": False, "schema": {"type": "integer"}},
+                    {"name": "page_size", "in": "query", "required": False, "schema": {"type": "integer"}},
+                ],
+                "responses": {
+                    "200": {"description": "Repository or list"},
+                    "404": {"description": "Not found"},
+                },
             }
         },
         "/workflow/dispatch": {

@@ -81,6 +81,11 @@ def handle_get_repository(broker: Broker, name: str) -> dict[str, Any] | None:
     return asdict(repo) if repo else None
 
 
+def handle_list_repositories(broker: Broker, page: int, page_size: int) -> list[dict[str, Any]]:
+    repos = broker.list_repositories(page, page_size)
+    return [asdict(r) for r in repos]
+
+
 def handle_dispatch_workflow(broker: Broker, payload: dict[str, Any]) -> str:
     """Dispatch a new workflow run described by *payload*."""
     wf = WorkflowSchema(**payload["workflow"])
@@ -160,14 +165,23 @@ def register_repository_routes(app: Robyn, broker: Broker) -> None:
 
     @app.get("/repository", openapi_tags=["repository"])
     async def get_repo(request):  # pragma: no cover - integration
-        name = request.query_params.get("name", None)
-        data = handle_get_repository(broker, name)
-        if data is None:
-            return Response(status_codes.HTTP_404_NOT_FOUND, {}, "")
+        name = request.query_params.get("name")
+        page = int(request.query_params.get("page", "1"))
+        if name:
+            data = handle_get_repository(broker, name)
+            if data is None:
+                return Response(status_codes.HTTP_404_NOT_FOUND, {}, "")
+            payload = data
+        else:
+            page_size = int(request.query_params.get("page_size", "50"))
+            repos = handle_list_repositories(broker, page, page_size)
+            if not repos and page > 1:
+                return Response(status_codes.HTTP_404_NOT_FOUND, {}, "")
+            payload = repos
         return Response(
             status_codes.HTTP_200_OK,
             {"Content-Type": "application/json"},
-            json.dumps(data),
+            json.dumps(payload),
         )
 
 

@@ -97,6 +97,10 @@ class Broker(ABC):
     def get_repository(self, name: str) -> RepositoryInfo | None:
         """Return the repository information for *name* if known."""
 
+    @abstractmethod
+    def list_repositories(self, page: int = 1, page_size: int = 50) -> Iterable[RepositoryInfo]:
+        """Return repositories for the specified page."""
+
     def status(self) -> dict[str, str]:
         """Return a simple status dictionary."""
         return {"status": "ok"}

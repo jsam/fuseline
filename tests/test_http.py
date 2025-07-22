@@ -13,6 +13,7 @@ from fuseline.broker.http import (
     handle_keep_alive,
     handle_status,
     handle_get_workers,
+    handle_list_repositories,
     handle_register_repository,
     handle_register_worker,
     handle_report_step,
@@ -79,6 +80,11 @@ def test_repository_handlers():
     handle_register_repository(broker, payload)
     repo = handle_get_repository(broker, "repo")
     assert repo["url"] == payload["url"]
+
+    # list returns the single repository on page 1
+    assert handle_list_repositories(broker, 1, 10)[0]["name"] == "repo"
+    # requesting a missing page yields empty list
+    assert handle_list_repositories(broker, 2, 10) == []
 
 
 def test_status_and_list_workers():
