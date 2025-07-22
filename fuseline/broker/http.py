@@ -127,7 +127,7 @@ def register_worker_routes(app: Robyn, broker: Broker) -> None:
     async def keep_alive(request):  # pragma: no cover - integration
         wid = request.query_params.get("worker_id", None)
         handle_keep_alive(broker, wid)
-        return Response(status_codes.HTTP_204_NO_CONTENT, {})
+        return Response(status_codes.HTTP_204_NO_CONTENT, {}, "")
 
     @app.get("/workers", openapi_tags=["worker"])
     async def workers(request):  # pragma: no cover - integration
@@ -147,14 +147,14 @@ def register_repository_routes(app: Robyn, broker: Broker) -> None:
     async def register_repo(request):  # pragma: no cover - integration
         payload = json.loads(request.body)
         handle_register_repository(broker, payload)
-        return Response(status_codes.HTTP_204_NO_CONTENT, {})
+        return Response(status_codes.HTTP_204_NO_CONTENT, {}, "")
 
     @app.get("/repository", openapi_tags=["repository"])
     async def get_repo(request):  # pragma: no cover - integration
         name = request.query_params.get("name", None)
         data = handle_get_repository(broker, name)
         if data is None:
-            return Response(status_codes.HTTP_404_NOT_FOUND, {})
+            return Response(status_codes.HTTP_404_NOT_FOUND, {}, "")
         return Response(200, {}, json.dumps(data))
 
 
@@ -172,7 +172,7 @@ def register_workflow_routes(app: Robyn, broker: Broker) -> None:
         wid = request.query_params.get("worker_id", None)
         data = handle_get_step(broker, wid)
         if data is None:
-            return Response(status_codes.HTTP_204_NO_CONTENT, {})
+            return Response(status_codes.HTTP_204_NO_CONTENT, {}, "")
         return Response(200, {}, json.dumps(data))
 
     @app.post("/workflow/step", openapi_tags=["workflow"])
@@ -180,7 +180,7 @@ def register_workflow_routes(app: Robyn, broker: Broker) -> None:
         wid = request.query_params.get("worker_id", None)
         payload = json.loads(request.body)
         handle_report_step(broker, wid, payload)
-        return Response(status_codes.HTTP_204_NO_CONTENT, {})
+        return Response(status_codes.HTTP_204_NO_CONTENT, {}, "")
 
 
 def register_routes(app: Robyn, broker: Broker) -> None:
