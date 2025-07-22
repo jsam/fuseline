@@ -24,15 +24,15 @@ except Exception:  # pragma: no cover - optional
 
     from typing import Any as _Any  # silence flake warnings
 
-    class Response:  # pragma: no cover - minimal stub
+    class Response:  # pragma: no cover - minimal stub matching Robyn's API
         def __init__(
             self,
-            status_code: int,
             description: str = "",
+            status_code: int = 200,
             headers: list[tuple[str, str]] | None = None,
         ) -> None:
-            self.status_code = status_code
             self.description = description
+            self.status_code = status_code
             self.headers = headers or []
 
     class Robyn:  # pragma: no cover - dummy stub for type checkers
@@ -151,7 +151,7 @@ def register_repository_routes(app: Robyn, broker: Broker) -> None:
         name = request.query_params.get("name", None)
         data = handle_get_repository(broker, name)
         if data is None:
-            return Response(status_codes.HTTP_404_NOT_FOUND)
+            return Response("", status_codes.HTTP_404_NOT_FOUND, [])
         return data
 
 
@@ -168,7 +168,7 @@ def register_workflow_routes(app: Robyn, broker: Broker) -> None:
         wid = request.query_params.get("worker_id", None)
         data = handle_get_step(broker, wid)
         if data is None:
-            return Response(status_codes.HTTP_204_NO_CONTENT)
+            return Response("", status_codes.HTTP_204_NO_CONTENT, [])
         return data
 
     @app.post("/workflow/step", openapi_tags=["workflow"])
