@@ -14,7 +14,21 @@ from dataclasses import asdict
 from typing import Any, Iterable
 import json
 
-from robyn import Robyn
+try:
+    from robyn import Robyn, Response
+except Exception:  # pragma: no cover - optional
+    from dataclasses import dataclass
+
+    class Response:  # type: ignore
+        def __init__(self, body: str = "", status_code: int = 200):
+            self.body = body
+            self.status_code = status_code
+
+    from typing import Any as _Any  # silence flake warnings
+
+    class Robyn:  # pragma: no cover - dummy stub for type checkers
+        def __init__(self, *args: _Any, **kwargs: _Any) -> None: ...
+
 
 from ..workflow import WorkflowSchema
 from . import Broker, PostgresBroker, RepositoryInfo, StepReport
@@ -128,7 +142,7 @@ def register_repository_routes(app: Robyn, broker: Broker) -> None:
         name = request.query_params.get("name", None)
         data = handle_get_repository(broker, name)
         if data is None:
-            return {"status_code": 404}
+            return Response("", status_code=404)
         return data
 
 
@@ -145,7 +159,7 @@ def register_workflow_routes(app: Robyn, broker: Broker) -> None:
         wid = request.query_params.get("worker_id", None)
         data = handle_get_step(broker, wid)
         if data is None:
-            return {"status_code": 204}
+            return Response("", status_code=204)
         return data
 
     @app.post("/workflow/step", openapi_tags=["workflow"])

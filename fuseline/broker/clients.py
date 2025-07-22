@@ -105,15 +105,12 @@ class HttpBrokerClient(BrokerClient):
         if query:
             url += "?" + parse.urlencode(query)
         with request.urlopen(url) as resp:
-            if resp.status == 204:
+            if resp.status in {204, 404}:
                 return None
             payload = resp.read()
         if not payload:
             return None
         data = json.loads(payload)
-        if isinstance(data, dict) and "status_code" in data:
-            if data["status_code"] in {204, 404}:
-                return None
         return data
 
     def register_worker(self, workflows: Iterable[WorkflowSchema]) -> str:
