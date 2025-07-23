@@ -41,6 +41,14 @@ class RepositoryInfo:
 
 
 @dataclass
+class WorkflowInfo:
+    """Workflow specification paired with its repository."""
+
+    repository: str
+    workflow: str
+
+
+@dataclass
 class LastTask:
     """Information about the most recent step processed by a worker."""
 
@@ -108,3 +116,7 @@ class Broker(ABC):
     @abstractmethod
     def list_workers(self) -> Iterable[WorkerInfo]:
         """Return metadata for currently connected workers."""
+
+    @abstractmethod
+    def list_workflows(self) -> Iterable[WorkflowInfo]:
+        """Return registered workflow specifications grouped by repository."""

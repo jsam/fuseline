@@ -102,6 +102,25 @@ OPENAPI_SPEC = {
                 },
             }
         },
+        "/workflows": {
+            "get": {
+                "summary": "List workflows",
+                "tags": ["workflow"],
+                "responses": {
+                    "200": {
+                        "description": "Workflows",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {"$ref": "#/components/schemas/WorkflowInfo"},
+                                }
+                            }
+                        },
+                    }
+                },
+            }
+        },
     },
     "components": {
         "schemas": {
@@ -123,6 +142,14 @@ OPENAPI_SPEC = {
                     "last_task": {"$ref": "#/components/schemas/LastTask"},
                 },
                 "required": ["worker_id", "connected_at", "last_seen"],
+            },
+            "WorkflowInfo": {
+                "type": "object",
+                "properties": {
+                    "repository": {"type": "string"},
+                    "workflow": {"type": "string"},
+                },
+                "required": ["repository", "workflow"],
             },
         }
     },

@@ -14,6 +14,7 @@ from fuseline.broker.http import (
     handle_status,
     handle_get_workers,
     handle_list_repositories,
+    handle_list_workflows,
     handle_register_repository,
     handle_register_worker,
     handle_report_step,
@@ -105,3 +106,17 @@ def test_openapi_tags_grouped():
     assert paths["/worker/register"]["post"]["tags"] == ["worker"]
     assert paths["/repository"]["get"]["tags"] == ["repository"]
     assert paths["/workflow/dispatch"]["post"]["tags"] == ["workflow"]
+    assert paths["/workflows"]["get"]["tags"] == ["workflow"]
+
+
+def test_list_workflows():
+    broker = MemoryBroker()
+    payload = {
+        "name": "repo",
+        "url": "http://example.com/repo.git",
+        "workflows": ["pkg:wf"],
+        "credentials": {},
+    }
+    handle_register_repository(broker, payload)
+    workflows = handle_list_workflows(broker)
+    assert workflows[0]["repository"] == "repo"

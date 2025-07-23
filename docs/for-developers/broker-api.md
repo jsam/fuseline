@@ -116,6 +116,16 @@ this:
 
 ``last_task`` is ``null`` if the worker has not completed any steps yet.
 
+### List workflows
+
+```
+GET /workflows
+```
+
+Return all workflow specifications registered via repositories. Each entry
+includes the repository name and the ``module:object`` string identifying the
+workflow.
+
 ### Swagger documentation
 
 The built-in HTTP broker exposes an OpenAPI specification at

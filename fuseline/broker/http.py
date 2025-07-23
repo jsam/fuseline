@@ -57,6 +57,7 @@ __all__ = [
     "handle_register_repository",
     "handle_register_worker",
     "handle_report_step",
+    "handle_list_workflows",
     "main",
     "register_routes",
     "register_worker_routes",
@@ -84,6 +85,12 @@ def handle_get_repository(broker: Broker, name: str) -> dict[str, Any] | None:
 def handle_list_repositories(broker: Broker, page: int, page_size: int) -> list[dict[str, Any]]:
     repos = broker.list_repositories(page, page_size)
     return [asdict(r) for r in repos]
+
+
+def handle_list_workflows(broker: Broker) -> list[dict[str, Any]]:
+    """Return all registered workflows with their repositories."""
+    workflows = broker.list_workflows()
+    return [asdict(wf) for wf in workflows]
 
 
 def handle_dispatch_workflow(broker: Broker, payload: dict[str, Any]) -> str:
@@ -212,6 +219,15 @@ def register_workflow_routes(app: Robyn, broker: Broker) -> None:
         payload = json.loads(request.body)
         handle_report_step(broker, wid, payload)
         return Response(status_codes.HTTP_204_NO_CONTENT, {}, "")
+
+    @app.get("/workflows", openapi_tags=["workflow"])
+    async def list_wfs(request):  # pragma: no cover - integration
+        data = handle_list_workflows(broker)
+        return Response(
+            status_codes.HTTP_200_OK,
+            {"Content-Type": "application/json"},
+            json.dumps(data),
+        )
 
 
 def register_routes(app: Robyn, broker: Broker) -> None:
