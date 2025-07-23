@@ -4,15 +4,16 @@ import importlib
 import logging
 import multiprocessing as mp
 import os
-import sys
+import shutil
 import subprocess
+import sys
 import tempfile
 from typing import Iterable
 
-from .process import ProcessEngine
-from ..broker.clients import HttpBrokerClient, BrokerClient
 from ..broker import RepositoryInfo
+from ..broker.clients import BrokerClient, HttpBrokerClient
 from ..workflow import Workflow
+from .process import ProcessEngine
 
 
 def _load_workflow(spec: str) -> Workflow:
@@ -32,7 +33,10 @@ def _clone_repository(info: RepositoryInfo) -> str:
     if token and url.startswith("https://"):
         prefix = "https://"
         url = f"https://{user}:{token}@" + url[len(prefix) :]
-    subprocess.run(["git", "clone", url, path], check=True)
+    git_exe = shutil.which("git")
+    if not git_exe:
+        raise RuntimeError("git executable not found")
+    subprocess.run([git_exe, "clone", "--", url, path], check=True)  # noqa: S603
     sys.path.insert(0, path)
     return path
 

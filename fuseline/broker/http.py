@@ -10,18 +10,21 @@ except Exception:  # pragma: no cover - optional
         return None
 
 
+import json
 from dataclasses import asdict
 from typing import Any, Iterable
-import json
 
 try:
-    from robyn import Robyn, Response, status_codes
+    from robyn import Response, Robyn
+    from robyn import status_codes as robyn_status_codes
 except Exception:  # pragma: no cover - optional
 
-    class status_codes:  # pragma: no cover - minimal stub
+    class StatusCodes:  # pragma: no cover - minimal stub
         HTTP_200_OK = 200
         HTTP_204_NO_CONTENT = 204
         HTTP_404_NOT_FOUND = 404
+
+    robyn_status_codes = StatusCodes
 
     from typing import Any as _Any  # silence flake warnings
 
@@ -51,17 +54,17 @@ __all__ = [
     "handle_dispatch_workflow",
     "handle_get_repository",
     "handle_get_step",
-    "handle_keep_alive",
-    "handle_status",
     "handle_get_workers",
+    "handle_keep_alive",
+    "handle_list_workflows",
     "handle_register_repository",
     "handle_register_worker",
     "handle_report_step",
-    "handle_list_workflows",
+    "handle_status",
     "main",
+    "register_repository_routes",
     "register_routes",
     "register_worker_routes",
-    "register_repository_routes",
     "register_workflow_routes",
 ]
 
@@ -134,19 +137,19 @@ def register_worker_routes(app: Robyn, broker: Broker) -> None:
     async def register(request):  # pragma: no cover - integration
         payload = json.loads(request.body)
         wid = handle_register_worker(broker, payload)
-        return Response(status_codes.HTTP_200_OK, {}, wid)
+        return Response(robyn_status_codes.HTTP_200_OK, {}, wid)
 
     @app.post("/worker/keep-alive", openapi_tags=["worker"])
     async def keep_alive(request):  # pragma: no cover - integration
         wid = request.query_params.get("worker_id", None)
         handle_keep_alive(broker, wid)
-        return Response(status_codes.HTTP_204_NO_CONTENT, {}, "")
+        return Response(robyn_status_codes.HTTP_204_NO_CONTENT, {}, "")
 
     @app.get("/workers", openapi_tags=["worker"])
     async def workers(request):  # pragma: no cover - integration
         data = handle_get_workers(broker)
         return Response(
-            status_codes.HTTP_200_OK,
+            robyn_status_codes.HTTP_200_OK,
             {"Content-Type": "application/json"},
             json.dumps(data),
         )
@@ -155,7 +158,7 @@ def register_worker_routes(app: Robyn, broker: Broker) -> None:
     async def status(request):  # pragma: no cover - integration
         data = handle_status(broker)
         return Response(
-            status_codes.HTTP_200_OK,
+            robyn_status_codes.HTTP_200_OK,
             {"Content-Type": "application/json"},
             json.dumps(data),
         )
@@ -168,7 +171,7 @@ def register_repository_routes(app: Robyn, broker: Broker) -> None:
     async def register_repo(request):  # pragma: no cover - integration
         payload = json.loads(request.body)
         handle_register_repository(broker, payload)
-        return Response(status_codes.HTTP_204_NO_CONTENT, {}, "")
+        return Response(robyn_status_codes.HTTP_204_NO_CONTENT, {}, "")
 
     @app.get("/repository", openapi_tags=["repository"])
     async def get_repo(request):  # pragma: no cover - integration
@@ -177,16 +180,16 @@ def register_repository_routes(app: Robyn, broker: Broker) -> None:
         if name:
             data = handle_get_repository(broker, name)
             if data is None:
-                return Response(status_codes.HTTP_404_NOT_FOUND, {}, "")
+                return Response(robyn_status_codes.HTTP_404_NOT_FOUND, {}, "")
             payload = data
         else:
             page_size = int(request.query_params.get("page_size", "50"))
             repos = handle_list_repositories(broker, page, page_size)
             if not repos and page > 1:
-                return Response(status_codes.HTTP_404_NOT_FOUND, {}, "")
+                return Response(robyn_status_codes.HTTP_404_NOT_FOUND, {}, "")
             payload = repos
         return Response(
-            status_codes.HTTP_200_OK,
+            robyn_status_codes.HTTP_200_OK,
             {"Content-Type": "application/json"},
             json.dumps(payload),
         )
@@ -199,16 +202,16 @@ def register_workflow_routes(app: Robyn, broker: Broker) -> None:
     async def dispatch(request):  # pragma: no cover - integration
         payload = json.loads(request.body)
         instance = handle_dispatch_workflow(broker, payload)
-        return Response(status_codes.HTTP_200_OK, {}, instance)
+        return Response(robyn_status_codes.HTTP_200_OK, {}, instance)
 
     @app.get("/workflow/step", openapi_tags=["workflow"])
     async def get_step(request):  # pragma: no cover - integration
         wid = request.query_params.get("worker_id", None)
         data = handle_get_step(broker, wid)
         if data is None:
-            return Response(status_codes.HTTP_204_NO_CONTENT, {}, "")
+            return Response(robyn_status_codes.HTTP_204_NO_CONTENT, {}, "")
         return Response(
-            status_codes.HTTP_200_OK,
+            robyn_status_codes.HTTP_200_OK,
             {"Content-Type": "application/json"},
             json.dumps(data),
         )
@@ -218,13 +221,13 @@ def register_workflow_routes(app: Robyn, broker: Broker) -> None:
         wid = request.query_params.get("worker_id", None)
         payload = json.loads(request.body)
         handle_report_step(broker, wid, payload)
-        return Response(status_codes.HTTP_204_NO_CONTENT, {}, "")
+        return Response(robyn_status_codes.HTTP_204_NO_CONTENT, {}, "")
 
     @app.get("/workflows", openapi_tags=["workflow"])
     async def list_wfs(request):  # pragma: no cover - integration
         data = handle_list_workflows(broker)
         return Response(
-            status_codes.HTTP_200_OK,
+            robyn_status_codes.HTTP_200_OK,
             {"Content-Type": "application/json"},
             json.dumps(data),
         )
@@ -253,7 +256,7 @@ def create_app(dsn: str | None = None, broker: Broker | None = None) -> Robyn:
 
 def main() -> None:
     port = int(os.environ.get("PORT", "8000"))
-    host = os.environ.get("HOST", "0.0.0.0")
+    host = os.environ.get("HOST", "127.0.0.1")
     create_app().start(port=port, host=host)
 
 

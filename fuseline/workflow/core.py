@@ -18,9 +18,9 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence
 
+from ..broker.storage import RuntimeStorage
 from ..worker import ExecutionEngine
 from .exporters import Exporter
-from .tracing import Tracer
 from .policies import (
     _POLICY_REGISTRY,
     FailureAction,
@@ -29,7 +29,7 @@ from .policies import (
     StepPolicy,
     WorkflowPolicy,
 )
-from ..broker.storage import RuntimeStorage
+from .tracing import Tracer
 
 if TYPE_CHECKING:  # pragma: no cover - for type hints only
     from ..broker import Broker
@@ -121,7 +121,12 @@ class BaseStep:
 
             wrapped = call
             for pol in reversed(policies):
-                wrapped = (lambda w=wrapped, p=pol: p.execute(self, w))
+                prev = wrapped
+
+                def wrapper(prev=prev, pol=pol) -> Any:
+                    return pol.execute(self, prev)
+
+                wrapped = wrapper
 
             try:
                 return wrapped()
@@ -225,6 +230,7 @@ class Step(BaseStep):
         while True:
             self.cur_retry = attempt
             try:
+
                 def call() -> Any:
                     if self.is_typed:
                         kwargs = {}
@@ -261,7 +267,9 @@ class Step(BaseStep):
                                         return None
 
                                 kwargs[name] = val
-                        kwargs.update({k: v for k, v in self.params.items() if k in self.param_names and k not in kwargs})
+                        kwargs.update(
+                            {k: v for k, v in self.params.items() if k in self.param_names and k not in kwargs}
+                        )
                         result = type(self).run_step(self, **kwargs)
                         if isinstance(setup_res, dict):
                             setup_res[self] = result
@@ -270,7 +278,13 @@ class Step(BaseStep):
 
                 wrapped = call
                 for pol in reversed(policies):
-                    wrapped = (lambda w=wrapped, p=pol: p.execute(self, w))
+                    prev = wrapped
+
+                    def wrapper(prev=prev, pol=pol) -> Any:
+                        return pol.execute(self, prev)
+
+                    wrapped = wrapper
+
                 return wrapped()
             except Exception as e:
                 decision: FailureDecision | None = None
@@ -885,24 +899,38 @@ class AsyncStep(Step):
                                     return None
                             kwargs[name] = val
                     kwargs.update({k: v for k, v in self.params.items() if k in self.param_names and k not in kwargs})
+
                     async def call() -> Any:
                         method = type(self).run_step_async
                         return await method(self, **kwargs)
 
                     wrapped = call
                     for pol in reversed(policies):
-                        wrapped = (lambda w=wrapped, p=pol: p.execute_async(self, w))
+                        prev = wrapped
+
+                        async def wrapper(prev=prev, pol=pol) -> Any:
+                            return await pol.execute_async(self, prev)
+
+                        wrapped = wrapper
+
                     result = await wrapped()
                     if isinstance(setup_res, dict):
                         setup_res[self] = result
                     return result
+
                 async def call() -> Any:
                     method = type(self).run_step_async
                     return await method(self, setup_res)
 
                 wrapped = call
                 for pol in reversed(policies):
-                    wrapped = (lambda w=wrapped, p=pol: p.execute_async(self, w))
+                    prev = wrapped
+
+                    async def wrapper(prev=prev, pol=pol) -> Any:
+                        return await pol.execute_async(self, prev)
+
+                    wrapped = wrapper
+
                 return await wrapped()
             except Exception as e:
                 decision: FailureDecision | None = None
@@ -1318,6 +1346,7 @@ def workflow_from_functions(outputs: List[Callable[..., Any]]) -> Workflow:
     step_outputs = [build_step(func) for func in outputs]
 
     return Workflow(outputs=step_outputs)
+
 
 # Backwards compatibility aliases
 Task = Step

@@ -1,16 +1,17 @@
 from __future__ import annotations
 
+import json
 from abc import ABC, abstractmethod
 from dataclasses import asdict
-import json
-from urllib import request, parse
 from typing import TYPE_CHECKING, Any, Iterable, Optional
+from urllib import parse, request
+from urllib.parse import urlparse
 
 if TYPE_CHECKING:  # pragma: no cover - for type hints only
     from . import Broker
 
-from . import StepAssignment, StepReport, RepositoryInfo, WorkerInfo
 from ..workflow import WorkflowSchema
+from . import RepositoryInfo, StepAssignment, StepReport, WorkerInfo
 
 
 class BrokerClient(ABC):
@@ -99,9 +100,12 @@ class HttpBrokerClient(BrokerClient):
         url = self.base_url + path
         if query:
             url += "?" + parse.urlencode(query)
+        scheme = urlparse(url).scheme
+        if scheme not in {"http", "https"}:
+            raise ValueError(f"unsupported URL scheme: {scheme}")
         body = json.dumps(data).encode() if data is not None else b""
-        req = request.Request(url, data=body, headers={"Content-Type": "application/json"})
-        with request.urlopen(req) as resp:
+        req = request.Request(url, data=body, headers={"Content-Type": "application/json"})  # noqa: S310
+        with request.urlopen(req) as resp:  # noqa: S310 - validated scheme
             payload = resp.read()
         if payload:
             return json.loads(payload)
@@ -111,7 +115,10 @@ class HttpBrokerClient(BrokerClient):
         url = self.base_url + path
         if query:
             url += "?" + parse.urlencode(query)
-        with request.urlopen(url) as resp:
+        scheme = urlparse(url).scheme
+        if scheme not in {"http", "https"}:
+            raise ValueError(f"unsupported URL scheme: {scheme}")
+        with request.urlopen(url) as resp:  # noqa: S310 - validated scheme
             if resp.status in {204, 404}:
                 return None
             payload = resp.read()
