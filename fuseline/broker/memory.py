@@ -207,3 +207,10 @@ class MemoryBroker(Broker):
                 )
             )
         return workers
+
+    def list_workflows(self) -> list[WorkflowInfo]:
+        workflows: list[WorkflowInfo] = []
+        for repo in self._repositories.values():
+            for wf in repo.workflows:
+                workflows.append(WorkflowInfo(repository=repo.name, workflow=wf))
+        return workflows
