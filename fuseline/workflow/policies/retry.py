@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-from typing import Dict
+from typing import TYPE_CHECKING, Any, Dict
 
 from .base import FailureAction, FailureDecision, StepPolicy
+
+if TYPE_CHECKING:  # pragma: no cover - for type hints
+    from ..core import Step
 
 
 class RetryPolicy(StepPolicy):

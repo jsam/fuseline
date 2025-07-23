@@ -2,17 +2,20 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Iterable, Optional
+from typing import TYPE_CHECKING, Any, ClassVar, Iterable, Optional
 
 from .base import RuntimeStorage
+
+if TYPE_CHECKING:  # pragma: no cover - for type hints
+    from ...workflow import Status
 
 
 class PostgresRuntimeStorage(RuntimeStorage):
     """Store runtime state in a PostgreSQL database with migrations."""
 
-    LATEST_VERSION = 1
+    LATEST_VERSION: ClassVar[int] = 1
 
-    MIGRATIONS: dict[int, list[str]] = {
+    MIGRATIONS: ClassVar[dict[int, list[str]]] = {
         1: [
             """
             CREATE TABLE IF NOT EXISTS steps (
@@ -46,8 +49,6 @@ class PostgresRuntimeStorage(RuntimeStorage):
     }
 
     def __init__(self, dsn: str | None = None) -> None:
-        import os
-
         self.dsn = dsn or os.environ.get("DATABASE_URL", "postgresql://localhost/fuseline")
         self._connect()
         self._migrate()
@@ -61,9 +62,7 @@ class PostgresRuntimeStorage(RuntimeStorage):
 
     def _get_version(self) -> int:
         with self._conn.cursor() as cur:
-            cur.execute(
-                "CREATE TABLE IF NOT EXISTS fuseline_meta (key TEXT PRIMARY KEY, value TEXT)"
-            )
+            cur.execute("CREATE TABLE IF NOT EXISTS fuseline_meta (key TEXT PRIMARY KEY, value TEXT)")
             cur.execute("SELECT value FROM fuseline_meta WHERE key='version'")
             row = cur.fetchone()
             return int(row[0]) if row else 0
@@ -100,8 +99,7 @@ class PostgresRuntimeStorage(RuntimeStorage):
     def enqueue(self, workflow_id: str, instance_id: str, step_name: str) -> None:
         with self._conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO queue (workflow_id, instance_id, step_name)"
-                " VALUES (%s, %s, %s) ON CONFLICT DO NOTHING",
+                "INSERT INTO queue (workflow_id, instance_id, step_name) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING",
                 (workflow_id, instance_id, step_name),
             )
 
@@ -138,7 +136,10 @@ class PostgresRuntimeStorage(RuntimeStorage):
     def clear_assignment(self, workflow_id: str, instance_id: str, step_name: str) -> None:
         with self._conn.cursor() as cur:
             cur.execute(
-                "UPDATE steps SET worker_id=NULL, expires_at=NULL WHERE workflow_id=%s AND instance_id=%s AND step_name=%s",
+                (
+                    "UPDATE steps SET worker_id=NULL, expires_at=NULL "
+                    "WHERE workflow_id=%s AND instance_id=%s AND step_name=%s"
+                ),
                 (workflow_id, instance_id, step_name),
             )
 
