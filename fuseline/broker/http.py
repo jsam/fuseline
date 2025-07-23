@@ -256,7 +256,7 @@ def create_app(dsn: str | None = None, broker: Broker | None = None) -> Robyn:
 
 def main() -> None:
     port = int(os.environ.get("PORT", "8000"))
-    host = os.environ.get("HOST", "127.0.0.1")
+    host = os.environ.get("HOST", "0.0.0.0")  # noqa: S104 - external binding
     create_app().start(port=port, host=host)
 
 
