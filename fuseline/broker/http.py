@@ -165,7 +165,7 @@ def register_repository_routes(app: Robyn, broker: Broker) -> None:
 
     @app.get("/repository", openapi_tags=["repository"])
     async def get_repo(request):  # pragma: no cover - integration
-        name = request.query_params.get("name")
+        name = request.query_params.get("name", None)
         page = int(request.query_params.get("page", "1"))
         if name:
             data = handle_get_repository(broker, name)
