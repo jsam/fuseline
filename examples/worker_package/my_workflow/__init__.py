@@ -1,5 +1,6 @@
 from fuseline import Step, Workflow
 
+
 class Hello(Step):
     def run_step(self) -> None:
         print("hello from packaged workflow")

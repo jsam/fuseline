@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Iterable, Mapping, Optional, Sequence
 
-from ..workflow import Status, StepSchema, WorkflowSchema
+from ..workflow import Status, WorkflowSchema
 
 
 @dataclass

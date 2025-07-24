@@ -6,7 +6,6 @@ from typing import Any
 import pytest
 
 from fuseline import Computed, Depends, PoolEngine
-from fuseline.workflow.policies import RetryPolicy
 from fuseline.workflow import (
     AsyncStep,
     AsyncWorkflow,
@@ -17,6 +16,7 @@ from fuseline.workflow import (
     Workflow,
     workflow_from_functions,
 )
+from fuseline.workflow.policies import RetryPolicy
 
 
 class RecorderStep(Task):

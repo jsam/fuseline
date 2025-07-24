@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from .storage import PostgresRuntimeStorage
 from .memory import MemoryBroker
+from .storage import PostgresRuntimeStorage
 
 
 class PostgresBroker(MemoryBroker):

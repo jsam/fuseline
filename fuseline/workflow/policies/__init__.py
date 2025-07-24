@@ -16,8 +16,8 @@ __all__ = [
     "FailureAction",
     "FailureDecision",
     "Policy",
-    "StepPolicy",
-    "WorkflowPolicy",
     "RetryPolicy",
+    "StepPolicy",
     "StepTimeoutPolicy",
+    "WorkflowPolicy",
 ]

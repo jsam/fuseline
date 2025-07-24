@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from .base import Exporter
 from typing import TYPE_CHECKING
+
+from .base import Exporter
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from ..workflow import Workflow, WorkflowSchema

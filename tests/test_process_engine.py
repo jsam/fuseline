@@ -4,8 +4,8 @@ from fuseline import Workflow
 from fuseline.broker import MemoryBroker
 from fuseline.broker.clients import LocalBrokerClient
 from fuseline.worker import ProcessEngine
-from fuseline.workflow.policies import RetryPolicy
 from fuseline.workflow import Status, Task
+from fuseline.workflow.policies import RetryPolicy
 
 
 class SimpleTask(Task):

@@ -12,10 +12,10 @@ from __future__ import annotations
 import abc
 from dataclasses import dataclass
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Callable, Dict, Type, Awaitable
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, Type
 
 if TYPE_CHECKING:  # pragma: no cover - for type hints only
-    from ..workflow import Step, StepSchema, Workflow, WorkflowSchema
+    from ..workflow import Step, Workflow
 
 
 # registry for serializable policies

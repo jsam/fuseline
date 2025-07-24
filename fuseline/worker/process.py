@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable
 import logging
+from typing import TYPE_CHECKING, Iterable
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from ..workflow import Step, Workflow
@@ -9,7 +9,7 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
 from ..broker.clients import BrokerClient
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
-    from ..broker import StepReport
+    pass
 
 
 class ProcessEngine:

@@ -1,12 +1,9 @@
-import pytest
 
-import time
 import asyncio
+import time
 
-from fuseline.workflow import AsyncStep
-
-from fuseline.workflow import Step, Workflow, Status
-from fuseline.workflow.policies import StepPolicy, WorkflowPolicy, StepTimeoutPolicy
+from fuseline.workflow import AsyncStep, Status, Step, Workflow
+from fuseline.workflow.policies import StepPolicy, StepTimeoutPolicy, WorkflowPolicy
 
 
 class BinderStepPolicy(StepPolicy):

@@ -10,6 +10,7 @@ from .core import (
     Condition,
     Depends,
     FunctionStep,
+    Status,
     Step,
     StepSchema,
     Task,
@@ -17,7 +18,6 @@ from .core import (
     Workflow,
     WorkflowSchema,
     workflow_from_functions,
-    Status,
 )
 
 __all__ = [
@@ -32,6 +32,7 @@ __all__ = [
     "Condition",
     "Depends",
     "FunctionStep",
+    "Status",
     "Step",
     "StepSchema",
     "Task",
@@ -39,5 +40,4 @@ __all__ = [
     "Workflow",
     "WorkflowSchema",
     "workflow_from_functions",
-    "Status",
 ]
