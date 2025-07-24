@@ -40,6 +40,9 @@ When using the Swagger UI choose ``Try it out`` and paste the JSON payload
 above in the **Request body** field.  The interface notes "No parameters" only
 because this endpoint has no query or path parameters.
 
+If the request body is missing or contains invalid JSON the broker responds
+with an HTTP ``400`` error.
+
 ### Get repository info
 
 ```

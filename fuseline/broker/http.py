@@ -135,7 +135,10 @@ def register_worker_routes(app: Robyn, broker: Broker) -> None:
 
     @app.post("/worker/register", openapi_tags=["worker"])
     async def register(request):  # pragma: no cover - integration
-        payload = json.loads(request.body)
+        try:
+            payload = json.loads(request.body)
+        except Exception:
+            return Response(robyn_status_codes.HTTP_400_BAD_REQUEST, {}, "")
         wid = handle_register_worker(broker, payload)
         return Response(robyn_status_codes.HTTP_200_OK, {}, wid)
 
@@ -169,7 +172,10 @@ def register_repository_routes(app: Robyn, broker: Broker) -> None:
 
     @app.post("/repository/register", openapi_tags=["repository"])
     async def register_repo(request):  # pragma: no cover - integration
-        payload = json.loads(request.body)
+        try:
+            payload = json.loads(request.body)
+        except Exception:
+            return Response(robyn_status_codes.HTTP_400_BAD_REQUEST, {}, "")
         handle_register_repository(broker, payload)
         return Response(robyn_status_codes.HTTP_204_NO_CONTENT, {}, "")
 
@@ -200,7 +206,10 @@ def register_workflow_routes(app: Robyn, broker: Broker) -> None:
 
     @app.post("/workflow/dispatch", openapi_tags=["workflow"])
     async def dispatch(request):  # pragma: no cover - integration
-        payload = json.loads(request.body)
+        try:
+            payload = json.loads(request.body)
+        except Exception:
+            return Response(robyn_status_codes.HTTP_400_BAD_REQUEST, {}, "")
         instance = handle_dispatch_workflow(broker, payload)
         return Response(robyn_status_codes.HTTP_200_OK, {}, instance)
 
@@ -219,7 +228,10 @@ def register_workflow_routes(app: Robyn, broker: Broker) -> None:
     @app.post("/workflow/step", openapi_tags=["workflow"])
     async def report_step(request):  # pragma: no cover - integration
         wid = request.query_params.get("worker_id", None)
-        payload = json.loads(request.body)
+        try:
+            payload = json.loads(request.body)
+        except Exception:
+            return Response(robyn_status_codes.HTTP_400_BAD_REQUEST, {}, "")
         handle_report_step(broker, wid, payload)
         return Response(robyn_status_codes.HTTP_204_NO_CONTENT, {}, "")
 

@@ -30,7 +30,13 @@ OPENAPI_SPEC = {
                     "required": True,
                     "content": {
                         "application/json": {
-                            "schema": {"$ref": "#/components/schemas/RepositoryInfo"}
+                            "schema": {"$ref": "#/components/schemas/RepositoryInfo"},
+                            "example": {
+                                "name": "my-repo",
+                                "url": "https://github.com/example/workflows.git",
+                                "workflows": ["package.module:workflow"],
+                                "credentials": {"token": "<PAT>", "username": "gituser"},
+                            },
                         }
                     },
                 },
@@ -174,11 +180,15 @@ OPENAPI_SPEC = {
                         "type": "array",
                         "items": {"type": "string"},
                     },
-                    "credentials": {
-                        "$ref": "#/components/schemas/RepositoryCredentials"
-                    },
+                    "credentials": {"$ref": "#/components/schemas/RepositoryCredentials"},
                 },
                 "required": ["name", "url", "workflows"],
+                "example": {
+                    "name": "my-repo",
+                    "url": "https://github.com/example/workflows.git",
+                    "workflows": ["package.module:workflow"],
+                    "credentials": {"token": "<PAT>", "username": "gituser"},
+                },
             },
         }
     },
