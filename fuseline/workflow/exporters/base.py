@@ -4,8 +4,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover - for typing only
-    from ..workflow import Workflow
-    from ..workflow import WorkflowSchema
+    from ..workflow import Workflow, WorkflowSchema
 
 class Exporter(ABC):
     """Interface for serializing workflows."""

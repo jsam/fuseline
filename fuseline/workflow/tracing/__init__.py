@@ -1,4 +1,4 @@
 from .base import Tracer
-from .file import FileTracer, BoundTracer
+from .file import BoundTracer, FileTracer
 
-__all__ = ["Tracer", "FileTracer", "BoundTracer"]
+__all__ = ["BoundTracer", "FileTracer", "Tracer"]

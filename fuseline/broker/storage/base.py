@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections import defaultdict, deque
-import json
 from typing import TYPE_CHECKING, Any, Iterable, Optional
 
 if TYPE_CHECKING:  # pragma: no cover - for type hints only

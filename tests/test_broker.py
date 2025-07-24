@@ -1,9 +1,10 @@
-import pytest
 import time
 
-from fuseline.broker import MemoryBroker, StepAssignment, StepReport, RepositoryInfo
-from fuseline.workflow.policies import StepTimeoutPolicy
+import pytest
+
+from fuseline.broker import MemoryBroker, RepositoryInfo, StepAssignment, StepReport
 from fuseline.workflow import Status, Task, Workflow
+from fuseline.workflow.policies import StepTimeoutPolicy
 
 
 class Simple(Task):

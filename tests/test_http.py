@@ -10,14 +10,14 @@ from fuseline.broker.http import (
     handle_dispatch_workflow,
     handle_get_repository,
     handle_get_step,
-    handle_keep_alive,
-    handle_status,
     handle_get_workers,
+    handle_keep_alive,
     handle_list_repositories,
     handle_list_workflows,
     handle_register_repository,
     handle_register_worker,
     handle_report_step,
+    handle_status,
 )
 from fuseline.workflow import Status, Task, Workflow
 
