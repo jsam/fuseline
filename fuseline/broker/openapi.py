@@ -116,7 +116,7 @@ OPENAPI_SPEC = {
                                 "instance_id": "abc",
                                 "step_name": "build",
                                 "state": "SUCCEEDED",
-                                "result": null
+                                "result": None
                             },
                         }
                     },
