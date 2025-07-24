@@ -66,7 +66,39 @@ a name and a version.  If the broker already knows a workflow under the
 same name and version but the definition differs, the registration is
 rejected.  A successful call returns a unique worker ID.
 
+Example request::
+
+    [
+      {
+        "workflow_id": "example",
+        "version": "1",
+        "steps": {},
+        "outputs": []
+      }
+    ]
+
 ## Workflow endpoints
+
+### Dispatch workflow
+
+```
+POST /workflow/dispatch
+```
+
+Start a workflow run by providing a workflow schema and optional input
+parameters. The call returns the instance ID for the new run.
+
+Example request::
+
+    {
+      "workflow": {
+        "workflow_id": "example",
+        "version": "1",
+        "steps": {},
+        "outputs": []
+      },
+      "inputs": {}
+    }
 
 ### Get next step
 
@@ -91,6 +123,16 @@ Workers send a ``StepReport`` object containing the step state and any
 returned value. The broker stores this output so it can become the input
 for downstream steps and then decides which successors are ready to run
 next.
+
+Example request::
+
+    {
+      "workflow_id": "wf",
+      "instance_id": "abc",
+      "step_name": "build",
+      "state": "SUCCEEDED",
+      "result": null
+    }
 
 ### Worker keep‑alive
 

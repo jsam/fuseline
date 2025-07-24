@@ -17,7 +17,20 @@ OPENAPI_SPEC = {
                 "summary": "Register worker",
                 "tags": ["worker"],
                 "requestBody": {
-                    "content": {"application/json": {"schema": {"type": "array", "items": {"type": "object"}}}}
+                    "required": True,
+                    "content": {
+                        "application/json": {
+                            "schema": {"$ref": "#/components/schemas/WorkerRegistration"},
+                            "example": [
+                                {
+                                    "workflow_id": "example",
+                                    "version": "1",
+                                    "steps": {},
+                                    "outputs": []
+                                }
+                            ],
+                        }
+                    },
                 },
                 "responses": {"200": {"description": "Worker ID"}},
             }
@@ -62,7 +75,23 @@ OPENAPI_SPEC = {
             "post": {
                 "summary": "Dispatch workflow",
                 "tags": ["workflow"],
-                "requestBody": {"content": {"application/json": {"schema": {"type": "object"}}}},
+                "requestBody": {
+                    "required": True,
+                    "content": {
+                        "application/json": {
+                            "schema": {"$ref": "#/components/schemas/DispatchRequest"},
+                            "example": {
+                                "workflow": {
+                                    "workflow_id": "example",
+                                    "version": "1",
+                                    "steps": {},
+                                    "outputs": []
+                                },
+                                "inputs": {}
+                            },
+                        }
+                    },
+                },
                 "responses": {"200": {"description": "Instance ID"}},
             }
         },
@@ -77,7 +106,21 @@ OPENAPI_SPEC = {
                 "summary": "Report step result",
                 "tags": ["workflow"],
                 "parameters": [{"name": "worker_id", "in": "query", "required": True, "schema": {"type": "string"}}],
-                "requestBody": {"content": {"application/json": {"schema": {"type": "object"}}}},
+                "requestBody": {
+                    "required": True,
+                    "content": {
+                        "application/json": {
+                            "schema": {"$ref": "#/components/schemas/StepReport"},
+                            "example": {
+                                "workflow_id": "wf",
+                                "instance_id": "abc",
+                                "step_name": "build",
+                                "state": "SUCCEEDED",
+                                "result": null
+                            },
+                        }
+                    },
+                },
                 "responses": {"200": {"description": "OK"}},
             },
         },
@@ -189,6 +232,46 @@ OPENAPI_SPEC = {
                     "workflows": ["package.module:workflow"],
                     "credentials": {"token": "<PAT>", "username": "gituser"},
                 },
+            },
+            "WorkflowSchema": {
+                "type": "object",
+                "properties": {
+                    "workflow_id": {"type": "string"},
+                    "version": {"type": "string"},
+                    "steps": {"type": "object"},
+                    "outputs": {
+                        "type": "array",
+                        "items": {"type": "string"}
+                    },
+                    "policies": {
+                        "type": "array",
+                        "items": {"type": "object"}
+                    },
+                },
+                "required": ["workflow_id", "version", "steps", "outputs"],
+            },
+            "WorkerRegistration": {
+                "type": "array",
+                "items": {"$ref": "#/components/schemas/WorkflowSchema"},
+            },
+            "DispatchRequest": {
+                "type": "object",
+                "properties": {
+                    "workflow": {"$ref": "#/components/schemas/WorkflowSchema"},
+                    "inputs": {"type": "object"},
+                },
+                "required": ["workflow"],
+            },
+            "StepReport": {
+                "type": "object",
+                "properties": {
+                    "workflow_id": {"type": "string"},
+                    "instance_id": {"type": "string"},
+                    "step_name": {"type": "string"},
+                    "state": {"type": "string"},
+                    "result": {},
+                },
+                "required": ["workflow_id", "instance_id", "step_name", "state", "result"],
             },
         }
     },
