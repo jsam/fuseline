@@ -34,7 +34,7 @@ OPENAPI_SPEC = {
                         }
                     },
                 },
-                "responses": {"200": {"description": "OK"}},
+                "responses": {"204": {"description": "OK"}},
             }
         },
         "/repository": {

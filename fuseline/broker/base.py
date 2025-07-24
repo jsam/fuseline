@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Iterable, Mapping, Optional, Sequence
 
 from ..workflow import Status, WorkflowSchema
@@ -37,7 +37,7 @@ class RepositoryInfo:
     name: str
     url: str
     workflows: Sequence[str]
-    credentials: Mapping[str, str]
+    credentials: Mapping[str, str] = field(default_factory=dict)
 
 
 @dataclass
