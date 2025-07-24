@@ -18,9 +18,27 @@ POST /repository/register
 
 Store the location and credentials for a repository containing workflow
 implementations. The payload must include a unique ``name`` used by
-workers, the repository ``url``, a list of ``workflows`` specified as
-``module:object`` strings and any ``credentials`` needed to clone the
-repository.
+workers, the repository ``url`` and a list of ``workflows`` specified as
+``module:object`` strings.  ``credentials`` are optional and may contain a
+``token`` and/or ``username`` if required for cloning.  In other words the
+fields ``name``, ``url`` and ``workflows`` are mandatory while everything
+under ``credentials`` is optional.
+
+Example request::
+
+    {
+      "name": "my-repo",
+      "url": "https://github.com/example/workflows.git",
+      "workflows": ["package.module:workflow"],
+      "credentials": {
+        "token": "<PAT>",
+        "username": "gituser"
+      }
+    }
+
+When using the Swagger UI choose ``Try it out`` and paste the JSON payload
+above in the **Request body** field.  The interface notes "No parameters" only
+because this endpoint has no query or path parameters.
 
 ### Get repository info
 

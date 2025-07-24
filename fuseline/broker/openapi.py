@@ -26,7 +26,14 @@ OPENAPI_SPEC = {
             "post": {
                 "summary": "Register repository",
                 "tags": ["repository"],
-                "requestBody": {"content": {"application/json": {"schema": {"type": "object"}}}},
+                "requestBody": {
+                    "required": True,
+                    "content": {
+                        "application/json": {
+                            "schema": {"$ref": "#/components/schemas/RepositoryInfo"}
+                        }
+                    },
+                },
                 "responses": {"200": {"description": "OK"}},
             }
         },
@@ -150,6 +157,28 @@ OPENAPI_SPEC = {
                     "workflow": {"type": "string"},
                 },
                 "required": ["repository", "workflow"],
+            },
+            "RepositoryCredentials": {
+                "type": "object",
+                "properties": {
+                    "token": {"type": "string"},
+                    "username": {"type": "string"},
+                },
+            },
+            "RepositoryInfo": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "url": {"type": "string"},
+                    "workflows": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
+                    "credentials": {
+                        "$ref": "#/components/schemas/RepositoryCredentials"
+                    },
+                },
+                "required": ["name", "url", "workflows"],
             },
         }
     },
