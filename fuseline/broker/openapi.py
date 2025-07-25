@@ -249,10 +249,24 @@ OPENAPI_SPEC = {
                     },
                 },
                 "required": ["workflow_id", "version", "steps", "outputs"],
+                "example": {
+                    "workflow_id": "example",
+                    "version": "1",
+                    "steps": {},
+                    "outputs": []
+                },
             },
             "WorkerRegistration": {
                 "type": "array",
                 "items": {"$ref": "#/components/schemas/WorkflowSchema"},
+                "example": [
+                    {
+                        "workflow_id": "example",
+                        "version": "1",
+                        "steps": {},
+                        "outputs": []
+                    }
+                ],
             },
             "DispatchRequest": {
                 "type": "object",
@@ -261,6 +275,15 @@ OPENAPI_SPEC = {
                     "inputs": {"type": "object"},
                 },
                 "required": ["workflow"],
+                "example": {
+                    "workflow": {
+                        "workflow_id": "example",
+                        "version": "1",
+                        "steps": {},
+                        "outputs": []
+                    },
+                    "inputs": {}
+                },
             },
             "StepReport": {
                 "type": "object",
@@ -272,6 +295,13 @@ OPENAPI_SPEC = {
                     "result": {},
                 },
                 "required": ["workflow_id", "instance_id", "step_name", "state", "result"],
+                "example": {
+                    "workflow_id": "wf",
+                    "instance_id": "abc",
+                    "step_name": "build",
+                    "state": "SUCCEEDED",
+                    "result": None
+                },
             },
         }
     },
