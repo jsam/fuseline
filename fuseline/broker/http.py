@@ -261,8 +261,23 @@ def create_app(dsn: str | None = None, broker: Broker | None = None) -> Robyn:
         broker = PostgresBroker(dsn)
     app = Robyn(__file__)
     register_routes(app, broker)
-    app.openapi_spec = OPENAPI_SPEC
-    app.swagger_html = SWAGGER_HTML
+
+    @app.get("/openapi.json", openapi_tags=["system"])
+    async def serve_openapi(request):  # pragma: no cover - integration
+        return Response(
+            robyn_status_codes.HTTP_200_OK,
+            {"Content-Type": "application/json"},
+            json.dumps(OPENAPI_SPEC),
+        )
+
+    @app.get("/docs", openapi_tags=["system"])
+    async def serve_docs(request):  # pragma: no cover - integration
+        return Response(
+            robyn_status_codes.HTTP_200_OK,
+            {"Content-Type": "text/html"},
+            SWAGGER_HTML,
+        )
+
     return app
 
 
