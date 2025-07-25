@@ -18,6 +18,13 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence
 
+try:  # pragma: no cover - optional dependency
+    from robyn.types import Body
+except Exception:  # pragma: no cover - fallback when Robyn isn't installed
+
+    class Body:  # pragma: no cover - stub so dataclasses can inherit Body
+        pass
+
 from ..broker.storage import RuntimeStorage
 from ..worker import ExecutionEngine
 from .exporters import Exporter
@@ -312,7 +319,7 @@ class BatchStep(Step):
 
 
 @dataclass
-class StepSchema:
+class StepSchema(Body):
     """Lightweight representation of a workflow step."""
 
     name: str
@@ -323,7 +330,7 @@ class StepSchema:
 
 
 @dataclass
-class WorkflowSchema:
+class WorkflowSchema(Body):
     """Serializable workflow structure used by the broker."""
 
     workflow_id: str
