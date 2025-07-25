@@ -8,6 +8,11 @@ Each step handed to a worker is represented by a `StepAssignment` object
 containing the workflow identifiers, the payload needed to run the task
 and a timeout deadline.
 
+Payloads for POST requests use dataclasses that inherit from Robyn's
+`Body` class.  This means the Swagger UI can display the required fields
+for each endpoint so you can simply copy the example value when trying
+out the API.
+
 ## Repository endpoints
 
 ### Register repository
@@ -23,6 +28,9 @@ workers, the repository ``url`` and a list of ``workflows`` specified as
 ``token`` and/or ``username`` if required for cloning.  In other words the
 fields ``name``, ``url`` and ``workflows`` are mandatory while everything
 under ``credentials`` is optional.
+
+The broker parses this payload into a ``RepositoryInfo`` object which
+inherits from ``Body`` so the Swagger docs list all required fields.
 
 Example request::
 
@@ -125,6 +133,8 @@ Workers send a ``StepReport`` object containing the step state and any
 returned value. The broker stores this output so it can become the input
 for downstream steps and then decides which successors are ready to run
 next.
+The ``StepReport`` dataclass also subclasses ``Body`` so Swagger knows
+all fields in the request body.
 
 Example request::
 

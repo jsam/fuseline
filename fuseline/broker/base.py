@@ -4,6 +4,13 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Iterable, Mapping, Optional, Sequence
 
+try:  # optional dependency
+    from robyn.types import Body
+except Exception:  # pragma: no cover - optional
+
+    class Body:  # pragma: no cover - stub
+        pass
+
 from ..workflow import Status, WorkflowSchema
 
 
@@ -20,7 +27,7 @@ class StepAssignment:
 
 
 @dataclass
-class StepReport:
+class StepReport(Body):
     """Information sent to :meth:`Broker.report_step`."""
 
     workflow_id: str
@@ -31,7 +38,7 @@ class StepReport:
 
 
 @dataclass
-class RepositoryInfo:
+class RepositoryInfo(Body):
     """Metadata for a workflow repository."""
 
     name: str

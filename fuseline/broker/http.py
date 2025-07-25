@@ -17,6 +17,7 @@ from typing import Any, Iterable
 try:
     from robyn import Response, Robyn
     from robyn import status_codes as robyn_status_codes
+    from robyn.types import Body, JSONResponse
 except Exception:  # pragma: no cover - optional
 
     class StatusCodes:  # pragma: no cover - minimal stub
@@ -41,6 +42,12 @@ except Exception:  # pragma: no cover - optional
 
     class Robyn:  # pragma: no cover - dummy stub for type checkers
         def __init__(self, *args: _Any, **kwargs: _Any) -> None: ...
+
+    class Body:  # pragma: no cover - stub
+        pass
+
+    class JSONResponse(Response):  # pragma: no cover - stub
+        pass
 
 
 from ..workflow import WorkflowSchema
