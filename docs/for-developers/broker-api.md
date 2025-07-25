@@ -39,6 +39,8 @@ Example request::
 When using the Swagger UI choose ``Try it out`` and paste the JSON payload
 above in the **Request body** field.  The interface notes "No parameters" only
 because this endpoint has no query or path parameters.
+The ``Example value`` panel in Swagger shows exactly which fields are
+required and provides a sample you can copy.
 
 If the request body is missing or contains invalid JSON the broker responds
 with an HTTP ``400`` error.

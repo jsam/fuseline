@@ -17,20 +17,26 @@ OPENAPI_SPEC = {
                 "summary": "Register worker",
                 "tags": ["worker"],
                 "requestBody": {
+                    "description": "List of workflow schemas this worker can run",
                     "required": True,
                     "content": {
                         "application/json": {
                             "schema": {"$ref": "#/components/schemas/WorkerRegistration"},
-                            "example": [
-                                {
-                                    "workflow_id": "example",
-                                    "version": "1",
-                                    "steps": {},
-                                    "outputs": []
+                            "examples": {
+                                "default": {
+                                    "summary": "Example payload",
+                                    "value": [
+                                        {
+                                            "workflow_id": "example",
+                                            "version": "1",
+                                            "steps": {},
+                                            "outputs": []
+                                        }
+                                    ]
                                 }
-                            ],
+                            }
                         }
-                    },
+                    }
                 },
                 "responses": {"200": {"description": "Worker ID"}},
             }
@@ -40,18 +46,24 @@ OPENAPI_SPEC = {
                 "summary": "Register repository",
                 "tags": ["repository"],
                 "requestBody": {
+                    "description": "Repository metadata",
                     "required": True,
                     "content": {
                         "application/json": {
                             "schema": {"$ref": "#/components/schemas/RepositoryInfo"},
-                            "example": {
-                                "name": "my-repo",
-                                "url": "https://github.com/example/workflows.git",
-                                "workflows": ["package.module:workflow"],
-                                "credentials": {"token": "<PAT>", "username": "gituser"},
-                            },
+                            "examples": {
+                                "default": {
+                                    "summary": "Example payload",
+                                    "value": {
+                                        "name": "my-repo",
+                                        "url": "https://github.com/example/workflows.git",
+                                        "workflows": ["package.module:workflow"],
+                                        "credentials": {"token": "<PAT>", "username": "gituser"}
+                                    }
+                                }
+                            }
                         }
-                    },
+                    }
                 },
                 "responses": {"204": {"description": "OK"}},
             }
@@ -76,21 +88,27 @@ OPENAPI_SPEC = {
                 "summary": "Dispatch workflow",
                 "tags": ["workflow"],
                 "requestBody": {
+                    "description": "Workflow schema and optional inputs",
                     "required": True,
                     "content": {
                         "application/json": {
                             "schema": {"$ref": "#/components/schemas/DispatchRequest"},
-                            "example": {
-                                "workflow": {
-                                    "workflow_id": "example",
-                                    "version": "1",
-                                    "steps": {},
-                                    "outputs": []
-                                },
-                                "inputs": {}
-                            },
+                            "examples": {
+                                "default": {
+                                    "summary": "Example payload",
+                                    "value": {
+                                        "workflow": {
+                                            "workflow_id": "example",
+                                            "version": "1",
+                                            "steps": {},
+                                            "outputs": []
+                                        },
+                                        "inputs": {}
+                                    }
+                                }
+                            }
                         }
-                    },
+                    }
                 },
                 "responses": {"200": {"description": "Instance ID"}},
             }
@@ -107,19 +125,25 @@ OPENAPI_SPEC = {
                 "tags": ["workflow"],
                 "parameters": [{"name": "worker_id", "in": "query", "required": True, "schema": {"type": "string"}}],
                 "requestBody": {
+                    "description": "Step state and optional result",
                     "required": True,
                     "content": {
                         "application/json": {
                             "schema": {"$ref": "#/components/schemas/StepReport"},
-                            "example": {
-                                "workflow_id": "wf",
-                                "instance_id": "abc",
-                                "step_name": "build",
-                                "state": "SUCCEEDED",
-                                "result": None
-                            },
+                            "examples": {
+                                "default": {
+                                    "summary": "Example payload",
+                                    "value": {
+                                        "workflow_id": "wf",
+                                        "instance_id": "abc",
+                                        "step_name": "build",
+                                        "state": "SUCCEEDED",
+                                        "result": None
+                                    }
+                                }
+                            }
                         }
-                    },
+                    }
                 },
                 "responses": {"200": {"description": "OK"}},
             },
