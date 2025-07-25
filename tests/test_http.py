@@ -2,7 +2,7 @@ import pytest
 
 pytest.importorskip("robyn")
 
-from fuseline.broker import MemoryBroker
+from fuseline.broker import DispatchRequest, MemoryBroker, RepositoryInfo, StepReport
 from fuseline.broker.http import (
     OPENAPI_SPEC,
     SWAGGER_HTML,
@@ -33,7 +33,7 @@ def test_handler_flow():
     broker = MemoryBroker()
 
     wid = handle_register_worker(broker, [wf.to_schema()])
-    instance = handle_dispatch_workflow(broker, {"workflow": wf.to_schema()})
+    instance = handle_dispatch_workflow(broker, DispatchRequest(workflow=wf.to_schema()))
 
     assignment = handle_get_step(broker, wid)
     assert assignment is not None
@@ -43,13 +43,13 @@ def test_handler_flow():
     handle_report_step(
         broker,
         wid,
-        {
-            "workflow_id": wf.workflow_id,
-            "instance_id": instance,
-            "step_name": assignment["step_name"],
-            "state": Status.SUCCEEDED,
-            "result": None,
-        },
+        StepReport(
+            workflow_id=wf.workflow_id,
+            instance_id=instance,
+            step_name=assignment["step_name"],
+            state=Status.SUCCEEDED,
+            result=None,
+        ),
     )
 
     assert handle_get_step(broker, wid) is None
@@ -72,15 +72,15 @@ def test_create_app_returns_robyn():
 
 def test_repository_handlers():
     broker = MemoryBroker()
-    payload = {
-        "name": "repo",
-        "url": "http://example.com/repo.git",
-        "workflows": ["pkg:wf"],
-        "credentials": {},
-    }
+    payload = RepositoryInfo(
+        name="repo",
+        url="http://example.com/repo.git",
+        workflows=["pkg:wf"],
+        credentials={},
+    )
     handle_register_repository(broker, payload)
     repo = handle_get_repository(broker, "repo")
-    assert repo["url"] == payload["url"]
+    assert repo["url"] == payload.url
 
     # list returns the single repository on page 1
     assert handle_list_repositories(broker, 1, 10)[0]["name"] == "repo"
@@ -111,12 +111,12 @@ def test_openapi_tags_grouped():
 
 def test_list_workflows():
     broker = MemoryBroker()
-    payload = {
-        "name": "repo",
-        "url": "http://example.com/repo.git",
-        "workflows": ["pkg:wf"],
-        "credentials": {},
-    }
+    payload = RepositoryInfo(
+        name="repo",
+        url="http://example.com/repo.git",
+        workflows=["pkg:wf"],
+        credentials={},
+    )
     handle_register_repository(broker, payload)
     workflows = handle_list_workflows(broker)
     assert workflows[0]["repository"] == "repo"

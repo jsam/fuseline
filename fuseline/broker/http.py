@@ -20,7 +20,7 @@ from robyn.types import Body, JSONResponse
 
 
 from ..workflow import WorkflowSchema
-from . import Broker, PostgresBroker, RepositoryInfo, StepReport
+from . import Broker, DispatchRequest, PostgresBroker, RepositoryInfo, StepReport
 from .openapi import OPENAPI_SPEC, SWAGGER_HTML
 
 __all__ = [
@@ -45,15 +45,14 @@ __all__ = [
 ]
 
 
-def handle_register_worker(broker: Broker, payload: Iterable[dict[str, Any]]) -> str:
+def handle_register_worker(broker: Broker, payload: Iterable[WorkflowSchema]) -> str:
     """Register a worker using *payload* workflow schemas."""
-    workflows = [WorkflowSchema(**wf) for wf in payload]
-    return broker.register_worker(workflows)
+    return broker.register_worker(payload)
 
 
-def handle_register_repository(broker: Broker, payload: dict[str, Any]) -> None:
+def handle_register_repository(broker: Broker, payload: RepositoryInfo) -> None:
     """Store workflow repository information."""
-    broker.register_repository(RepositoryInfo(**payload))
+    broker.register_repository(payload)
 
 
 def handle_get_repository(broker: Broker, name: str) -> dict[str, Any] | None:
@@ -72,10 +71,9 @@ def handle_list_workflows(broker: Broker) -> list[dict[str, Any]]:
     return [asdict(wf) for wf in workflows]
 
 
-def handle_dispatch_workflow(broker: Broker, payload: dict[str, Any]) -> str:
+def handle_dispatch_workflow(broker: Broker, payload: DispatchRequest) -> str:
     """Dispatch a new workflow run described by *payload*."""
-    wf = WorkflowSchema(**payload["workflow"])
-    return broker.dispatch_workflow(wf, payload.get("inputs"))
+    return broker.dispatch_workflow(payload.workflow, payload.inputs)
 
 
 def handle_get_step(broker: Broker, worker_id: str) -> dict[str, Any] | None:
@@ -86,9 +84,9 @@ def handle_get_step(broker: Broker, worker_id: str) -> dict[str, Any] | None:
     return asdict(assignment)
 
 
-def handle_report_step(broker: Broker, worker_id: str, payload: dict[str, Any]) -> None:
+def handle_report_step(broker: Broker, worker_id: str, payload: StepReport) -> None:
     """Report completed step results back to the broker."""
-    broker.report_step(worker_id, StepReport(**payload))
+    broker.report_step(worker_id, payload)
 
 
 def handle_keep_alive(broker: Broker, worker_id: str) -> None:
@@ -110,12 +108,8 @@ def register_worker_routes(app: Robyn, broker: Broker) -> None:
     """Register worker-related routes on *app*."""
 
     @app.post("/worker/register", openapi_tags=["worker"])
-    async def register(request):  # pragma: no cover - integration
-        try:
-            payload = json.loads(request.body)
-        except Exception:
-            return Response(robyn_status_codes.HTTP_400_BAD_REQUEST, {}, "")
-        wid = handle_register_worker(broker, payload)
+    async def register(request, body: list[WorkflowSchema]):  # pragma: no cover - integration
+        wid = handle_register_worker(broker, body)
         return Response(robyn_status_codes.HTTP_200_OK, {}, wid)
 
     @app.post("/worker/keep-alive", openapi_tags=["worker"])
@@ -147,12 +141,8 @@ def register_repository_routes(app: Robyn, broker: Broker) -> None:
     """Register repository endpoints."""
 
     @app.post("/repository/register", openapi_tags=["repository"])
-    async def register_repo(request):  # pragma: no cover - integration
-        try:
-            payload = json.loads(request.body)
-        except Exception:
-            return Response(robyn_status_codes.HTTP_400_BAD_REQUEST, {}, "")
-        handle_register_repository(broker, payload)
+    async def register_repo(request, body: RepositoryInfo):  # pragma: no cover - integration
+        handle_register_repository(broker, body)
         return Response(robyn_status_codes.HTTP_204_NO_CONTENT, {}, "")
 
     @app.get("/repository", openapi_tags=["repository"])
@@ -181,12 +171,8 @@ def register_workflow_routes(app: Robyn, broker: Broker) -> None:
     """Register workflow endpoints."""
 
     @app.post("/workflow/dispatch", openapi_tags=["workflow"])
-    async def dispatch(request):  # pragma: no cover - integration
-        try:
-            payload = json.loads(request.body)
-        except Exception:
-            return Response(robyn_status_codes.HTTP_400_BAD_REQUEST, {}, "")
-        instance = handle_dispatch_workflow(broker, payload)
+    async def dispatch(request, body: DispatchRequest):  # pragma: no cover - integration
+        instance = handle_dispatch_workflow(broker, body)
         return Response(robyn_status_codes.HTTP_200_OK, {}, instance)
 
     @app.get("/workflow/step", openapi_tags=["workflow"])
@@ -202,13 +188,9 @@ def register_workflow_routes(app: Robyn, broker: Broker) -> None:
         )
 
     @app.post("/workflow/step", openapi_tags=["workflow"])
-    async def report_step(request):  # pragma: no cover - integration
+    async def report_step(request, body: StepReport):  # pragma: no cover - integration
         wid = request.query_params.get("worker_id", None)
-        try:
-            payload = json.loads(request.body)
-        except Exception:
-            return Response(robyn_status_codes.HTTP_400_BAD_REQUEST, {}, "")
-        handle_report_step(broker, wid, payload)
+        handle_report_step(broker, wid, body)
         return Response(robyn_status_codes.HTTP_204_NO_CONTENT, {}, "")
 
     @app.get("/workflows", openapi_tags=["workflow"])

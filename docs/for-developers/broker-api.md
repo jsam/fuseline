@@ -74,7 +74,9 @@ POST /worker/register
 A worker sends the full workflow schemas it can execute.  Each schema has
 a name and a version.  If the broker already knows a workflow under the
 same name and version but the definition differs, the registration is
-rejected.  A successful call returns a unique worker ID.
+rejected.  The request body is a list of ``WorkflowSchema`` objects so
+Swagger shows the expected structure.  A successful call returns a
+unique worker ID.
 
 Example request::
 
@@ -96,7 +98,9 @@ POST /workflow/dispatch
 ```
 
 Start a workflow run by providing a workflow schema and optional input
-parameters. The call returns the instance ID for the new run.
+parameters. The payload maps to the ``DispatchRequest`` dataclass which
+subclasses ``Body`` so Swagger lists the ``workflow`` and ``inputs``
+fields.  The call returns the instance ID for the new run.
 
 Example request::
 

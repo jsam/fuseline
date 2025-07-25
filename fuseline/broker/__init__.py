@@ -1,5 +1,6 @@
 from .base import (
     Broker,
+    DispatchRequest,
     LastTask,
     RepositoryInfo,
     StepAssignment,
@@ -16,6 +17,7 @@ __all__ = [
     "MemoryBroker",
     "PostgresBroker",
     "RepositoryInfo",
+    "DispatchRequest",
     "StepAssignment",
     "StepReport",
     "WorkerInfo",

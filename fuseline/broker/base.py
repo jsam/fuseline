@@ -43,6 +43,14 @@ class RepositoryInfo(Body):
 
 
 @dataclass
+class DispatchRequest(Body):
+    """Workflow schema and optional inputs for dispatch."""
+
+    workflow: WorkflowSchema
+    inputs: Optional[dict[str, Any]] = None
+
+
+@dataclass
 class WorkflowInfo:
     """Workflow specification paired with its repository."""
 
