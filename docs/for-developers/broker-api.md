@@ -74,9 +74,10 @@ POST /worker/register
 A worker sends the full workflow schemas it can execute.  Each schema has
 a name and a version.  If the broker already knows a workflow under the
 same name and version but the definition differs, the registration is
-rejected.  The request body is a list of ``WorkflowSchema`` objects so
-Swagger shows the expected structure.  A successful call returns a
-unique worker ID.
+rejected.  The request body is parsed into a ``WorkerRegistration``
+dataclass which contains a list of ``WorkflowSchema`` objects, so Swagger
+shows the expected structure.  A successful call returns a unique worker
+ID.
 
 Example request::
 

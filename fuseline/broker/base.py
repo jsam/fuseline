@@ -4,13 +4,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Iterable, Mapping, Optional, Sequence
 
-try:  # pragma: no cover - optional
-    from robyn.types import Body
-except Exception:  # pragma: no cover - fallback when Robyn isn't installed
-
-    class Body:  # pragma: no cover - minimal stub for non-HTTP contexts
-        """Placeholder so dataclasses can inherit from :class:`Body`."""
-        pass
+from robyn.types import Body
 
 from ..workflow import Status, WorkflowSchema
 

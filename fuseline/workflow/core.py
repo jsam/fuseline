@@ -18,12 +18,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence
 
-try:  # pragma: no cover - optional dependency
-    from robyn.types import Body
-except Exception:  # pragma: no cover - fallback when Robyn isn't installed
-
-    class Body:  # pragma: no cover - stub so dataclasses can inherit Body
-        pass
+from robyn.types import Body
 
 from ..broker.storage import RuntimeStorage
 from ..worker import ExecutionEngine
