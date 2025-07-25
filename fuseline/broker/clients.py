@@ -128,7 +128,7 @@ class HttpBrokerClient(BrokerClient):
         return data
 
     def register_worker(self, workflows: Iterable[WorkflowSchema]) -> str:
-        data = [asdict(wf) for wf in workflows]
+        data = {"workflows": [asdict(wf) for wf in workflows]}
         return self._post("/worker/register", data)
 
     def dispatch_workflow(self, workflow: WorkflowSchema, inputs: Optional[dict[str, Any]] = None) -> str:

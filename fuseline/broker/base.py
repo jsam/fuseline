@@ -57,6 +57,13 @@ class DispatchRequest(Body):
 
 
 @dataclass
+class WorkerRegistration(Body):
+    """Payload sent when a worker registers with the broker."""
+
+    workflows: list[WorkflowSchema]
+
+
+@dataclass
 class WorkflowInfo:
     """Workflow specification paired with its repository."""
 

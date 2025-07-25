@@ -25,14 +25,16 @@ OPENAPI_SPEC = {
                             "examples": {
                                 "default": {
                                     "summary": "Example payload",
-                                    "value": [
-                                        {
-                                            "workflow_id": "example",
-                                            "version": "1",
-                                            "steps": {},
-                                            "outputs": []
-                                        }
-                                    ]
+                                    "value": {
+                                        "workflows": [
+                                            {
+                                                "workflow_id": "example",
+                                                "version": "1",
+                                                "steps": {},
+                                                "outputs": []
+                                            }
+                                        ]
+                                    }
                                 }
                             }
                         }
@@ -281,16 +283,24 @@ OPENAPI_SPEC = {
                 },
             },
             "WorkerRegistration": {
-                "type": "array",
-                "items": {"$ref": "#/components/schemas/WorkflowSchema"},
-                "example": [
-                    {
-                        "workflow_id": "example",
-                        "version": "1",
-                        "steps": {},
-                        "outputs": []
+                "type": "object",
+                "properties": {
+                    "workflows": {
+                        "type": "array",
+                        "items": {"$ref": "#/components/schemas/WorkflowSchema"},
                     }
-                ],
+                },
+                "required": ["workflows"],
+                "example": {
+                    "workflows": [
+                        {
+                            "workflow_id": "example",
+                            "version": "1",
+                            "steps": {},
+                            "outputs": []
+                        }
+                    ]
+                },
             },
             "DispatchRequest": {
                 "type": "object",

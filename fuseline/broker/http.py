@@ -19,7 +19,14 @@ from robyn import status_codes as robyn_status_codes
 
 
 from ..workflow import WorkflowSchema
-from . import Broker, DispatchRequest, PostgresBroker, RepositoryInfo, StepReport
+from . import (
+    Broker,
+    DispatchRequest,
+    PostgresBroker,
+    RepositoryInfo,
+    StepReport,
+    WorkerRegistration,
+)
 from .openapi import OPENAPI_SPEC, SWAGGER_HTML
 
 __all__ = [
@@ -107,8 +114,8 @@ def register_worker_routes(app: Robyn, broker: Broker) -> None:
     """Register worker-related routes on *app*."""
 
     @app.post("/worker/register", openapi_tags=["worker"])
-    async def register(request, body: list[WorkflowSchema]):  # pragma: no cover - integration
-        wid = handle_register_worker(broker, body)
+    async def register(request, body: WorkerRegistration):  # pragma: no cover - integration
+        wid = handle_register_worker(broker, body.workflows)
         return Response(robyn_status_codes.HTTP_200_OK, {}, wid)
 
     @app.post("/worker/keep-alive", openapi_tags=["worker"])
