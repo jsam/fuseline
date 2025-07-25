@@ -14,40 +14,9 @@ import json
 from dataclasses import asdict
 from typing import Any, Iterable
 
-try:
-    from robyn import Response, Robyn
-    from robyn import status_codes as robyn_status_codes
-    from robyn.types import Body, JSONResponse
-except Exception:  # pragma: no cover - optional
-
-    class StatusCodes:  # pragma: no cover - minimal stub
-        HTTP_200_OK = 200
-        HTTP_204_NO_CONTENT = 204
-        HTTP_404_NOT_FOUND = 404
-
-    robyn_status_codes = StatusCodes
-
-    from typing import Any as _Any  # silence flake warnings
-
-    class Response:  # pragma: no cover - minimal stub matching Robyn's API
-        def __init__(
-            self,
-            status_code: int,
-            headers: dict[str, str],
-            description: str = "",
-        ) -> None:
-            self.status_code = status_code
-            self.headers = headers
-            self.description = description
-
-    class Robyn:  # pragma: no cover - dummy stub for type checkers
-        def __init__(self, *args: _Any, **kwargs: _Any) -> None: ...
-
-    class Body:  # pragma: no cover - stub
-        pass
-
-    class JSONResponse(Response):  # pragma: no cover - stub
-        pass
+from robyn import Response, Robyn
+from robyn import status_codes as robyn_status_codes
+from robyn.types import Body, JSONResponse
 
 
 from ..workflow import WorkflowSchema
@@ -291,7 +260,7 @@ def create_app(dsn: str | None = None, broker: Broker | None = None) -> Robyn:
 def main() -> None:
     port = int(os.environ.get("PORT", "8000"))
     host = os.environ.get("HOST", "0.0.0.0")  # noqa: S104 - external binding
-    create_app().start(port=port, host=host)
+    create_app().start(port=port, host=host, disable_openapi=True)
 
 
 if __name__ == "__main__":  # pragma: no cover - manual start
