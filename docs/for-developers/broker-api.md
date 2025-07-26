@@ -17,7 +17,7 @@ returns a ``JSONResponse`` dataclass:
 from robyn.types import Body, JSONResponse
 
 class WorkerRegisterBody(Body):
-    workflows: list[dict[str, Any]]
+    workflows: list[dict[str, object]]
 
 class WorkerIdResponse(JSONResponse):
     worker_id: str
