@@ -51,7 +51,7 @@ except Exception:  # pragma: no cover - optional
         pass
 
 
-from ..workflow import WorkflowSchema
+from ..workflow import Status, WorkflowSchema
 from . import Broker, PostgresBroker, RepositoryInfo, StepReport
 from .openapi import OPENAPI_SPEC, SWAGGER_HTML
 
@@ -83,7 +83,7 @@ __all__ = [
 
 @dataclass
 class WorkerRegisterBody(Body):
-    workflows: list[dict[str, Any]]
+    workflows: list[dict[str, object]]
 
 
 @dataclass
@@ -103,7 +103,7 @@ class StatusResponse(JSONResponse):
 
 @dataclass
 class WorkersResponse(JSONResponse):
-    workers: list[dict[str, Any]]
+    workers: list[dict[str, object]]
 
 
 @dataclass
@@ -116,13 +116,13 @@ class RepositoryRegisterBody(Body):
 
 @dataclass
 class RepositoryResponse(JSONResponse):
-    repository: dict[str, Any] | list[dict[str, Any]] | None
+    repository: dict[str, object] | list[dict[str, object]] | None
 
 
 @dataclass
 class DispatchBody(Body):
-    workflow: dict[str, Any]
-    inputs: dict[str, Any] | None = None
+    workflow: dict[str, object]
+    inputs: dict[str, object] | None = None
 
 
 @dataclass
@@ -140,18 +140,18 @@ class StepBody(Body):
     workflow_id: str
     instance_id: str
     step_name: str
-    state: Any
-    result: Any
+    state: Status
+    result: object
 
 
 @dataclass
 class StepResponse(JSONResponse):
-    step: dict[str, Any] | None
+    step: dict[str, object] | None
 
 
 @dataclass
 class WorkflowsResponse(JSONResponse):
-    workflows: list[dict[str, Any]]
+    workflows: list[dict[str, object]]
 
 
 def handle_register_worker(broker: Broker, payload: Iterable[dict[str, Any]]) -> str:
