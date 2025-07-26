@@ -4,7 +4,9 @@ title: "Broker API"
 
 The broker stores workflow definitions and tracks running instances.
 Workers communicate with it over HTTP using a small set of endpoints.
-Each step handed to a worker is represented by a `StepAssignment` object
+Each endpoint uses typed dataclasses from ``robyn.types`` for request
+payloads and responses so the API surface is self-documenting.  Steps
+handed to a worker are represented by a `StepAssignment` object
 containing the workflow identifiers, the payload needed to run the task
 and a timeout deadline.
 

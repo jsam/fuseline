@@ -11,7 +11,7 @@ except Exception:  # pragma: no cover - optional
 
 
 import json
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from typing import Any, Iterable
 
 try:
