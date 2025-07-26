@@ -17,6 +17,8 @@ from typing import Any, Iterable
 try:
     from robyn import Response, Robyn
     from robyn import status_codes as robyn_status_codes
+    from robyn.types import Body, JSONResponse
+    from robyn.robyn import QueryParams
 except Exception:  # pragma: no cover - optional
 
     class StatusCodes:  # pragma: no cover - minimal stub
@@ -41,6 +43,15 @@ except Exception:  # pragma: no cover - optional
 
     class Robyn:  # pragma: no cover - dummy stub for type checkers
         def __init__(self, *args: _Any, **kwargs: _Any) -> None: ...
+
+    class Body:  # pragma: no cover - stub for typed requests
+        pass
+
+    class JSONResponse:  # pragma: no cover - stub for typed responses
+        pass
+
+    class QueryParams:  # pragma: no cover - stub for typed query parameters
+        pass
 
 
 from ..workflow import WorkflowSchema
@@ -67,6 +78,83 @@ __all__ = [
     "register_worker_routes",
     "register_workflow_routes",
 ]
+
+
+# ---------------------------------------------------------------------------
+# Typed request and response models
+# ---------------------------------------------------------------------------
+
+@dataclass
+class WorkerRegisterBody(Body):
+    workflows: list[dict[str, Any]]
+
+
+@dataclass
+class WorkerIdResponse(JSONResponse):
+    worker_id: str
+
+
+@dataclass
+class KeepAliveQuery(QueryParams):
+    worker_id: str
+
+
+@dataclass
+class StatusResponse(JSONResponse):
+    status: str
+
+
+@dataclass
+class WorkersResponse(JSONResponse):
+    workers: list[dict[str, Any]]
+
+
+@dataclass
+class RepositoryRegisterBody(Body):
+    name: str
+    url: str
+    workflows: list[str]
+    credentials: dict[str, str]
+
+
+@dataclass
+class RepositoryResponse(JSONResponse):
+    repository: dict[str, Any] | list[dict[str, Any]] | None
+
+
+@dataclass
+class DispatchBody(Body):
+    workflow: dict[str, Any]
+    inputs: dict[str, Any] | None = None
+
+
+@dataclass
+class DispatchResponse(JSONResponse):
+    instance_id: str
+
+
+@dataclass
+class StepQuery(QueryParams):
+    worker_id: str
+
+
+@dataclass
+class StepBody(Body):
+    workflow_id: str
+    instance_id: str
+    step_name: str
+    state: Any
+    result: Any
+
+
+@dataclass
+class StepResponse(JSONResponse):
+    step: dict[str, Any] | None
+
+
+@dataclass
+class WorkflowsResponse(JSONResponse):
+    workflows: list[dict[str, Any]]
 
 
 def handle_register_worker(broker: Broker, payload: Iterable[dict[str, Any]]) -> str:
@@ -134,103 +222,74 @@ def register_worker_routes(app: Robyn, broker: Broker) -> None:
     """Register worker-related routes on *app*."""
 
     @app.post("/worker/register", openapi_tags=["worker"])
-    async def register(request):  # pragma: no cover - integration
-        payload = json.loads(request.body)
-        wid = handle_register_worker(broker, payload)
-        return Response(robyn_status_codes.HTTP_200_OK, {}, wid)
+    async def register(request, body: WorkerRegisterBody) -> WorkerIdResponse:  # pragma: no cover - integration
+        wid = handle_register_worker(broker, body.workflows)
+        return WorkerIdResponse(worker_id=wid)
 
     @app.post("/worker/keep-alive", openapi_tags=["worker"])
-    async def keep_alive(request):  # pragma: no cover - integration
-        wid = request.query_params.get("worker_id", None)
-        handle_keep_alive(broker, wid)
-        return Response(robyn_status_codes.HTTP_204_NO_CONTENT, {}, "")
+    async def keep_alive(query_params: KeepAliveQuery) -> JSONResponse:  # pragma: no cover - integration
+        handle_keep_alive(broker, query_params.worker_id)
+        return JSONResponse()
 
     @app.get("/workers", openapi_tags=["worker"])
-    async def workers(request):  # pragma: no cover - integration
+    async def workers() -> WorkersResponse:  # pragma: no cover - integration
         data = handle_get_workers(broker)
-        return Response(
-            robyn_status_codes.HTTP_200_OK,
-            {"Content-Type": "application/json"},
-            json.dumps(data),
-        )
+        return WorkersResponse(workers=data)
 
     @app.get("/status", openapi_tags=["system"])
-    async def status(request):  # pragma: no cover - integration
+    async def status() -> StatusResponse:  # pragma: no cover - integration
         data = handle_status(broker)
-        return Response(
-            robyn_status_codes.HTTP_200_OK,
-            {"Content-Type": "application/json"},
-            json.dumps(data),
-        )
+        return StatusResponse(status=data["status"])
 
 
 def register_repository_routes(app: Robyn, broker: Broker) -> None:
     """Register repository endpoints."""
 
     @app.post("/repository/register", openapi_tags=["repository"])
-    async def register_repo(request):  # pragma: no cover - integration
-        payload = json.loads(request.body)
-        handle_register_repository(broker, payload)
-        return Response(robyn_status_codes.HTTP_204_NO_CONTENT, {}, "")
+    async def register_repo(body: RepositoryRegisterBody) -> JSONResponse:  # pragma: no cover - integration
+        handle_register_repository(broker, asdict(body))
+        return JSONResponse()
 
     @app.get("/repository", openapi_tags=["repository"])
-    async def get_repo(request):  # pragma: no cover - integration
-        name = request.query_params.get("name", None)
-        page = int(request.query_params.get("page", "1"))
+    async def get_repo(request, query_params: QueryParams) -> RepositoryResponse:  # pragma: no cover - integration
+        name = query_params.get("name")  # type: ignore[attr-defined]
+        page = int(query_params.get("page", "1"))  # type: ignore[attr-defined]
         if name:
             data = handle_get_repository(broker, name)
             if data is None:
-                return Response(robyn_status_codes.HTTP_404_NOT_FOUND, {}, "")
+                return RepositoryResponse(repository=None)
             payload = data
         else:
-            page_size = int(request.query_params.get("page_size", "50"))
+            page_size = int(query_params.get("page_size", "50"))  # type: ignore[attr-defined]
             repos = handle_list_repositories(broker, page, page_size)
             if not repos and page > 1:
-                return Response(robyn_status_codes.HTTP_404_NOT_FOUND, {}, "")
+                return RepositoryResponse(repository=None)
             payload = repos
-        return Response(
-            robyn_status_codes.HTTP_200_OK,
-            {"Content-Type": "application/json"},
-            json.dumps(payload),
-        )
+        return RepositoryResponse(repository=payload)
 
 
 def register_workflow_routes(app: Robyn, broker: Broker) -> None:
     """Register workflow endpoints."""
 
     @app.post("/workflow/dispatch", openapi_tags=["workflow"])
-    async def dispatch(request):  # pragma: no cover - integration
-        payload = json.loads(request.body)
-        instance = handle_dispatch_workflow(broker, payload)
-        return Response(robyn_status_codes.HTTP_200_OK, {}, instance)
+    async def dispatch(body: DispatchBody) -> DispatchResponse:  # pragma: no cover - integration
+        instance = handle_dispatch_workflow(broker, asdict(body))
+        return DispatchResponse(instance_id=instance)
 
     @app.get("/workflow/step", openapi_tags=["workflow"])
-    async def get_step(request):  # pragma: no cover - integration
-        wid = request.query_params.get("worker_id", None)
-        data = handle_get_step(broker, wid)
-        if data is None:
-            return Response(robyn_status_codes.HTTP_204_NO_CONTENT, {}, "")
-        return Response(
-            robyn_status_codes.HTTP_200_OK,
-            {"Content-Type": "application/json"},
-            json.dumps(data),
-        )
+    async def get_step(query_params: StepQuery) -> StepResponse:  # pragma: no cover - integration
+        data = handle_get_step(broker, query_params.worker_id)
+        return StepResponse(step=data)
 
     @app.post("/workflow/step", openapi_tags=["workflow"])
-    async def report_step(request):  # pragma: no cover - integration
-        wid = request.query_params.get("worker_id", None)
-        payload = json.loads(request.body)
-        handle_report_step(broker, wid, payload)
-        return Response(robyn_status_codes.HTTP_204_NO_CONTENT, {}, "")
+    async def report_step(query_params: StepQuery, body: StepBody) -> JSONResponse:  # pragma: no cover - integration
+        handle_report_step(broker, query_params.worker_id, asdict(body))
+        return JSONResponse()
 
     @app.get("/workflows", openapi_tags=["workflow"])
-    async def list_wfs(request):  # pragma: no cover - integration
+    async def list_wfs() -> WorkflowsResponse:  # pragma: no cover - integration
         data = handle_list_workflows(broker)
-        return Response(
-            robyn_status_codes.HTTP_200_OK,
-            {"Content-Type": "application/json"},
-            json.dumps(data),
-        )
+        return WorkflowsResponse(workflows=data)
 
 
 def register_routes(app: Robyn, broker: Broker) -> None:
