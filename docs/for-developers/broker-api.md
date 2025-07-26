@@ -10,6 +10,24 @@ handed to a worker are represented by a `StepAssignment` object
 containing the workflow identifiers, the payload needed to run the task
 and a timeout deadline.
 
+For example, the worker registration endpoint expects a ``Body`` model and
+returns a ``JSONResponse`` dataclass:
+
+```python
+from robyn.types import Body, JSONResponse
+
+class WorkerRegisterBody(Body):
+    workflows: list[dict[str, Any]]
+
+class WorkerIdResponse(JSONResponse):
+    worker_id: str
+
+@app.post("/worker/register")
+def register_worker(body: WorkerRegisterBody) -> WorkerIdResponse:
+    wid = broker.register_worker(body.workflows)
+    return WorkerIdResponse(worker_id=wid)
+```
+
 ## Repository endpoints
 
 ### Register repository

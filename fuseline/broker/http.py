@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import os
 
 try:  # optional dependency
@@ -10,15 +8,14 @@ except Exception:  # pragma: no cover - optional
         return None
 
 
-import json
 from dataclasses import asdict, dataclass
 from typing import Any, Iterable
 
 try:
     from robyn import Response, Robyn
     from robyn import status_codes as robyn_status_codes
-    from robyn.types import Body, JSONResponse
     from robyn.robyn import QueryParams
+    from robyn.types import Body, JSONResponse
 except Exception:  # pragma: no cover - optional
 
     class StatusCodes:  # pragma: no cover - minimal stub
