@@ -94,6 +94,13 @@ def _coerce_dataclass(data: Any, model: Type[T]) -> T:
         data = data.decode()
     if isinstance(data, str):
         data = json.loads(data or "{}")
+    if not isinstance(data, dict):
+        fields = getattr(model, "__dataclass_fields__", {})
+        if len(fields) == 1:
+            field = next(iter(fields))
+            data = {field: data}
+        else:
+            raise TypeError(f"Cannot convert {type(data)} to {model}")
     return model(**data)
 
 
