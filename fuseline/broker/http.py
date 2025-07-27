@@ -83,7 +83,7 @@ __all__ = [
 
 @dataclass
 class WorkerRegisterBody(Body):
-    workflows: list[dict[str, object]]
+    workflows: list[dict]
 
 
 @dataclass
@@ -103,7 +103,7 @@ class StatusResponse(JSONResponse):
 
 @dataclass
 class WorkersResponse(JSONResponse):
-    workers: list[dict[str, object]]
+    workers: list[dict]
 
 
 @dataclass
@@ -116,13 +116,13 @@ class RepositoryRegisterBody(Body):
 
 @dataclass
 class RepositoryResponse(JSONResponse):
-    repository: dict[str, object] | list[dict[str, object]] | None
+    repository: dict | list[dict] | None
 
 
 @dataclass
 class DispatchBody(Body):
-    workflow: dict[str, object]
-    inputs: dict[str, object] | None = None
+    workflow: dict
+    inputs: dict | None = None
 
 
 @dataclass
@@ -141,17 +141,17 @@ class StepBody(Body):
     instance_id: str
     step_name: str
     state: Status
-    result: object
+    result: dict | list | str | int | float | bool | None
 
 
 @dataclass
 class StepResponse(JSONResponse):
-    step: dict[str, object] | None
+    step: dict | None
 
 
 @dataclass
 class WorkflowsResponse(JSONResponse):
-    workflows: list[dict[str, object]]
+    workflows: list[dict]
 
 
 def handle_register_worker(broker: Broker, payload: Iterable[dict[str, Any]]) -> str:
