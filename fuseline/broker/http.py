@@ -14,7 +14,7 @@ from typing import Any, Iterable
 try:
     from robyn import Response, Robyn
     from robyn import status_codes as robyn_status_codes
-    from robyn.robyn import QueryParams
+    from robyn.robyn import QueryParams, Request
     from robyn.types import Body, JSONResponse
 except Exception:  # pragma: no cover - optional
 
@@ -219,7 +219,8 @@ def register_worker_routes(app: Robyn, broker: Broker) -> None:
     """Register worker-related routes on *app*."""
 
     @app.post("/worker/register", openapi_tags=["worker"])
-    async def register(request, body: WorkerRegisterBody) -> WorkerIdResponse:  # pragma: no cover - integration
+    async def register(request: Request, body: WorkerRegisterBody) -> WorkerIdResponse:
+        # pragma: no cover - integration
         wid = handle_register_worker(broker, body.workflows)
         return WorkerIdResponse(worker_id=wid)
 
@@ -248,7 +249,8 @@ def register_repository_routes(app: Robyn, broker: Broker) -> None:
         return JSONResponse()
 
     @app.get("/repository", openapi_tags=["repository"])
-    async def get_repo(request, query_params: QueryParams) -> RepositoryResponse:  # pragma: no cover - integration
+    async def get_repo(request: Request, query_params: QueryParams) -> RepositoryResponse:
+        # pragma: no cover - integration
         name = query_params.get("name")  # type: ignore[attr-defined]
         page = int(query_params.get("page", "1"))  # type: ignore[attr-defined]
         if name:
