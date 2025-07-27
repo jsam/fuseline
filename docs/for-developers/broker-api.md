@@ -31,6 +31,10 @@ def register_worker(body: WorkerRegisterBody) -> WorkerIdResponse:
     return WorkerIdResponse(worker_id=wid)
 ```
 
+The actual implementation also ensures any raw JSON payload is converted
+to the dataclass at runtime so type hints remain accurate even if the
+framework does not deserialize the body for us.
+
 ## Repository endpoints
 
 ### Register repository

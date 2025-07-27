@@ -8,8 +8,9 @@ except Exception:  # pragma: no cover - optional
         return None
 
 
+import json
 from dataclasses import asdict, dataclass
-from typing import Any, Iterable
+from typing import Any, Iterable, Type, TypeVar
 
 try:
     from robyn import Response, Robyn
@@ -75,6 +76,25 @@ __all__ = [
     "register_worker_routes",
     "register_workflow_routes",
 ]
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+T = TypeVar("T")
+
+
+def _coerce_dataclass(data: Any, model: Type[T]) -> T:
+    """Convert ``data`` to an instance of ``model``."""
+
+    if isinstance(data, model):
+        return data
+    if isinstance(data, (bytes, bytearray)):
+        data = data.decode()
+    if isinstance(data, str):
+        data = json.loads(data or "{}")
+    return model(**data)
 
 
 # ---------------------------------------------------------------------------
@@ -229,6 +249,7 @@ def register_worker_routes(app: Robyn, broker: Broker) -> None:
     @app.post("/worker/register", openapi_tags=["worker"])
     def register(request: Request, body: WorkerRegisterBody) -> WorkerIdResponse:
         # pragma: no cover - integration
+        body = _coerce_dataclass(body, WorkerRegisterBody)
         wid = handle_register_worker(broker, body.workflows)
         return WorkerIdResponse(worker_id=wid)
 
@@ -253,6 +274,7 @@ def register_repository_routes(app: Robyn, broker: Broker) -> None:
 
     @app.post("/repository/register", openapi_tags=["repository"])
     def register_repo(body: RepositoryRegisterBody) -> JSONResponse:  # pragma: no cover - integration
+        body = _coerce_dataclass(body, RepositoryRegisterBody)
         handle_register_repository(broker, asdict(body))
         return JSONResponse()
 
@@ -279,6 +301,7 @@ def register_workflow_routes(app: Robyn, broker: Broker) -> None:
 
     @app.post("/workflow/dispatch", openapi_tags=["workflow"])
     def dispatch(body: DispatchBody) -> DispatchResponse:  # pragma: no cover - integration
+        body = _coerce_dataclass(body, DispatchBody)
         instance = handle_dispatch_workflow(broker, asdict(body))
         return DispatchResponse(instance_id=instance)
 
@@ -289,6 +312,7 @@ def register_workflow_routes(app: Robyn, broker: Broker) -> None:
 
     @app.post("/workflow/step", openapi_tags=["workflow"])
     def report_step(query_params: StepQuery, body: StepBody) -> JSONResponse:  # pragma: no cover - integration
+        body = _coerce_dataclass(body, StepBody)
         handle_report_step(broker, query_params.worker_id, asdict(body))
         return JSONResponse()
 
