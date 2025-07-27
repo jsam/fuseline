@@ -8,7 +8,7 @@ except Exception:  # pragma: no cover - optional
         return None
 
 
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from typing import Any, Iterable
 
 try:
@@ -81,26 +81,32 @@ __all__ = [
 # Typed request and response models
 # ---------------------------------------------------------------------------
 
+@dataclass
 class WorkerRegisterBody(Body):
     workflows: list[dict]
 
 
+@dataclass
 class WorkerIdResponse(JSONResponse):
     worker_id: str
 
 
+@dataclass
 class KeepAliveQuery(QueryParams):
     worker_id: str
 
 
+@dataclass
 class StatusResponse(JSONResponse):
     status: str
 
 
+@dataclass
 class WorkersResponse(JSONResponse):
     workers: list[dict]
 
 
+@dataclass
 class RepositoryRegisterBody(Body):
     name: str
     url: str
@@ -108,23 +114,28 @@ class RepositoryRegisterBody(Body):
     credentials: dict[str, str]
 
 
+@dataclass
 class RepositoryResponse(JSONResponse):
     repository: dict | list[dict] | None
 
 
+@dataclass
 class DispatchBody(Body):
     workflow: dict
     inputs: dict | None = None
 
 
+@dataclass
 class DispatchResponse(JSONResponse):
     instance_id: str
 
 
+@dataclass
 class StepQuery(QueryParams):
     worker_id: str
 
 
+@dataclass
 class StepBody(Body):
     workflow_id: str
     instance_id: str
@@ -133,10 +144,12 @@ class StepBody(Body):
     result: dict | list | str | int | float | bool | None
 
 
+@dataclass
 class StepResponse(JSONResponse):
     step: dict | None
 
 
+@dataclass
 class WorkflowsResponse(JSONResponse):
     workflows: list[dict]
 

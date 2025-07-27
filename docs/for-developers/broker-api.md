@@ -14,11 +14,14 @@ For example, the worker registration endpoint expects a ``Body`` model and
 returns a ``JSONResponse`` dataclass:
 
 ```python
+from dataclasses import dataclass
 from robyn.types import Body, JSONResponse
 
+@dataclass
 class WorkerRegisterBody(Body):
     workflows: list[dict]
 
+@dataclass
 class WorkerIdResponse(JSONResponse):
     worker_id: str
 
