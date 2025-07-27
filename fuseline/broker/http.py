@@ -262,6 +262,7 @@ def register_worker_routes(app: Robyn, broker: Broker) -> None:
 
     @app.post("/worker/keep-alive", openapi_tags=["worker"])
     def keep_alive(query_params: KeepAliveQuery) -> JSONResponse:  # pragma: no cover - integration
+        query_params = _coerce_dataclass(query_params, KeepAliveQuery)
         handle_keep_alive(broker, query_params.worker_id)
         return JSONResponse()
 
@@ -288,6 +289,7 @@ def register_repository_routes(app: Robyn, broker: Broker) -> None:
     @app.get("/repository", openapi_tags=["repository"])
     def get_repo(query_params: RepositoryQuery) -> RepositoryResponse:
         # pragma: no cover - integration
+        query_params = _coerce_dataclass(query_params, RepositoryQuery)
         name = query_params.name
         page = query_params.page
         if name:
@@ -314,11 +316,13 @@ def register_workflow_routes(app: Robyn, broker: Broker) -> None:
 
     @app.get("/workflow/step", openapi_tags=["workflow"])
     def get_step(query_params: StepQuery) -> StepResponse:  # pragma: no cover - integration
+        query_params = _coerce_dataclass(query_params, StepQuery)
         data = handle_get_step(broker, query_params.worker_id)
         return StepResponse(step=data)
 
     @app.post("/workflow/step", openapi_tags=["workflow"])
     def report_step(query_params: StepQuery, body: StepBody) -> JSONResponse:  # pragma: no cover - integration
+        query_params = _coerce_dataclass(query_params, StepQuery)
         body = _coerce_dataclass(body, StepBody)
         handle_report_step(broker, query_params.worker_id, asdict(body))
         return JSONResponse()

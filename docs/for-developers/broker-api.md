@@ -35,6 +35,23 @@ The actual implementation also ensures any raw JSON payload is converted
 to the dataclass at runtime so type hints remain accurate even if the
 framework does not deserialize the body for us.
 
+Query parameters can be typed in the same way using ``QueryParams``. For
+example, a keep-alive endpoint might look like:
+
+```python
+from dataclasses import dataclass
+from robyn.types import QueryParams, JSONResponse
+
+@dataclass
+class KeepAliveQuery(QueryParams):
+    worker_id: str
+
+@app.post("/worker/keep-alive")
+def keep_alive(query_params: KeepAliveQuery) -> JSONResponse:
+    broker.keep_alive(query_params.worker_id)
+    return JSONResponse()
+```
+
 ## Repository endpoints
 
 ### Register repository
