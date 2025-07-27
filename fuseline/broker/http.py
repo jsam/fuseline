@@ -8,7 +8,7 @@ except Exception:  # pragma: no cover - optional
         return None
 
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict
 from typing import Any, Iterable
 
 try:
@@ -81,32 +81,26 @@ __all__ = [
 # Typed request and response models
 # ---------------------------------------------------------------------------
 
-@dataclass
 class WorkerRegisterBody(Body):
     workflows: list[dict]
 
 
-@dataclass
 class WorkerIdResponse(JSONResponse):
     worker_id: str
 
 
-@dataclass
 class KeepAliveQuery(QueryParams):
     worker_id: str
 
 
-@dataclass
 class StatusResponse(JSONResponse):
     status: str
 
 
-@dataclass
 class WorkersResponse(JSONResponse):
     workers: list[dict]
 
 
-@dataclass
 class RepositoryRegisterBody(Body):
     name: str
     url: str
@@ -114,28 +108,23 @@ class RepositoryRegisterBody(Body):
     credentials: dict[str, str]
 
 
-@dataclass
 class RepositoryResponse(JSONResponse):
     repository: dict | list[dict] | None
 
 
-@dataclass
 class DispatchBody(Body):
     workflow: dict
     inputs: dict | None = None
 
 
-@dataclass
 class DispatchResponse(JSONResponse):
     instance_id: str
 
 
-@dataclass
 class StepQuery(QueryParams):
     worker_id: str
 
 
-@dataclass
 class StepBody(Body):
     workflow_id: str
     instance_id: str
@@ -144,14 +133,20 @@ class StepBody(Body):
     result: dict | list | str | int | float | bool | None
 
 
-@dataclass
 class StepResponse(JSONResponse):
     step: dict | None
 
 
-@dataclass
 class WorkflowsResponse(JSONResponse):
     workflows: list[dict]
+
+
+class RepositoryQuery(QueryParams):
+    """Query parameters for repository retrieval."""
+
+    name: str | None = None
+    page: int = 1
+    page_size: int = 50
 
 
 def handle_register_worker(broker: Broker, payload: Iterable[dict[str, Any]]) -> str:
@@ -219,23 +214,23 @@ def register_worker_routes(app: Robyn, broker: Broker) -> None:
     """Register worker-related routes on *app*."""
 
     @app.post("/worker/register", openapi_tags=["worker"])
-    async def register(request: Request, body: WorkerRegisterBody) -> WorkerIdResponse:
+    def register(request: Request, body: WorkerRegisterBody) -> WorkerIdResponse:
         # pragma: no cover - integration
         wid = handle_register_worker(broker, body.workflows)
         return WorkerIdResponse(worker_id=wid)
 
     @app.post("/worker/keep-alive", openapi_tags=["worker"])
-    async def keep_alive(query_params: KeepAliveQuery) -> JSONResponse:  # pragma: no cover - integration
+    def keep_alive(query_params: KeepAliveQuery) -> JSONResponse:  # pragma: no cover - integration
         handle_keep_alive(broker, query_params.worker_id)
         return JSONResponse()
 
     @app.get("/workers", openapi_tags=["worker"])
-    async def workers() -> WorkersResponse:  # pragma: no cover - integration
+    def workers() -> WorkersResponse:  # pragma: no cover - integration
         data = handle_get_workers(broker)
         return WorkersResponse(workers=data)
 
     @app.get("/status", openapi_tags=["system"])
-    async def status() -> StatusResponse:  # pragma: no cover - integration
+    def status() -> StatusResponse:  # pragma: no cover - integration
         data = handle_status(broker)
         return StatusResponse(status=data["status"])
 
@@ -244,23 +239,22 @@ def register_repository_routes(app: Robyn, broker: Broker) -> None:
     """Register repository endpoints."""
 
     @app.post("/repository/register", openapi_tags=["repository"])
-    async def register_repo(body: RepositoryRegisterBody) -> JSONResponse:  # pragma: no cover - integration
+    def register_repo(body: RepositoryRegisterBody) -> JSONResponse:  # pragma: no cover - integration
         handle_register_repository(broker, asdict(body))
         return JSONResponse()
 
     @app.get("/repository", openapi_tags=["repository"])
-    async def get_repo(request: Request, query_params: QueryParams) -> RepositoryResponse:
+    def get_repo(query_params: RepositoryQuery) -> RepositoryResponse:
         # pragma: no cover - integration
-        name = query_params.get("name")  # type: ignore[attr-defined]
-        page = int(query_params.get("page", "1"))  # type: ignore[attr-defined]
+        name = query_params.name
+        page = query_params.page
         if name:
             data = handle_get_repository(broker, name)
             if data is None:
                 return RepositoryResponse(repository=None)
             payload = data
         else:
-            page_size = int(query_params.get("page_size", "50"))  # type: ignore[attr-defined]
-            repos = handle_list_repositories(broker, page, page_size)
+            repos = handle_list_repositories(broker, page, query_params.page_size)
             if not repos and page > 1:
                 return RepositoryResponse(repository=None)
             payload = repos
@@ -271,22 +265,22 @@ def register_workflow_routes(app: Robyn, broker: Broker) -> None:
     """Register workflow endpoints."""
 
     @app.post("/workflow/dispatch", openapi_tags=["workflow"])
-    async def dispatch(body: DispatchBody) -> DispatchResponse:  # pragma: no cover - integration
+    def dispatch(body: DispatchBody) -> DispatchResponse:  # pragma: no cover - integration
         instance = handle_dispatch_workflow(broker, asdict(body))
         return DispatchResponse(instance_id=instance)
 
     @app.get("/workflow/step", openapi_tags=["workflow"])
-    async def get_step(query_params: StepQuery) -> StepResponse:  # pragma: no cover - integration
+    def get_step(query_params: StepQuery) -> StepResponse:  # pragma: no cover - integration
         data = handle_get_step(broker, query_params.worker_id)
         return StepResponse(step=data)
 
     @app.post("/workflow/step", openapi_tags=["workflow"])
-    async def report_step(query_params: StepQuery, body: StepBody) -> JSONResponse:  # pragma: no cover - integration
+    def report_step(query_params: StepQuery, body: StepBody) -> JSONResponse:  # pragma: no cover - integration
         handle_report_step(broker, query_params.worker_id, asdict(body))
         return JSONResponse()
 
     @app.get("/workflows", openapi_tags=["workflow"])
-    async def list_wfs() -> WorkflowsResponse:  # pragma: no cover - integration
+    def list_wfs() -> WorkflowsResponse:  # pragma: no cover - integration
         data = handle_list_workflows(broker)
         return WorkflowsResponse(workflows=data)
 
