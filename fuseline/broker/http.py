@@ -261,7 +261,7 @@ def register_worker_routes(app: Robyn, broker: Broker) -> None:
         return WorkerIdResponse(worker_id=wid)
 
     @app.post("/worker/keep-alive", openapi_tags=["worker"])
-    def keep_alive(query_params: KeepAliveQuery) -> JSONResponse:  # pragma: no cover - integration
+    def keep_alive(request: Request, query_params: KeepAliveQuery) -> JSONResponse:  # pragma: no cover - integration
         handle_keep_alive(broker, query_params.worker_id)
         return JSONResponse()
 

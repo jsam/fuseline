@@ -40,6 +40,7 @@ example, a keep-alive endpoint might look like:
 
 ```python
 from dataclasses import dataclass
+from robyn.robyn import Request
 from robyn.types import QueryParams, JSONResponse
 
 @dataclass
@@ -47,7 +48,7 @@ class KeepAliveQuery(QueryParams):
     worker_id: str
 
 @app.post("/worker/keep-alive")
-def keep_alive(query_params: KeepAliveQuery) -> JSONResponse:
+def keep_alive(request: Request, query_params: KeepAliveQuery) -> JSONResponse:
     broker.keep_alive(query_params.worker_id)
     return JSONResponse()
 ```
