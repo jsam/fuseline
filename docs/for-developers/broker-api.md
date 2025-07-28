@@ -4,9 +4,53 @@ title: "Broker API"
 
 The broker stores workflow definitions and tracks running instances.
 Workers communicate with it over HTTP using a small set of endpoints.
-Each step handed to a worker is represented by a `StepAssignment` object
+Each endpoint uses typed dataclasses from ``robyn.types`` for request
+payloads and responses so the API surface is self-documenting.  Steps
+handed to a worker are represented by a `StepAssignment` object
 containing the workflow identifiers, the payload needed to run the task
 and a timeout deadline.
+
+For example, the worker registration endpoint expects a ``Body`` model and
+returns a ``JSONResponse`` dataclass:
+
+```python
+from dataclasses import dataclass
+from robyn.types import Body, JSONResponse
+
+@dataclass
+class WorkerRegisterBody(Body):
+    workflows: list[dict]
+
+@dataclass
+class WorkerIdResponse(JSONResponse):
+    worker_id: str
+
+@app.post("/worker/register")
+def register_worker(body: WorkerRegisterBody) -> WorkerIdResponse:
+    wid = broker.register_worker(body.workflows)
+    return WorkerIdResponse(worker_id=wid)
+```
+
+The actual implementation also ensures any raw JSON payload is converted
+to the dataclass at runtime so type hints remain accurate even if the
+framework does not deserialize the body for us.
+
+Query parameters can be typed in the same way using ``QueryParams``. For
+example, a keep-alive endpoint might look like:
+
+```python
+from dataclasses import dataclass
+from robyn.types import QueryParams, JSONResponse
+
+@dataclass
+class KeepAliveQuery(QueryParams):
+    worker_id: str
+
+@app.post("/worker/keep-alive")
+def keep_alive(query_params: KeepAliveQuery) -> JSONResponse:
+    broker.keep_alive(query_params.worker_id)
+    return JSONResponse()
+```
 
 ## Repository endpoints
 
